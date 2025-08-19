@@ -8,8 +8,10 @@
 <MudLayout>
     <MudAppBar Elevation="1">
         <MudStaticNavDrawerToggle DrawerId="nav-drawer" Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" />
-        <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Class="mr-2" />
-        <MudText Typo="Typo.h5" Class="ml-1">FoodX B2B Exchange</MudText>
+        <MudLink Href="/" Color="Color.Inherit" Underline="Underline.None" Class="d-flex align-center">
+            <MudIcon Icon="@Icons.Material.Filled.Store" Class="mr-2" />
+            <MudText Typo="Typo.h5" Class="ml-1">FoodX B2B Platform</MudText>
+        </MudLink>
         <MudSpacer />
         <AuthorizeView>
             <Authorized>
@@ -18,8 +20,8 @@
                 <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" Href="/Account/Logout" />
             </Authorized>
             <NotAuthorized>
-                <MudButton Color="Color.Inherit" Variant="Variant.Text" Href="/Account/Login">Login</MudButton>
-                <MudButton Color="Color.Secondary" Variant="Variant.Filled" Href="/Account/Register" Class="ml-2">Register</MudButton>
+                <MudButton Color="Color.Inherit" Variant="Variant.Text" Href="/Account/RoleLogin">Login</MudButton>
+                <MudButton Color="Color.Secondary" Variant="Variant.Filled" Href="/Account/Register" Class="ml-2">Get Started</MudButton>
             </NotAuthorized>
         </AuthorizeView>
     </MudAppBar>

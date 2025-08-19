@@ -1,176 +1,272 @@
 @page "/"
-@using FoodX.Admin.Data
-@using FoodX.Admin.Models
-@using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Authorization
-@inject FoodXDbContext DbContext
+@using FoodX.Admin.Models
+@using FoodX.Admin.Components.Shared
 @attribute [AllowAnonymous]
 
-<PageTitle>FoodX Dashboard</PageTitle>
+<PageTitle>FoodX B2B Trading Platform</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudGrid>
-        <MudItem xs="12">
-            <MudText Typo="Typo.h3" GutterBottom="true">
-                <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="mr-2" Style="vertical-align: middle;" />
-                FoodX B2B Trading Dashboard
+<link href="css/home.css" rel="stylesheet" />
+
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<div class="hero-section">
+    <MudContainer MaxWidth="MaxWidth.Large" Class="hero-content">
+        <MudGrid Justify="Justify.Center" Spacing="3">
+            <MudItem xs="12" md="6" Class="fade-in">
+                <MudText Typo="Typo.h2" Class="mb-4" Style="font-weight: bold;">
+                    Welcome to FoodX
+                </MudText>
+                <MudText Typo="Typo.h5" Class="mb-6" Style="opacity: 0.95;">
+                    The Premier B2B Food Trading Platform
+                </MudText>
+                <MudText Typo="Typo.body1" Class="mb-6" Style="opacity: 0.9;">
+                    Connect buyers and suppliers, streamline procurement, ensure quality standards, and grow your food business with our comprehensive platform.
+                </MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" 
+                           StartIcon="@Icons.Material.Filled.Login" Href="/Account/RoleLogin"
+                           Style="background: white; color: #667eea;" Class="me-3">
+                    Access Your Portal
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Large" 
+                           StartIcon="@Icons.Material.Filled.PlayArrow" 
+                           Style="color: white; border-color: white;"
+                           OnClick="ScrollToPortals">
+                    Explore Portals
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" md="6" Class="text-center fade-in fade-in-delay-1">
+                <MudIcon Icon="@Icons.Material.Filled.Store" Style="font-size: 15rem; opacity: 0.3;" />
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
+</div>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8 mb-8" id="main-content">
+    <!-- Role-Based Portals Section -->
+    <div id="portals-section">
+        <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true" Class="mb-6 fade-in">
+            Choose Your Portal
+        </MudText>
+        <MudText Typo="Typo.body1" Align="Align.Center" Class="mb-8 fade-in fade-in-delay-1" Color="Color.Secondary">
+            Select your role to access specialized tools and features designed for your business needs
+        </MudText>
+        
+        <MudGrid Spacing="4">
+            @foreach (var (role, index) in RolePortals.Select((r, i) => (r, i)))
+            {
+                <MudItem xs="12" sm="6" md="4" Class="@($"fade-in fade-in-delay-{Math.Min(index + 2, 6)}")">
+                    <RoleCard Role="role" OnClick="NavigateToLogin" />
+                </MudItem>
+            }
+        </MudGrid>
+    </div>
+
+    <!-- Statistics Section -->
+    <div class="stats-section mt-16">
+        <MudContainer MaxWidth="MaxWidth.Large">
+            <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true" Class="mb-6">
+                Platform Statistics
             </MudText>
-            <MudText Typo="Typo.body1" Class="mb-4">Welcome to the Food Exchange Platform - Connecting Buyers and Suppliers</MudText>
-        </MudItem>
-
-        <!-- Statistics Cards -->
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard>
-                <MudCardContent>
-                    <MudIcon Icon="@Icons.Material.Filled.Business" Color="Color.Primary" Style="font-size: 3rem;" />
-                    <MudText Typo="Typo.h4" Class="mt-2">@_companyCount</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Total Companies</MudText>
-                </MudCardContent>
-            </MudCard>
-        </MudItem>
-
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard>
-                <MudCardContent>
-                    <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Success" Style="font-size: 3rem;" />
-                    <MudText Typo="Typo.h4" Class="mt-2">@_userCount</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Registered Users</MudText>
-                </MudCardContent>
-            </MudCard>
-        </MudItem>
-
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard>
-                <MudCardContent>
-                    <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Color="Color.Warning" Style="font-size: 3rem;" />
-                    <MudText Typo="Typo.h4" Class="mt-2">@_supplierCount</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Active Suppliers</MudText>
-                </MudCardContent>
-            </MudCard>
-        </MudItem>
-
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard>
-                <MudCardContent>
-                    <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Color="Color.Info" Style="font-size: 3rem;" />
-                    <MudText Typo="Typo.h4" Class="mt-2">@_buyerCount</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Active Buyers</MudText>
-                </MudCardContent>
-            </MudCard>
-        </MudItem>
-
-        <!-- Quick Actions -->
-        <MudItem xs="12">
-            <MudPaper Class="pa-4 mt-4">
-                <MudText Typo="Typo.h5" GutterBottom="true">Quick Actions</MudText>
-                <MudGrid Class="mt-3">
-                    <MudItem xs="12" sm="6" md="3">
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Search" FullWidth="true" Href="/companies/search">
-                            Find Companies
-                        </MudButton>
-                    </MudItem>
-                    <MudItem xs="12" sm="6" md="3">
-                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" FullWidth="true" Href="/Account/Register">
-                            Register New User
-                        </MudButton>
-                    </MudItem>
-                    <MudItem xs="12" sm="6" md="3">
-                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Store" FullWidth="true" Href="/companies/my-company">
-                            My Company Profile
-                        </MudButton>
-                    </MudItem>
-                    <MudItem xs="12" sm="6" md="3">
-                        <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Category" FullWidth="true" Href="/products">
-                            Browse Products
-                        </MudButton>
-                    </MudItem>
-                </MudGrid>
-            </MudPaper>
-        </MudItem>
-
-        <!-- Recent Companies -->
-        <MudItem xs="12" md="6">
-            <MudPaper Class="pa-4 mt-4">
-                <MudText Typo="Typo.h5" GutterBottom="true">Recent Companies</MudText>
-                @if (_recentCompanies.Any())
+            <MudGrid Spacing="3">
+                @foreach (var stat in Statistics)
                 {
-                    <MudList T="string">
-                        @foreach (var company in _recentCompanies)
-                        {
-                            <MudListItem T="string" Icon="@Icons.Material.Filled.Business">
-                                <div class="d-flex justify-space-between align-center">
-                                    <div>
-                                        <MudText Typo="Typo.body1">@company.Name</MudText>
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@company.CompanyType - @company.Country</MudText>
-                                    </div>
-                                    <MudChip T="string" Color="@(company.IsActive ? Color.Success : Color.Default)" Size="Size.Small">
-                                        @(company.IsActive ? "Active" : "Inactive")
-                                    </MudChip>
-                                </div>
-                            </MudListItem>
-                        }
-                    </MudList>
+                    <MudItem xs="6" md="3">
+                        <div class="stat-card fade-in">
+                            <div class="stat-number">@stat.Value</div>
+                            <div class="stat-label">@stat.Label</div>
+                        </div>
+                    </MudItem>
                 }
-                else
-                {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">No companies registered yet</MudText>
-                }
-            </MudPaper>
-        </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </div>
 
-        <!-- Platform Features -->
-        <MudItem xs="12" md="6">
-            <MudPaper Class="pa-4 mt-4">
-                <MudText Typo="Typo.h5" GutterBottom="true">Platform Features</MudText>
-                <MudList T="string">
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle">
-                        <MudText Typo="Typo.body1">Company Registration & Verification</MudText>
-                    </MudListItem>
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle">
-                        <MudText Typo="Typo.body1">B2B Food Trading Marketplace</MudText>
-                    </MudListItem>
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle">
-                        <MudText Typo="Typo.body1">Supplier & Buyer Matching</MudText>
-                    </MudListItem>
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle">
-                        <MudText Typo="Typo.body1">Secure Authentication with Azure AD</MudText>
-                    </MudListItem>
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle">
-                        <MudText Typo="Typo.body1">Real-time Search & Discovery</MudText>
-                    </MudListItem>
-                </MudList>
-            </MudPaper>
+    <!-- Features Section -->
+    <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true" Class="mt-16 mb-6 fade-in">
+        Platform Features
+    </MudText>
+    
+    <MudGrid Spacing="3">
+        @foreach (var (feature, index) in Features.Select((f, i) => (f, i)))
+        {
+            <MudItem xs="12" sm="6" md="3" Class="@($"fade-in fade-in-delay-{Math.Min(index + 1, 4)}")">
+                <MudCard Elevation="0" Class="feature-card">
+                    <MudIcon Icon="@feature.Icon" Color="@feature.Color" Class="feature-icon" />
+                    <MudText Typo="Typo.h6" Class="mt-3">@feature.Title</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @feature.Description
+                    </MudText>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+
+    <!-- Testimonials Section -->
+    <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true" Class="mt-16 mb-6">
+        What Our Users Say
+    </MudText>
+    
+    <MudGrid Spacing="4" Justify="Justify.Center">
+        <MudItem xs="12" md="4">
+            <MudCard Class="pa-4">
+                <MudText Typo="Typo.body1" Class="mb-3">
+                    "FoodX has transformed how we source products. The platform is intuitive and the supplier network is exceptional."
+                </MudText>
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary">- Sarah Chen, Procurement Manager</MudText>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudCard Class="pa-4">
+                <MudText Typo="Typo.body1" Class="mb-3">
+                    "As a supplier, FoodX has opened new markets for us. The quote management system saves us hours daily."
+                </MudText>
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">- Michael Rodriguez, Sales Director</MudText>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudCard Class="pa-4">
+                <MudText Typo="Typo.body1" Class="mb-3">
+                    "The expert certification services have helped us maintain the highest quality standards."
+                </MudText>
+                <MudText Typo="Typo.subtitle2" Color="Color.Success">- Dr. Lisa Park, Quality Expert</MudText>
+            </MudCard>
         </MudItem>
     </MudGrid>
+
+    <!-- Call to Action -->
+    <MudPaper Class="mt-16 pa-8 text-center" Style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <MudText Typo="Typo.h4" GutterBottom="true">Ready to Transform Your Food Business?</MudText>
+        <MudText Typo="Typo.body1" Class="mb-4">Join thousands of companies already using FoodX</MudText>
+        <MudButton Variant="Variant.Filled" Size="Size.Large" 
+                   Style="background: white; color: #667eea;"
+                   Href="/Account/Register">
+            Get Started Today
+        </MudButton>
+    </MudPaper>
 </MudContainer>
 
 @code {
-    private int _companyCount = 0;
-    private int _userCount = 0;
-    private int _supplierCount = 0;
-    private int _buyerCount = 0;
-    private List<Company> _recentCompanies = new();
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
 
-    protected override async Task OnInitializedAsync()
+    private List<RolePortal> RolePortals = new();
+    private List<(string Value, string Label)> Statistics = new();
+    private List<(string Icon, Color Color, string Title, string Description)> Features = new();
+
+    protected override void OnInitialized()
     {
-        try
-        {
-            // Get statistics from database
-            _companyCount = await DbContext.Companies.CountAsync();
-            _userCount = await DbContext.FoodXUsers.CountAsync();
-            _supplierCount = await DbContext.Companies.Where(c => c.CompanyType == "Supplier").CountAsync();
-            _buyerCount = await DbContext.Companies.Where(c => c.CompanyType == "Buyer").CountAsync();
+        InitializeRolePortals();
+        InitializeStatistics();
+        InitializeFeatures();
+    }
 
-            // Get recent companies
-            _recentCompanies = await DbContext.Companies
-                .OrderByDescending(c => c.CreatedAt)
-                .Take(5)
-                .ToListAsync();
-        }
-        catch (Exception ex)
+    private void InitializeRolePortals()
+    {
+        RolePortals = new List<RolePortal>
         {
-            // If database is not accessible, use default values
-            Console.WriteLine($"Database error: {ex.Message}");
+            new RolePortal
+            {
+                Name = "Buyer",
+                Title = "Buyer Portal",
+                Description = "Source products, manage procurement, request quotes, and connect with verified suppliers",
+                Icon = Icons.Material.Filled.ShoppingCart,
+                Color = Color.Primary,
+                GradientClass = "buyer-gradient",
+                ButtonText = "Enter as Buyer →",
+                Features = new() { "Product Discovery", "Quote Management", "Order Tracking" }
+            },
+            new RolePortal
+            {
+                Name = "Supplier",
+                Title = "Supplier Portal",
+                Description = "List products, manage inventory, respond to RFQs, and expand your customer base",
+                Icon = Icons.Material.Filled.LocalShipping,
+                Color = Color.Secondary,
+                GradientClass = "supplier-gradient",
+                ButtonText = "Enter as Supplier →",
+                Features = new() { "Product Listings", "Inventory Control", "Buyer Connections" }
+            },
+            new RolePortal
+            {
+                Name = "Expert",
+                Title = "Expert Portal",
+                Description = "Provide consultations, issue certifications, conduct audits, and share expertise",
+                Icon = Icons.Material.Filled.School,
+                Color = Color.Success,
+                GradientClass = "expert-gradient",
+                ButtonText = "Enter as Expert →",
+                Features = new() { "Consultations", "Certifications", "Quality Audits" }
+            },
+            new RolePortal
+            {
+                Name = "Agent",
+                Title = "Agent Portal",
+                Description = "Manage territories, facilitate deals, connect partners, and earn commissions",
+                Icon = Icons.Material.Filled.Support,
+                Color = Color.Warning,
+                GradientClass = "agent-gradient",
+                ButtonText = "Enter as Agent →",
+                Features = new() { "Deal Pipeline", "Territory Management", "Commission Tracking" }
+            },
+            new RolePortal
+            {
+                Name = "Admin",
+                Title = "Admin Portal",
+                Description = "System administration, user management, platform configuration, and analytics",
+                Icon = Icons.Material.Filled.AdminPanelSettings,
+                Color = Color.Error,
+                GradientClass = "admin-gradient",
+                ButtonText = "Enter as Admin →",
+                Features = new() { "User Management", "System Settings", "Platform Analytics" }
+            },
+            new RolePortal
+            {
+                Name = "Guest",
+                Title = "Need Access?",
+                Description = "FoodX is an invitation-only platform. Contact your organization administrator for access.",
+                Icon = Icons.Material.Filled.Info,
+                Color = Color.Default,
+                IsSpecial = true,
+                SpecialStyle = "border: 2px dashed #ccc; background-color: #fafafa;",
+                AlertMessage = "Request an invitation to join",
+                Features = new()
+            }
+        };
+    }
+
+    private void InitializeStatistics()
+    {
+        Statistics = new List<(string, string)>
+        {
+            ("5,000+", "Active Suppliers"),
+            ("10,000+", "Products Listed"),
+            ("50,000+", "Monthly Transactions"),
+            ("98%", "Customer Satisfaction")
+        };
+    }
+
+    private void InitializeFeatures()
+    {
+        Features = new List<(string, Color, string, string)>
+        {
+            (Icons.Material.Filled.Security, Color.Primary, "Secure Platform", "Enterprise-grade security with Azure authentication"),
+            (Icons.Material.Filled.Verified, Color.Success, "Verified Partners", "All businesses are verified and certified"),
+            (Icons.Material.Filled.Speed, Color.Warning, "Fast Transactions", "Streamlined procurement and order processing"),
+            (Icons.Material.Filled.Analytics, Color.Info, "Data Insights", "Real-time analytics and market insights")
+        };
+    }
+
+    private void NavigateToLogin(RolePortal role)
+    {
+        if (!role.IsSpecial)
+        {
+            NavigationManager.NavigateTo($"/Account/RoleLogin?role={role.Name}");
         }
+    }
+
+    private async Task ScrollToPortals()
+    {
+        await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('portals-section').scrollIntoView({ behavior: 'smooth' })");
     }
 }

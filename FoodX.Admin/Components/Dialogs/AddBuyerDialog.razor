@@ -2,14 +2,16 @@
 @using FoodX.Admin.Data
 @using Microsoft.EntityFrameworkCore
 @using MudBlazor
+@using Microsoft.AspNetCore.Components.Web
 @inject FoodXDbContext DbContext
 @inject ISnackbar Snackbar
 
+<div @onkeydown="HandleKeyDown" @onkeydown:preventDefault="false">
 <MudDialog>
     <DialogContent>
         <MudTextField @bind-Value="firstName" Label="First Name" Required="true" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="lastName" Label="Last Name" Required="true" Variant="Variant.Outlined" Class="mb-3" />
-        <MudTextField @bind-Value="email" Label="Email" Required="true" Type="InputType.Email" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="email" Label="Email" Required="true" InputType="InputType.Email" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="phoneNumber" Label="Phone Number" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="department" Label="Department" Variant="Variant.Outlined" Class="mb-3" />
         <MudSelect @bind-Value="companyId" Label="Company" Variant="Variant.Outlined" Class="mb-3">
@@ -33,10 +35,11 @@
         </MudButton>
     </DialogActions>
 </MudDialog>
+</div>
 
 @code {
-    [CascadingParameter] 
-    private object? MudDialog { get; set; }
+    [Parameter] public EventCallback<Buyer> OnBuyerAdded { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
     
     private string firstName = "";
     private string lastName = "";
@@ -56,9 +59,9 @@
         companies = await DbContext.Companies.Where(c => c.IsActive).ToListAsync();
     }
     
-    private void Cancel()
+    private async Task Cancel()
     {
-        // Dialog will be closed from parent
+        await OnCancel.InvokeAsync();
     }
     
     private async Task Submit()
@@ -79,10 +82,7 @@
                 FirstName = firstName,
                 LastName = lastName,
                 Email = email,
-                PhoneNumber = phoneNumber,
-                Address = address,
-                City = city,
-                Country = country,
+                // PhoneNumber, Address, City, Country are stored in UserPhone/UserEmployment tables
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -97,15 +97,15 @@
                 UserId = user.Id,
                 Department = department,
                 CompanyId = companyId,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow
+                // UpdatedAt not available in Buyer model
             };
             
             DbContext.Buyers.Add(buyer);
             await DbContext.SaveChangesAsync();
             
             Snackbar.Add("Buyer added successfully", Severity.Success);
-            // Dialog will be closed from parent
+            await OnBuyerAdded.InvokeAsync(buyer);
         }
         catch (Exception ex)
         {
@@ -114,6 +114,18 @@
         finally
         {
             isProcessing = false;
+        }
+    }
+    
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await Cancel();
+        }
+        else if (e.CtrlKey && e.Key == "s")
+        {
+            await Submit();
         }
     }
 }

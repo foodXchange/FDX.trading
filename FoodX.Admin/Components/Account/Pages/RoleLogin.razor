@@ -1,0 +1,320 @@
+@page "/Account/RoleLogin"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+@using FoodX.Admin.Data
+@using FoodX.Admin.Services
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ILogger<RoleLogin> Logger
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+@inject IRoleNavigationService RoleNavigationService
+@inject UserManager<ApplicationUser> UserManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Login - FoodX B2B Platform</PageTitle>
+
+<link href="css/rolelogin.css" rel="stylesheet" />
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudCard Elevation="3" Class="login-card">
+        <!-- Header -->
+        <div class="role-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Class="role-icon" />
+            <MudText Typo="Typo.h4" Class="mt-2">FoodX B2B Platform</MudText>
+            <MudText Typo="Typo.subtitle1" Class="mt-1">Sign in to access your dashboard</MudText>
+        </div>
+        
+        <MudCardContent Class="pa-6">
+            <!-- Welcome Message -->
+            <MudText Typo="Typo.h6" Class="mb-4" Align="Align.Center">Welcome Back</MudText>
+            <MudText Typo="Typo.body2" Class="mb-4" Align="Align.Center">Sign in with your registered email and password</MudText>
+
+            @if (isLoading)
+            {
+                <div class="loading-overlay">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                </div>
+            }
+
+            <StatusMessage Message="@errorMessage" />
+            
+            <!-- Login Form -->
+            <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="rolelogin">
+                <DataAnnotationsValidator />
+
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudStaticTextField For="@(() => Input.Email)" @bind-Value="Input.Email" 
+                            Label="Email" Placeholder="name@example.com" 
+                            Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email"
+                            UserAttributes="@(new() { { "autocomplete", "username" }, { "aria-required", "true" } } )" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudStaticTextField For="@(() => Input.Password)" @bind-Value="Input.Password" 
+                            Label="Password" InputType="@passwordInputType" Placeholder="password" 
+                            Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Lock"
+                            UserAttributes="@(new() { { "autocomplete", "current-password" }, { "aria-required", "true" } } )" />
+                        <MudIconButton Icon="@passwordEndIcon" 
+                                      OnClick="TogglePasswordVisibility" 
+                                      Class="password-toggle mt-2" 
+                                      Size="Size.Small" 
+                                      Color="Color.Default" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudStaticCheckBox For="@(() => Input.RememberMe)" @bind-Value="Input.RememberMe" Color="Color.Primary">
+                            Remember me
+                        </MudStaticCheckBox>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudStaticButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" 
+                                        FormAction="FormAction.Submit" Class="submit-btn"
+                                        Disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <MudProgressCircular Color="Color.Inherit" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                <span>Signing in...</span>
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Login" Class="mr-2" />
+                                <span>Sign In</span>
+                            }
+                        </MudStaticButton>
+                    </MudItem>
+                </MudGrid>
+            </EditForm>
+
+            <MudDivider Class="my-4" />
+            
+            <!-- Navigation Links -->
+            <MudGrid Class="mt-4">
+                <MudItem xs="12" Class="text-center">
+                    <MudText Typo="Typo.body2" Class="mb-2">Don't have an account?</MudText>
+                    <MudLink Href="/Account/Register" Color="Color.Primary">
+                        Request Access
+                    </MudLink>
+                    <MudText Typo="Typo.body2" Class="d-inline mx-2">•</MudText>
+                    <MudLink Href="Account/ForgotPassword" Color="Color.Secondary">Reset Password</MudLink>
+                    <MudText Typo="Typo.body2" Class="d-inline mx-2">•</MudText>
+                    <MudLink Href="/" Color="Color.Secondary">Back to Home</MudLink>
+                </MudItem>
+            </MudGrid>
+
+            <!-- Platform Info -->
+            <MudAlert Severity="Severity.Info" Class="mt-4" Variant="Variant.Outlined" Dense="true">
+                <MudText Typo="Typo.caption">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
+                    Access to FoodX B2B Platform requires an invitation. Contact your administrator if you need access.
+                </MudText>
+            </MudAlert>
+
+            <!-- Quick Access for Testing -->
+            <MudExpansionPanels Class="mt-4" Elevation="0">
+                <MudExpansionPanel Text="Quick Access (Demo Mode)" Class="demo-table">
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.caption" Class="mb-2">Click to auto-fill credentials:</MudText>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary" 
+                                      Class="quick-fill-btn mr-2" @onclick="@(() => FillDemoCredentials("admin"))">
+                                <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Size="Size.Small" Class="mr-1" />
+                                Admin User
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Secondary" 
+                                      Class="quick-fill-btn" @onclick="@(() => FillDemoCredentials("demo"))">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
+                                Demo User
+                            </MudButton>
+                        </MudItem>
+                        <MudItem xs="12" Class="mt-3">
+                            <MudSimpleTable Dense="true" Hover="true" Bordered="true" Style="font-size: 0.875rem;">
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Admin</strong></td>
+                                        <td>admin@foodx.com</td>
+                                        <td>FoodX@Admin2024!</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Demo</strong></td>
+                                        <td>demo@foodx.com</td>
+                                        <td>Demo@2024!</td>
+                                    </tr>
+                                </tbody>
+                            </MudSimpleTable>
+                            <MudText Typo="Typo.caption" Color="Color.Warning" Class="mt-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" />
+                                These are demo credentials. Use invitation codes for production access.
+                            </MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private string? errorMessage;
+    private bool isLoading = false;
+    private InputType passwordInputType = InputType.Password;
+    private string passwordEndIcon = Icons.Material.Filled.Visibility;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpMethods.IsGet(HttpContext.Request.Method))
+        {
+            // Clear the existing external cookie to ensure a clean login process
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.CompletedTask;
+        }
+    }
+
+
+    private void TogglePasswordVisibility()
+    {
+        if (passwordInputType == InputType.Password)
+        {
+            passwordInputType = InputType.Text;
+            passwordEndIcon = Icons.Material.Filled.VisibilityOff;
+        }
+        else
+        {
+            passwordInputType = InputType.Password;
+            passwordEndIcon = Icons.Material.Filled.Visibility;
+        }
+    }
+
+    private void FillDemoCredentials(string userType)
+    {
+        if (userType == "admin")
+        {
+            Input.Email = "admin@foodx.com";
+            Input.Password = "FoodX@Admin2024!";
+        }
+        else if (userType == "demo")
+        {
+            Input.Email = "demo@foodx.com";
+            Input.Password = "Demo@2024!";
+        }
+        StateHasChanged();
+    }
+
+
+    public async Task LoginUser()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            StateHasChanged();
+
+            var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+            
+            if (result.Succeeded)
+            {
+                Logger.LogInformation("User logged in: {Email}", Input.Email);
+                
+                var user = await UserManager.FindByEmailAsync(Input.Email);
+                if (user != null)
+                {
+                    // Get user's actual roles
+                    var userRoles = await UserManager.GetRolesAsync(user);
+                    
+                    // Redirect based on user's actual role (priority order)
+                    string dashboardUrl;
+                    if (userRoles.Contains("SuperAdmin") || userRoles.Contains("Admin"))
+                    {
+                        dashboardUrl = "/dashboard/admin";
+                    }
+                    else if (userRoles.Contains("Supplier") || userRoles.Contains("Seller"))
+                    {
+                        dashboardUrl = "/dashboard/supplier";
+                    }
+                    else if (userRoles.Contains("Buyer"))
+                    {
+                        dashboardUrl = "/dashboard/buyer";
+                    }
+                    else if (userRoles.Contains("Expert"))
+                    {
+                        dashboardUrl = "/dashboard/expert";
+                    }
+                    else if (userRoles.Contains("Agent"))
+                    {
+                        dashboardUrl = "/dashboard/agent";
+                    }
+                    else
+                    {
+                        // Default fallback
+                        dashboardUrl = "/";
+                    }
+
+                    Logger.LogInformation("Redirecting user {Email} with roles [{Roles}] to {Dashboard}", 
+                        Input.Email, string.Join(", ", userRoles), dashboardUrl);
+
+                    NavigationManager.NavigateTo(ReturnUrl ?? dashboardUrl);
+                    return;
+                }
+                
+                // Fallback to default routing
+                RedirectManager.RedirectTo(ReturnUrl ?? "/");
+            }
+            else if (result.RequiresTwoFactor)
+            {
+                RedirectManager.RedirectTo(
+                    "Account/LoginWith2fa",
+                    new() { ["returnUrl"] = ReturnUrl, ["rememberMe"] = Input.RememberMe });
+            }
+            else if (result.IsLockedOut)
+            {
+                Logger.LogWarning("User account locked out.");
+                RedirectManager.RedirectTo("Account/Lockout");
+            }
+            else
+            {
+                errorMessage = "Invalid login attempt. Please check your credentials.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error during login");
+            errorMessage = "An error occurred during login. Please try again.";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [Display(Name = "Remember me?")]
+        public bool RememberMe { get; set; }
+    }
+}

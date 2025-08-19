@@ -36,6 +36,7 @@ namespace FoodX.Admin.Models
         public bool IsOrganic { get; set; }
         
         public bool IsAvailable { get; set; } = true;
+        public bool IsActive { get; set; } = true;
         
         [MaxLength(500)]
         public string? ImageUrl { get; set; }

@@ -127,6 +127,9 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 // Register email sender (replace with real implementation in production)
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
+// Register role navigation service
+builder.Services.AddScoped<FoodX.Admin.Services.IRoleNavigationService, FoodX.Admin.Services.RoleNavigationService>();
+
 // Add health checks
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ApplicationDbContext>("identity-db")

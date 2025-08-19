@@ -1,9 +1,11 @@
 @using FoodX.Admin.Models
 @using FoodX.Admin.Data
 @using MudBlazor
+@using Microsoft.AspNetCore.Components.Web
 @inject FoodXDbContext DbContext
 @inject ISnackbar Snackbar
 
+<div @onkeydown="HandleKeyDown" @onkeydown:preventDefault="false">
 <MudDialog>
     <DialogContent>
         <MudTextField @bind-Value="companyName" Label="Company Name" Required="true" Variant="Variant.Outlined" Class="mb-3" />
@@ -13,7 +15,7 @@
         </MudSelect>
         <MudTextField @bind-Value="vatNumber" Label="VAT Number" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="registrationNumber" Label="Registration Number" Variant="Variant.Outlined" Class="mb-3" />
-        <MudTextField @bind-Value="mainEmail" Label="Main Email" Required="true" Type="InputType.Email" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="mainEmail" Label="Main Email" Required="true" InputType="InputType.Email" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="mainPhone" Label="Main Phone" Required="true" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="website" Label="Website" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="address" Label="Address" Variant="Variant.Outlined" Lines="2" Class="mb-3" />
@@ -21,7 +23,7 @@
         <MudTextField @bind-Value="country" Label="Country" Required="true" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="postalCode" Label="Postal Code" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="description" Label="Description" Variant="Variant.Outlined" Lines="3" Class="mb-3" />
-        <MudSwitch T="bool" @bind-Checked="isActive" Label="Active" Color="Color.Primary" Class="mb-3" />
+        <MudSwitch T="bool" @bind-Value="isActive" Label="Active" Color="Color.Primary" Class="mb-3" />
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Cancel</MudButton>
@@ -34,10 +36,11 @@
         </MudButton>
     </DialogActions>
 </MudDialog>
+</div>
 
 @code {
-    [CascadingParameter] 
-    private MudDialogInstance? MudDialog { get; set; }
+    [Parameter] public EventCallback<Company> OnCompanyAdded { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
     
     private string companyName = "";
     private string companyType = "Buyer";
@@ -54,9 +57,9 @@
     private bool isActive = true;
     private bool isProcessing = false;
     
-    private void Cancel()
+    private async Task Cancel()
     {
-        MudDialog.Cancel();
+        await OnCancel.InvokeAsync();
     }
     
     private async Task Submit()
@@ -77,15 +80,14 @@
             {
                 Name = companyName,
                 CompanyType = companyType,
-                VATNumber = vatNumber,
-                RegistrationNumber = registrationNumber,
+                VatNumber = vatNumber,  // Note: property is VatNumber not VATNumber
+                // RegistrationNumber not available in Company model
                 MainEmail = mainEmail,
                 MainPhone = mainPhone,
                 Website = website,
                 Address = address,
-                City = city,
+                // City and PostalCode not available in Company model
                 Country = country,
-                PostalCode = postalCode,
                 Description = description,
                 IsActive = isActive,
                 CreatedAt = DateTime.UtcNow,
@@ -96,7 +98,7 @@
             await DbContext.SaveChangesAsync();
             
             Snackbar.Add("Company added successfully", Severity.Success);
-            MudDialog.Close(DialogResult.Ok(company));
+            await OnCompanyAdded.InvokeAsync(company);
         }
         catch (Exception ex)
         {
@@ -105,6 +107,18 @@
         finally
         {
             isProcessing = false;
+        }
+    }
+    
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await Cancel();
+        }
+        else if (e.CtrlKey && e.Key == "s")
+        {
+            await Submit();
         }
     }
 }

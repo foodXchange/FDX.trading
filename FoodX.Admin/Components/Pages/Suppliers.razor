@@ -138,19 +138,31 @@
     
     private async Task OpenAddSupplierDialog()
     {
+        var parameters = new DialogParameters
+        {
+            { nameof(AddSupplierDialog.OnSupplierAdded), EventCallback.Factory.Create<Supplier>(this, OnSupplierAdded) },
+            { nameof(AddSupplierDialog.OnCancel), EventCallback.Factory.Create(this, OnDialogCancel) }
+        };
+        
         var options = new DialogOptions 
         { 
             CloseButton = true,
             MaxWidth = MaxWidth.Small,
-            FullWidth = true
+            FullWidth = true,
+            CloseOnEscapeKey = true
         };
         
-        var dialog = await DialogService.ShowAsync<AddSupplierDialog>("Add New Supplier", options);
-        var result = await dialog.Result;
-        
-        if (!result.Canceled)
-        {
-            await LoadSuppliers();
-        }
+        var dialog = await DialogService.ShowAsync<AddSupplierDialog>("Add New Supplier", parameters, options);
+        await dialog.Result;
+    }
+    
+    private async Task OnSupplierAdded(Supplier supplier)
+    {
+        await LoadSuppliers();
+    }
+    
+    private void OnDialogCancel()
+    {
+        // Dialog cancelled
     }
 }

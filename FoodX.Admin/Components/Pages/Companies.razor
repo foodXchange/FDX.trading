@@ -143,20 +143,32 @@
 
     private async Task OpenAddDialog()
     {
+        var parameters = new DialogParameters
+        {
+            { nameof(AddCompanyDialog.OnCompanyAdded), EventCallback.Factory.Create<Company>(this, OnCompanyAdded) },
+            { nameof(AddCompanyDialog.OnCancel), EventCallback.Factory.Create(this, OnDialogCancel) }
+        };
+        
         var options = new DialogOptions 
         { 
             CloseButton = true,
             MaxWidth = MaxWidth.Small,
-            FullWidth = true
+            FullWidth = true,
+            CloseOnEscapeKey = true
         };
         
-        var dialog = await DialogService.ShowAsync<AddCompanyDialog>("Add New Company", options);
-        var result = await dialog.Result;
-        
-        if (!result.Canceled)
-        {
-            await LoadCompanies();
-        }
+        var dialog = await DialogService.ShowAsync<AddCompanyDialog>("Add New Company", parameters, options);
+        await dialog.Result;
+    }
+    
+    private async Task OnCompanyAdded(Company company)
+    {
+        await LoadCompanies();
+    }
+    
+    private void OnDialogCancel()
+    {
+        // Dialog cancelled
     }
 
     private void EditCompany(Company company)

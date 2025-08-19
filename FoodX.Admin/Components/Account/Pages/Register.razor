@@ -1,11 +1,13 @@
-﻿@page "/Account/Register"
+@page "/Account/Register"
 
 @using System.ComponentModel.DataAnnotations
 @using System.Text
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.EntityFrameworkCore
 @using FoodX.Admin.Data
+@using FoodX.Admin.Models
 
 @inject UserManager<ApplicationUser> UserManager
 @inject IUserStore<ApplicationUser> UserStore
@@ -14,61 +16,242 @@
 @inject ILogger<Register> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject FoodXDbContext DbContext
 
-<PageTitle>Register</PageTitle>
+<PageTitle>Register - FoodX B2B Platform</PageTitle>
 
-<MudText Typo="Typo.h3" GutterBottom="true">Register</MudText>
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudCard Elevation="0" Class="pa-8" Style="border: 1px solid #e0e0e0;">
+        <MudCardContent>
+            <div class="text-center mb-6">
+                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h4" Class="mt-2">Create Your Account</MudText>
+                <MudText Typo="Typo.subtitle1" Color="Color.Secondary" Class="mt-2">
+                    Join the FoodX B2B Network
+                </MudText>
+            </div>
 
-<MudGrid>
-    <MudItem md="6">
-        <StatusMessage Message="@Message" />
-        <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
-            <DataAnnotationsValidator />
+            @if (invitationValid)
+            {
+                <MudAlert Severity="Severity.Success" Class="mb-4">
+                    <MudText Typo="Typo.body2">
+                        Welcome! Your invitation has been verified. Please complete your registration below.
+                    </MudText>
+                    @if (invitation != null)
+                    {
+                        <MudText Typo="Typo.caption" Class="mt-2">
+                            Invited as: <strong>@invitation.Role</strong>
+                            @if (!string.IsNullOrEmpty(invitation.CompanyName))
+                            {
+                                <text> for @invitation.CompanyName</text>
+                            }
+                        </MudText>
+                    }
+                </MudAlert>
+            }
+            else if (!string.IsNullOrEmpty(Role))
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    <MudText Typo="Typo.body2">
+                        <MudIcon Icon="@GetRoleIcon()" Size="Size.Small" Class="mr-1" />
+                        Register as <strong>@Role</strong>
+                    </MudText>
+                    <MudText Typo="Typo.caption" Class="mt-2">
+                        Use one of the demo invitation codes below or contact your administrator for a personalized invitation.
+                    </MudText>
+                </MudAlert>
 
-            <MudText Typo="Typo.body1" GutterBottom="true">Create a new account.</MudText>
+                <!-- Demo Invitation Codes -->
+                <MudExpansionPanels Class="mb-4" Elevation="0">
+                    <MudExpansionPanel Text="Demo Invitation Codes">
+                        <MudGrid>
+                            <MudItem xs="12">
+                                <MudText Typo="Typo.caption" Class="mb-2">Click to use demo invitation code for @Role:</MudText>
+                                @foreach (var code in GetDemoCodesForRole(Role))
+                                {
+                                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="@GetRoleColor()" 
+                                              Class="mr-2 mb-2" @onclick="@(() => UseInvitationCode(code))">
+                                        <MudIcon Icon="@Icons.Material.Filled.VpnKey" Size="Size.Small" Class="mr-1" />
+                                        @(code)
+                                    </MudButton>
+                                }
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudText Typo="Typo.caption" Color="Color.Warning">
+                                    <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" />
+                                    These are demo codes for testing. In production, you'll receive invitation codes from administrators.
+                                </MudText>
+                            </MudItem>
+                        </MudGrid>
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+            }
 
-            <MudGrid>
-                <MudItem md="12">
-                    <MudStaticTextField For="@(() => Input.Email)" @bind-Value="Input.Email"
-                                        Label="Email" Placeholder="name@example.com"
-                                        UserAttributes="@(new() { { "autocomplete", "username" }, { "aria-required", "true" } } )" />
-                </MudItem>
-                <MudItem md="12">
-                    <MudStaticTextField For="@(() => Input.Password)" @bind-Value="Input.Password"
-                                        Label="Password" InputType="InputType.Password" Placeholder="password"
-                                        UserAttributes="@(new() { { "autocomplete", "new-password" }, { "aria-required", "true" } } )" />
-                </MudItem>
-                <MudItem md="12">
-                    <MudStaticTextField For="@(() => Input.ConfirmPassword)" @bind-Value="Input.ConfirmPassword"
-                                        Label="Confirm Password" InputType="InputType.Password" Placeholder="confirm password"
-                                        UserAttributes="@(new() { { "autocomplete", "new-password" }, { "aria-required", "true" } } )" />
-                </MudItem>
-                <MudItem md="12">
-                    <MudStaticButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" FormAction="FormAction.Submit">Register</MudStaticButton>
+            <StatusMessage Message="@Message" />
+            
+            <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
+                <DataAnnotationsValidator />
+
+                <MudGrid>
+                    @if (!invitationValid)
+                    {
+                        <MudItem xs="12">
+                            <MudStaticTextField For="@(() => Input.InvitationCode)" @bind-Value="Input.InvitationCode"
+                                                Label="Invitation Code" Placeholder="Enter your invitation code"
+                                                HelperText="Enter the invitation code you received"
+                                                Required="true" />
+                        </MudItem>
+                    }
+                    
+                    <MudItem xs="12" sm="6">
+                        <MudStaticTextField For="@(() => Input.FirstName)" @bind-Value="Input.FirstName"
+                                            Label="First Name" Placeholder="John"
+                                            Required="true" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" sm="6">
+                        <MudStaticTextField For="@(() => Input.LastName)" @bind-Value="Input.LastName"
+                                            Label="Last Name" Placeholder="Doe"
+                                            Required="true" />
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <MudStaticTextField For="@(() => Input.Email)" @bind-Value="Input.Email"
+                                            Label="Email" Placeholder="name@example.com"
+                                            UserAttributes="@(new() { { "autocomplete", "username" }, { "aria-required", "true" } } )"
+                                            Disabled="@(invitationValid && !string.IsNullOrEmpty(invitation?.Email))" />
+                    </MudItem>
+                    
+                    @if (!string.IsNullOrEmpty(Input.CompanyName))
+                    {
+                        <MudItem xs="12">
+                            <MudStaticTextField For="@(() => Input.CompanyName)" @bind-Value="Input.CompanyName"
+                                                Label="Company" Disabled="true" />
+                        </MudItem>
+                    }
+                    
+                    <MudItem xs="12">
+                        <MudStaticTextField For="@(() => Input.Password)" @bind-Value="Input.Password"
+                                            Label="Password" InputType="InputType.Password" Placeholder="password"
+                                            UserAttributes="@(new() { { "autocomplete", "new-password" }, { "aria-required", "true" } } )"
+                                            HelperText="Must be at least 8 characters with uppercase, lowercase, number and special character" />
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <MudStaticTextField For="@(() => Input.ConfirmPassword)" @bind-Value="Input.ConfirmPassword"
+                                            Label="Confirm Password" InputType="InputType.Password" Placeholder="confirm password"
+                                            UserAttributes="@(new() { { "autocomplete", "new-password" }, { "aria-required", "true" } } )" />
+                    </MudItem>
+                    
+                    <MudItem xs="12">
+                        <MudStaticButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" FormAction="FormAction.Submit">
+                            Create Account
+                        </MudStaticButton>
+                    </MudItem>
+                </MudGrid>
+            </EditForm>
+            
+            <MudDivider Class="my-4" />
+            
+            <MudGrid Class="mt-4">
+                <MudItem xs="12" Class="text-center">
+                    <MudText Typo="Typo.body2">Already have an account?</MudText>
+                    <MudLink Href="@GetLoginUrl()" Color="@GetRoleColor()">Sign in@(!string.IsNullOrEmpty(Role) ? $" as {Role}" : "")</MudLink>
+                    @if (!string.IsNullOrEmpty(Role))
+                    {
+                        <MudText Typo="Typo.body2" Class="d-inline mx-2">•</MudText>
+                        <MudLink Href="/" Color="Color.Secondary">Back to Home</MudLink>
+                    }
                 </MudItem>
             </MudGrid>
-        </EditForm>
-    </MudItem>
-    <MudItem md="6">
-        <MudText Typo="Typo.body1" GutterBottom="true">Use another service to register.</MudText>
-        <ExternalLoginPicker />
-    </MudItem>
-</MudGrid>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
 
 @code {
     private IEnumerable<IdentityError>? identityErrors;
+    private Invitation? invitation;
+    private bool invitationValid = false;
 
     [SupplyParameterFromForm]
     private InputModel Input { get; set; } = new();
 
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
+    
+    [SupplyParameterFromQuery]
+    private string? Code { get; set; } // Invitation code from URL
+
+    [SupplyParameterFromQuery]
+    private string? Role { get; set; } // Role from URL
 
     private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
 
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if invitation code is in URL
+        if (!string.IsNullOrEmpty(Code))
+        {
+            Input.InvitationCode = Code;
+            await ValidateInvitation();
+        }
+    }
+
+    private async Task ValidateInvitation()
+    {
+        if (string.IsNullOrEmpty(Input.InvitationCode))
+        {
+            return;
+        }
+
+        invitation = await DbContext.Invitations
+            .Include(i => i.Company)
+            .FirstOrDefaultAsync(i => i.InvitationCode == Input.InvitationCode);
+
+        if (invitation != null && invitation.IsValid)
+        {
+            invitationValid = true;
+            
+            // Pre-fill form with invitation data
+            if (!string.IsNullOrEmpty(invitation.Email))
+            {
+                Input.Email = invitation.Email;
+            }
+            if (!string.IsNullOrEmpty(invitation.CompanyName))
+            {
+                Input.CompanyName = invitation.CompanyName;
+            }
+        }
+    }
+
     public async Task RegisterUser(EditContext editContext)
     {
+        // Validate invitation
+        if (!invitationValid)
+        {
+            await ValidateInvitation();
+            
+            if (!invitationValid)
+            {
+                identityErrors = new[] { new IdentityError { Description = "Invalid or expired invitation code." } };
+                return;
+            }
+        }
+
+        // Check if email matches invitation (if invitation has specific email)
+        if (invitation != null && !string.IsNullOrEmpty(invitation.Email) && 
+            !invitation.Email.Equals(Input.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            identityErrors = new[] { new IdentityError { Description = "Email address does not match the invitation." } };
+            return;
+        }
+
         var user = CreateUser();
+        user.FirstName = Input.FirstName;
+        user.LastName = Input.LastName;
+        user.CompanyName = Input.CompanyName;
+        user.InvitationCode = Input.InvitationCode;
+        user.InvitationId = invitation?.Id;
 
         await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
         var emailStore = GetEmailStore();
@@ -82,6 +265,21 @@
         }
 
         Logger.LogInformation("User created a new account with password.");
+
+        // Assign role based on invitation
+        if (invitation != null && !string.IsNullOrEmpty(invitation.Role))
+        {
+            await UserManager.AddToRoleAsync(user, invitation.Role);
+        }
+
+        // Mark invitation as used
+        if (invitation != null)
+        {
+            invitation.IsUsed = true;
+            invitation.UsedAt = DateTime.UtcNow;
+            invitation.UsedByUserId = user.Id;
+            await DbContext.SaveChangesAsync();
+        }
 
         var userId = await UserManager.GetUserIdAsync(user);
         var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
@@ -125,15 +323,83 @@
         return (IUserEmailStore<ApplicationUser>)UserStore;
     }
 
+    private List<string> GetDemoCodesForRole(string role)
+    {
+        return role?.ToLower() switch
+        {
+            "admin" => new List<string> { "ADMIN-DEMO-2024", "ADMIN-TEST-CODE" },
+            "buyer" => new List<string> { "BUYER-DEMO-2024", "BUYER-TEST-CODE" },
+            "supplier" => new List<string> { "SUPPLIER-DEMO-2024", "SUPPLIER-TEST-CODE" },
+            "expert" => new List<string> { "EXPERT-DEMO-2024", "EXPERT-TEST-CODE" },
+            "agent" => new List<string> { "AGENT-DEMO-2024", "AGENT-TEST-CODE" },
+            _ => new List<string>()
+        };
+    }
+
+    private string GetRoleIcon()
+    {
+        return Role?.ToLower() switch
+        {
+            "buyer" => Icons.Material.Filled.ShoppingCart,
+            "supplier" => Icons.Material.Filled.LocalShipping,
+            "expert" => Icons.Material.Filled.School,
+            "agent" => Icons.Material.Filled.Support,
+            "admin" => Icons.Material.Filled.AdminPanelSettings,
+            _ => Icons.Material.Filled.Person
+        };
+    }
+
+    private Color GetRoleColor()
+    {
+        return Role?.ToLower() switch
+        {
+            "buyer" => Color.Primary,
+            "supplier" => Color.Secondary,
+            "expert" => Color.Success,
+            "agent" => Color.Warning,
+            "admin" => Color.Error,
+            _ => Color.Primary
+        };
+    }
+
+    private async Task UseInvitationCode(string code)
+    {
+        Input.InvitationCode = code;
+        await ValidateInvitation();
+        StateHasChanged();
+    }
+
+    private string GetLoginUrl()
+    {
+        return !string.IsNullOrEmpty(Role) ? $"/Account/RoleLogin?role={Role}" : "/Account/RoleLogin";
+    }
+
     private sealed class InputModel
     {
+        [Required]
+        [Display(Name = "Invitation Code")]
+        public string InvitationCode { get; set; } = "";
+
+        [Required]
+        [Display(Name = "First Name")]
+        [StringLength(100, ErrorMessage = "The {0} must be at max {1} characters long.")]
+        public string FirstName { get; set; } = "";
+
+        [Required]
+        [Display(Name = "Last Name")]
+        [StringLength(100, ErrorMessage = "The {0} must be at max {1} characters long.")]
+        public string LastName { get; set; } = "";
+
+        [Display(Name = "Company")]
+        public string? CompanyName { get; set; }
+
         [Required]
         [EmailAddress]
         [Display(Name = "Email")]
         public string Email { get; set; } = "";
 
         [Required]
-        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 8)]
         [DataType(DataType.Password)]
         [Display(Name = "Password")]
         public string Password { get; set; } = "";

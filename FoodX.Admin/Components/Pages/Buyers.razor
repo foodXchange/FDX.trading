@@ -138,19 +138,31 @@
     
     private async Task OpenAddBuyerDialog()
     {
+        var parameters = new DialogParameters
+        {
+            { nameof(AddBuyerDialog.OnBuyerAdded), EventCallback.Factory.Create<Buyer>(this, OnBuyerAdded) },
+            { nameof(AddBuyerDialog.OnCancel), EventCallback.Factory.Create(this, OnDialogCancel) }
+        };
+        
         var options = new DialogOptions 
         { 
             CloseButton = true,
             MaxWidth = MaxWidth.Small,
-            FullWidth = true
+            FullWidth = true,
+            CloseOnEscapeKey = true
         };
         
-        var dialog = await DialogService.ShowAsync<AddBuyerDialog>("Add New Buyer", options);
-        var result = await dialog.Result;
-        
-        if (!result.Canceled)
-        {
-            await LoadBuyers();
-        }
+        var dialog = await DialogService.ShowAsync<AddBuyerDialog>("Add New Buyer", parameters, options);
+        await dialog.Result;
+    }
+    
+    private async Task OnBuyerAdded(Buyer buyer)
+    {
+        await LoadBuyers();
+    }
+    
+    private void OnDialogCancel()
+    {
+        // Dialog cancelled
     }
 }

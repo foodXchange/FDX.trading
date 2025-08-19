@@ -2,14 +2,16 @@
 @using FoodX.Admin.Data
 @using Microsoft.EntityFrameworkCore
 @using MudBlazor
+@using Microsoft.AspNetCore.Components.Web
 @inject FoodXDbContext DbContext
 @inject ISnackbar Snackbar
 
+<div @onkeydown="HandleKeyDown" @onkeydown:preventDefault="false">
 <MudDialog>
     <DialogContent>
         <MudTextField @bind-Value="firstName" Label="First Name" Required="true" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="lastName" Label="Last Name" Required="true" Variant="Variant.Outlined" Class="mb-3" />
-        <MudTextField @bind-Value="email" Label="Email" Required="true" Type="InputType.Email" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="email" Label="Email" Required="true" InputType="InputType.Email" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="phoneNumber" Label="Phone Number" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="supplierType" Label="Supplier Type" Variant="Variant.Outlined" Class="mb-3" 
                       HelperText="e.g., Manufacturer, Distributor, Wholesaler" />
@@ -36,10 +38,11 @@
         </MudButton>
     </DialogActions>
 </MudDialog>
+</div>
 
 @code {
-    [CascadingParameter] 
-    private MudDialogInstance? MudDialog { get; set; }
+    [Parameter] public EventCallback<Supplier> OnSupplierAdded { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
     
     private string firstName = "";
     private string lastName = "";
@@ -60,9 +63,9 @@
         companies = await DbContext.Companies.Where(c => c.IsActive).ToListAsync();
     }
     
-    private void Cancel()
+    private async Task Cancel()
     {
-        MudDialog.Cancel();
+        await OnCancel.InvokeAsync();
     }
     
     private async Task Submit()
@@ -83,10 +86,7 @@
                 FirstName = firstName,
                 LastName = lastName,
                 Email = email,
-                PhoneNumber = phoneNumber,
-                Address = address,
-                City = city,
-                Country = country,
+                // PhoneNumber, Address, City, Country are stored in UserPhone/UserEmployment tables
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -101,16 +101,16 @@
                 UserId = user.Id,
                 SupplierType = supplierType,
                 CompanyId = companyId,
-                ProductCategories = productCategories,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                // ProductCategories not available in Supplier model
+                CreatedAt = DateTime.UtcNow
+                // UpdatedAt not available in Supplier model
             };
             
             DbContext.Suppliers.Add(supplier);
             await DbContext.SaveChangesAsync();
             
             Snackbar.Add("Supplier added successfully", Severity.Success);
-            MudDialog.Close(DialogResult.Ok(supplier));
+            await OnSupplierAdded.InvokeAsync(supplier);
         }
         catch (Exception ex)
         {
@@ -119,6 +119,18 @@
         finally
         {
             isProcessing = false;
+        }
+    }
+    
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await Cancel();
+        }
+        else if (e.CtrlKey && e.Key == "s")
+        {
+            await Submit();
         }
     }
 }

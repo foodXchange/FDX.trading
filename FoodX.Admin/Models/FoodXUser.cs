@@ -33,6 +33,11 @@ namespace FoodX.Admin.Models
         public string Role { get; set; } = "Buyer"; // Buyer, Seller, Agent, Admin
 
         public bool IsActive { get; set; } = true;
+        
+        public DateTime? LastLoginAt { get; set; }
+        
+        [MaxLength(200)]
+        public string? CompanyName { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

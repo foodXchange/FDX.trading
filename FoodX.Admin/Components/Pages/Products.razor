@@ -101,21 +101,32 @@
     
     private async Task OpenAddProductDialog()
     {
+        var parameters = new DialogParameters
+        {
+            { nameof(AddProductDialog.OnProductAdded), EventCallback.Factory.Create<Product>(this, OnProductAdded) },
+            { nameof(AddProductDialog.OnCancel), EventCallback.Factory.Create(this, OnDialogCancel) }
+        };
+        
         var options = new DialogOptions 
         { 
             CloseButton = true,
             MaxWidth = MaxWidth.Small,
-            FullWidth = true
+            FullWidth = true,
+            CloseOnEscapeKey = true
         };
         
-        var dialog = await DialogService.ShowAsync<AddProductDialog>("Add New Product", options);
-        var result = await dialog.Result;
-        
-        if (!result.Canceled)
-        {
-            // Reload products from database
-            await LoadProducts();
-        }
+        var dialog = await DialogService.ShowAsync<AddProductDialog>("Add New Product", parameters, options);
+        await dialog.Result;
+    }
+    
+    private async Task OnProductAdded(Product product)
+    {
+        await LoadProducts();
+    }
+    
+    private void OnDialogCancel()
+    {
+        // Dialog cancelled
     }
     
     private async Task LoadProducts()

@@ -1,61 +1,104 @@
-﻿@page "/Account/Login"
+@page "/Account/Login"
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Identity
 @using FoodX.Admin.Data
+@using FoodX.Admin.Services
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject ILogger<Login> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject IRoleNavigationService RoleNavigationService
+@inject UserManager<ApplicationUser> UserManager
 
-<PageTitle>Log in</PageTitle>
+<PageTitle>FoodX B2B Platform - Login</PageTitle>
 
-<MudText Typo="Typo.h3" GutterBottom="true">Log in</MudText>
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+    <MudCard Elevation="0" Class="pa-8" Style="border: 1px solid #e0e0e0;">
+        <MudCardContent>
+            <div class="text-center mb-6">
+                <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h4" Class="mt-2">FoodX B2B Platform</MudText>
+                <MudText Typo="Typo.subtitle1" Color="Color.Secondary" Class="mt-2">
+                    Invitation-Only Access
+                </MudText>
+                <MudAlert Severity="Severity.Info" Class="mt-4">
+                    <MudText Typo="Typo.body2">
+                        This platform is exclusively for invited members of the FoodX B2B network.
+                        Please use your registered email and password to access your account.
+                    </MudText>
+                </MudAlert>
+            </div>
 
-<MudGrid>
-    <MudItem md="6">
-        <StatusMessage Message="@errorMessage" />
-        <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
-            <DataAnnotationsValidator />
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12">
+                    <StatusMessage Message="@errorMessage" />
+                    <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+                        <DataAnnotationsValidator />
 
-            <MudText GutterBottom="true" Typo="Typo.body1">Use a local account to log in.</MudText>
+                        <MudGrid>
+                            <MudItem xs="12">
+                                <MudStaticTextField For="@(() => Input.Email)" @bind-Value="Input.Email" 
+                                    Label="Email" Placeholder="name@example.com" 
+                                    UserAttributes="@(new() { { "autocomplete", "username" }, { "aria-required", "true" } } )" />
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudStaticTextField For="@(() => Input.Password)" @bind-Value="Input.Password" 
+                                    Label="Password" InputType="InputType.Password" Placeholder="password" 
+                                    UserAttributes="@(new() { { "autocomplete", "current-password" }, { "aria-required", "true" } } )" />
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudStaticCheckBox For="@(() => Input.RememberMe)" @bind-Value="Input.RememberMe">Remember me</MudStaticCheckBox>
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudStaticButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" FormAction="FormAction.Submit">Log in</MudStaticButton>
+                            </MudItem>
+                        </MudGrid>
+                    </EditForm>
 
-            <MudGrid>
-                <MudItem md="12">
-                    <MudStaticTextField For="@(() => Input.Email)" @bind-Value="Input.Email" 
-                        Label="Email" Placeholder="name@example.com" 
-                        UserAttributes="@(new() { { "autocomplete", "username" }, { "aria-required", "true" } } )" />
-                </MudItem>
-                <MudItem md="12">
-                    <MudStaticTextField For="@(() => Input.Password)" @bind-Value="Input.Password" 
-                        Label="Password" InputType="InputType.Password" Placeholder="password" 
-                        UserAttributes="@(new() { { "autocomplete", "current-password" }, { "aria-required", "true" } } )" />
-                </MudItem>
-                <MudItem md="12">
-                    <MudStaticCheckBox For="@(() => Input.RememberMe)" @bind-Value="Input.RememberMe">Remember me</MudStaticCheckBox>
-                </MudItem>
-                <MudItem md="12">
-                    <MudStaticButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" FormAction="FormAction.Submit">Log in</MudStaticButton>
+                    <MudDivider Class="my-4" />
+                    
+                    <MudGrid Class="mt-4">
+                        <MudItem xs="12" Class="text-center">
+                            <MudText Typo="Typo.body2" Class="mb-2">Having trouble accessing your account?</MudText>
+                            <MudLink Href="Account/ForgotPassword">Reset Password</MudLink>
+                            <MudText Typo="Typo.body2" Class="d-inline mx-2">•</MudText>
+                            <MudLink Href="Account/ResendEmailConfirmation">Resend Confirmation</MudLink>
+                        </MudItem>
+                    </MudGrid>
+                    
+                    <MudDivider Class="my-4" />
+                    
+                    <MudGrid Class="mt-4">
+                        <MudItem xs="12" Class="text-center">
+                            <MudCard Elevation="0" Style="background-color: #f5f5f5;" Class="pa-4">
+                                <MudText Typo="Typo.h6" Color="Color.Primary">Have an Invitation Code?</MudText>
+                                <MudText Typo="Typo.body2" Class="mt-2 mb-3">
+                                    If you received an invitation to join FoodX platform, click below to create your account.
+                                </MudText>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                                           Href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))" 
+                                           StartIcon="@Icons.Material.Filled.PersonAdd">
+                                    Register with Invitation
+                                </MudButton>
+                            </MudCard>
+                        </MudItem>
+                    </MudGrid>
+                    
+                    <MudGrid Class="mt-4">
+                        <MudItem xs="12" Class="text-center">
+                            <MudText Typo="Typo.caption" Class="text-muted">
+                                Not a member yet? Contact your organization administrator for an invitation.
+                            </MudText>
+                        </MudItem>
+                    </MudGrid>
                 </MudItem>
             </MudGrid>
-        </EditForm>
-
-        <MudGrid Class="mt-4">
-            <MudItem md="12">
-                <MudLink Href="Account/ForgotPassword">Forgot your password?</MudLink><br />
-                <MudLink Href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))">Register as a new user</MudLink><br />
-                <MudLink Href="Account/ResendEmailConfirmation">Resend email confirmation</MudLink>
-            </MudItem>
-        </MudGrid>
-    </MudItem>
-    <MudItem md="6">
-        <MudText GutterBottom="true" Typo="Typo.body1">Use another service to log in.</MudText>
-
-        <ExternalLoginPicker />
-    </MudItem>
-</MudGrid>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
 
 @code {
     private string? errorMessage;
@@ -86,6 +129,20 @@
         if (result.Succeeded)
         {
             Logger.LogInformation("User logged in.");
+            
+            // If no return URL specified, redirect to role-based dashboard
+            if (string.IsNullOrEmpty(ReturnUrl) || ReturnUrl == "/")
+            {
+                var user = await UserManager.FindByEmailAsync(Input.Email);
+                if (user != null)
+                {
+                    var principal = await SignInManager.CreateUserPrincipalAsync(user);
+                    var dashboardUrl = await RoleNavigationService.GetRoleBasedDashboardUrl(principal);
+                    NavigationManager.NavigateTo(dashboardUrl);
+                    return;
+                }
+            }
+            
             RedirectManager.RedirectTo(ReturnUrl);
         }
         else if (result.RequiresTwoFactor)

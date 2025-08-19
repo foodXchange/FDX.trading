@@ -25,6 +25,9 @@ namespace FoodX.Admin.Data
         public DbSet<Agent> Agents { get; set; }
         public DbSet<SystemAdmin> SystemAdmins { get; set; }
         public DbSet<BackOffice> BackOffices { get; set; }
+        
+        // Invitation system
+        public DbSet<Invitation> Invitations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -140,6 +143,35 @@ namespace FoodX.Admin.Data
                 entity.ToTable("BackOffice");
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
                 entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+            });
+
+            // Configure Product
+            builder.Entity<Product>(entity =>
+            {
+                entity.ToTable("Products");
+                entity.Property(e => e.Price).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(e => e.IsOrganic).HasDefaultValue(false);
+                entity.Property(e => e.IsAvailable).HasDefaultValue(true);
+                entity.Property(e => e.MinOrderQuantity).HasDefaultValue(1);
+                entity.Property(e => e.StockQuantity).HasDefaultValue(0);
+                
+                // Indexes
+                entity.HasIndex(e => e.Category).HasDatabaseName("IX_Products_Category");
+                entity.HasIndex(e => e.SupplierId).HasDatabaseName("IX_Products_SupplierId");
+                entity.HasIndex(e => e.CompanyId).HasDatabaseName("IX_Products_CompanyId");
+                
+                // Relationships
+                entity.HasOne<Supplier>()
+                    .WithMany()
+                    .HasForeignKey(e => e.SupplierId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                    
+                entity.HasOne<Company>()
+                    .WithMany()
+                    .HasForeignKey(e => e.CompanyId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }
