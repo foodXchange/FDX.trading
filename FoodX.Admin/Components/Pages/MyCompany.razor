@@ -1,0 +1,137 @@
+@page "/companies/my-company"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>My Company</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudText Typo="Typo.h3" Class="mb-4">My Company Profile</MudText>
+    
+    <MudCard>
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="8">
+                    <MudText Typo="Typo.h5" Class="mb-3">Company Information</MudText>
+                    <MudTextField T="string" @bind-Value="companyName" Label="Company Name" ReadOnly="@isReadOnly" Variant="Variant.Outlined" Class="mb-3" />
+                    <MudTextField T="string" @bind-Value="companyType" Label="Company Type" ReadOnly="@isReadOnly" Variant="Variant.Outlined" Class="mb-3" />
+                    <MudTextField T="string" @bind-Value="vatNumber" Label="VAT Number" ReadOnly="@isReadOnly" Variant="Variant.Outlined" Class="mb-3" />
+                    <MudTextField T="string" @bind-Value="website" Label="Website" ReadOnly="@isReadOnly" Variant="Variant.Outlined" Class="mb-3" />
+                </MudItem>
+                <MudItem xs="12" md="4" Class="d-flex justify-center align-center">
+                    <MudAvatar Style="height:150px; width:150px; font-size:2rem;" Color="Color.Primary">
+                        FX
+                    </MudAvatar>
+                </MudItem>
+            </MudGrid>
+            
+            <MudDivider Class="my-4" />
+            
+            <MudText Typo="Typo.h5" Class="mb-3">Contact Information</MudText>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" @bind-Value="mainEmail" Label="Main Email" ReadOnly="@isReadOnly" Variant="Variant.Outlined" Class="mb-3" />
+                    <MudTextField T="string" @bind-Value="mainPhone" Label="Main Phone" ReadOnly="@isReadOnly" Variant="Variant.Outlined" Class="mb-3" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" @bind-Value="country" Label="Country" ReadOnly="@isReadOnly" Variant="Variant.Outlined" Class="mb-3" />
+                    <MudTextField T="string" @bind-Value="address" Label="Address" ReadOnly="@isReadOnly" Variant="Variant.Outlined" Class="mb-3" />
+                </MudItem>
+            </MudGrid>
+            
+            <MudDivider Class="my-4" />
+            
+            <MudText Typo="Typo.h5" Class="mb-3">Business Details</MudText>
+            <MudTextField T="string" @bind-Value="buyerCategory" Label="Buyer Category" ReadOnly="@isReadOnly" Variant="Variant.Outlined" Class="mb-3" />
+            <MudTextField T="string" @bind-Value="warehouseAddress" Label="Warehouse Address" ReadOnly="@isReadOnly" Variant="Variant.Outlined" Class="mb-3" />
+            <MudTextField T="string" @bind-Value="description" Label="Description" ReadOnly="@isReadOnly" Variant="Variant.Outlined" Lines="3" Class="mb-3" />
+        </MudCardContent>
+        <MudCardActions>
+            @if (!isEditing)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" OnClick="EnableEdit">
+                    Edit Company Profile
+                </MudButton>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveChanges">
+                    Save Changes
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.Cancel" OnClick="CancelEdit">
+                    Cancel
+                </MudButton>
+            }
+        </MudCardActions>
+    </MudCard>
+    
+    <MudCard Class="mt-4">
+        <MudCardContent>
+            <MudText Typo="Typo.h5" Class="mb-3">Company Statistics</MudText>
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4 text-center" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+                        <MudText Typo="Typo.h4" Color="Color.Primary">15</MudText>
+                        <MudText Typo="Typo.body2">Active Users</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4 text-center" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+                        <MudText Typo="Typo.h4" Color="Color.Success">247</MudText>
+                        <MudText Typo="Typo.body2">Total Orders</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4 text-center" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+                        <MudText Typo="Typo.h4" Color="Color.Info">32</MudText>
+                        <MudText Typo="Typo.body2">Suppliers</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4 text-center" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+                        <MudText Typo="Typo.h4" Color="Color.Warning">$1.2M</MudText>
+                        <MudText Typo="Typo.body2">Total Volume</MudText>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private bool isEditing = false;
+    private bool isReadOnly => !isEditing;
+    
+    // Company fields
+    private string companyName = "FoodX Trading Ltd.";
+    private string companyType = "Buyer";
+    private string vatNumber = "123456789";
+    private string website = "www.foodx-trading.com";
+    
+    // Contact fields
+    private string mainEmail = "info@foodx-trading.com";
+    private string mainPhone = "+1 234 567 8900";
+    private string country = "United States";
+    private string address = "123 Business Park, Suite 100";
+    
+    // Business fields
+    private string buyerCategory = "Food Retail";
+    private string warehouseAddress = "456 Industrial Zone, Warehouse A";
+    private string description = "Leading food trading company specializing in fresh produce and organic products.";
+
+    private void EnableEdit()
+    {
+        isEditing = true;
+    }
+
+    private void SaveChanges()
+    {
+        // TODO: Implement save logic
+        isEditing = false;
+    }
+
+    private void CancelEdit()
+    {
+        isEditing = false;
+    }
+}

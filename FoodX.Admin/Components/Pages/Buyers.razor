@@ -1,0 +1,156 @@
+@page "/buyers"
+@using FoodX.Admin.Data
+@using FoodX.Admin.Models
+@using Microsoft.EntityFrameworkCore
+@using FoodX.Admin.Components.Dialogs
+@inject FoodXDbContext DbContext
+@inject IDialogService DialogService
+@rendermode InteractiveServer
+
+<PageTitle>Buyers</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h3" Class="mb-4">Buyers Management</MudText>
+    
+    <MudPaper Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="9">
+                <MudTextField @bind-Value="searchTerm" Label="Search Buyers" 
+                              Variant="Variant.Outlined" 
+                              Adornment="Adornment.Start" 
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.PersonAdd" 
+                           FullWidth="true"
+                           OnClick="OpenAddBuyerDialog">
+                    Add Buyer
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (buyers.Any())
+    {
+        <MudGrid>
+            @foreach (var buyer in buyers)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <MudCard>
+                        <MudCardHeader>
+                            <CardHeaderAvatar>
+                                <MudAvatar Color="Color.Info">
+                                    @buyer.User.FirstName.Substring(0, 1)@buyer.User.LastName.Substring(0, 1)
+                                </MudAvatar>
+                            </CardHeaderAvatar>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">@buyer.User.FullName</MudText>
+                                <MudText Typo="Typo.body2">@buyer.Department</MudText>
+                            </CardHeaderContent>
+                            <CardHeaderActions>
+                                <MudIconButton Icon="@Icons.Material.Filled.MoreVert" />
+                            </CardHeaderActions>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" /> @buyer.User.Email
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="mt-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" /> 
+                                @(buyer.Company?.Name ?? "No Company")
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="mt-2">
+                                <MudIcon Icon="@Icons.Material.Filled.DateRange" Size="Size.Small" /> 
+                                Joined: @buyer.CreatedAt.ToString("MMM dd, yyyy")
+                            </MudText>
+                            <div class="mt-3">
+                                <MudChip T="string" Color="@(buyer.User.IsActive ? Color.Success : Color.Error)" 
+                                         Size="Size.Small">
+                                    @(buyer.User.IsActive ? "Active" : "Inactive")
+                                </MudChip>
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small">
+                                    Buyer
+                                </MudChip>
+                            </div>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">View Profile</MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">Edit</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info">No buyers found. Click "Add Buyer" to register new buyers.</MudAlert>
+    }
+</MudContainer>
+
+@code {
+    private List<Buyer> buyers = new();
+    private bool isLoading = true;
+    private string searchTerm = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBuyers();
+    }
+
+    private async Task LoadBuyers()
+    {
+        isLoading = true;
+        try
+        {
+            var query = DbContext.Buyers
+                .Include(b => b.User)
+                .Include(b => b.Company)
+                .AsQueryable();
+            
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                query = query.Where(b => 
+                    b.User.FirstName.Contains(searchTerm) || 
+                    b.User.LastName.Contains(searchTerm) ||
+                    b.User.Email.Contains(searchTerm) ||
+                    (b.Department != null && b.Department.Contains(searchTerm)));
+            }
+            
+            buyers = await query.OrderBy(b => b.User.FirstName).ToListAsync();
+        }
+        catch (Exception)
+        {
+            // Log error
+            buyers = new List<Buyer>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private async Task OpenAddBuyerDialog()
+    {
+        var options = new DialogOptions 
+        { 
+            CloseButton = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<AddBuyerDialog>("Add New Buyer", options);
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadBuyers();
+        }
+    }
+}

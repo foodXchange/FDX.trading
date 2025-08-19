@@ -1,0 +1,110 @@
+@using FoodX.Admin.Models
+@using FoodX.Admin.Data
+@using MudBlazor
+@inject FoodXDbContext DbContext
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="companyName" Label="Company Name" Required="true" Variant="Variant.Outlined" Class="mb-3" />
+        <MudSelect @bind-Value="companyType" Label="Company Type" Required="true" Variant="Variant.Outlined" Class="mb-3">
+            <MudSelectItem Value="@("Buyer")">Buyer</MudSelectItem>
+            <MudSelectItem Value="@("Supplier")">Supplier</MudSelectItem>
+        </MudSelect>
+        <MudTextField @bind-Value="vatNumber" Label="VAT Number" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="registrationNumber" Label="Registration Number" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="mainEmail" Label="Main Email" Required="true" Type="InputType.Email" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="mainPhone" Label="Main Phone" Required="true" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="website" Label="Website" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="address" Label="Address" Variant="Variant.Outlined" Lines="2" Class="mb-3" />
+        <MudTextField @bind-Value="city" Label="City" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="country" Label="Country" Required="true" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="postalCode" Label="Postal Code" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="description" Label="Description" Variant="Variant.Outlined" Lines="3" Class="mb-3" />
+        <MudSwitch T="bool" @bind-Checked="isActive" Label="Active" Color="Color.Primary" Class="mb-3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@isProcessing">
+            @if (isProcessing)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Add Company
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] 
+    private MudDialogInstance? MudDialog { get; set; }
+    
+    private string companyName = "";
+    private string companyType = "Buyer";
+    private string vatNumber = "";
+    private string registrationNumber = "";
+    private string mainEmail = "";
+    private string mainPhone = "";
+    private string website = "";
+    private string address = "";
+    private string city = "";
+    private string country = "";
+    private string postalCode = "";
+    private string description = "";
+    private bool isActive = true;
+    private bool isProcessing = false;
+    
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+    
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(companyName) || string.IsNullOrWhiteSpace(mainEmail) || 
+            string.IsNullOrWhiteSpace(mainPhone) || string.IsNullOrWhiteSpace(country))
+        {
+            Snackbar.Add("Please fill in all required fields", Severity.Warning);
+            return;
+        }
+        
+        isProcessing = true;
+        
+        try
+        {
+            // Create the company
+            var company = new Company
+            {
+                Name = companyName,
+                CompanyType = companyType,
+                VATNumber = vatNumber,
+                RegistrationNumber = registrationNumber,
+                MainEmail = mainEmail,
+                MainPhone = mainPhone,
+                Website = website,
+                Address = address,
+                City = city,
+                Country = country,
+                PostalCode = postalCode,
+                Description = description,
+                IsActive = isActive,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            
+            DbContext.Companies.Add(company);
+            await DbContext.SaveChangesAsync();
+            
+            Snackbar.Add("Company added successfully", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(company));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error adding company: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}

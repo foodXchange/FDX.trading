@@ -1,0 +1,134 @@
+@page "/products"
+@using FoodX.Admin.Data
+@using FoodX.Admin.Models
+@using FoodX.Admin.Components.Dialogs
+@using Microsoft.EntityFrameworkCore
+@inject FoodXDbContext DbContext
+@inject IDialogService DialogService
+@rendermode InteractiveServer
+
+<PageTitle>Products</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h3" Class="mb-4">Products Catalog</MudText>
+    
+    <MudPaper Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField T="string" Label="Search Products" 
+                              Variant="Variant.Outlined" 
+                              Adornment="Adornment.Start" 
+                              AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="string" Label="Category" Variant="Variant.Outlined">
+                    <MudSelectItem T="string" Value="@("All Categories")">All Categories</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Fruits")">Fruits</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Vegetables")">Vegetables</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Dairy")">Dairy</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Meat")">Meat</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Grains")">Grains</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Add" 
+                           FullWidth="true"
+                           OnClick="OpenAddProductDialog">
+                    Add Product
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudGrid>
+        @foreach (var product in products)
+        {
+            <MudItem xs="12" sm="6" md="4" lg="3">
+                <MudCard>
+                    <MudCardMedia Image="@product.ImageUrl" Height="200" />
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6">@product.Name</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@product.Category</MudText>
+                        <MudText Typo="Typo.body1" Class="mt-2">
+                            <strong>$@product.Price</strong> / @product.Unit
+                        </MudText>
+                        <MudChip T="string" Color="@(product.InStock ? Color.Success : Color.Error)" Size="Size.Small">
+                            @(product.InStock ? "In Stock" : "Out of Stock")
+                        </MudChip>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary">View</MudButton>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary">Edit</MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+
+    @if (!products.Any())
+    {
+        <MudAlert Severity="Severity.Info" Class="mt-4">
+            No products available. Click "Add Product" to start adding products to the catalog.
+        </MudAlert>
+    }
+</MudContainer>
+
+@code {
+    private List<ProductViewModel> products = new();
+
+    protected override void OnInitialized()
+    {
+        // Sample data - replace with actual database query
+        products = new List<ProductViewModel>
+        {
+            new() { Name = "Fresh Tomatoes", Category = "Vegetables", Price = 2.99m, Unit = "kg", InStock = true, ImageUrl = "https://via.placeholder.com/300x200?text=Tomatoes" },
+            new() { Name = "Organic Apples", Category = "Fruits", Price = 3.49m, Unit = "kg", InStock = true, ImageUrl = "https://via.placeholder.com/300x200?text=Apples" },
+            new() { Name = "Whole Milk", Category = "Dairy", Price = 1.99m, Unit = "liter", InStock = false, ImageUrl = "https://via.placeholder.com/300x200?text=Milk" },
+            new() { Name = "Chicken Breast", Category = "Meat", Price = 8.99m, Unit = "kg", InStock = true, ImageUrl = "https://via.placeholder.com/300x200?text=Chicken" }
+        };
+    }
+
+    private class ProductViewModel
+    {
+        public string Name { get; set; } = "";
+        public string Category { get; set; } = "";
+        public decimal Price { get; set; }
+        public string Unit { get; set; } = "";
+        public bool InStock { get; set; }
+        public string ImageUrl { get; set; } = "";
+    }
+    
+    private async Task OpenAddProductDialog()
+    {
+        var options = new DialogOptions 
+        { 
+            CloseButton = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<AddProductDialog>("Add New Product", options);
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            // Reload products from database
+            await LoadProducts();
+        }
+    }
+    
+    private async Task LoadProducts()
+    {
+        var dbProducts = await DbContext.Products.ToListAsync();
+        products = dbProducts.Select(p => new ProductViewModel
+        {
+            Name = p.Name,
+            Category = p.Category,
+            Price = p.Price,
+            Unit = p.Unit,
+            InStock = p.IsAvailable && p.StockQuantity > 0,
+            ImageUrl = p.ImageUrl ?? "https://via.placeholder.com/300x200?text=" + Uri.EscapeDataString(p.Name)
+        }).ToList();
+    }
+}

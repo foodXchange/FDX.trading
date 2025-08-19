@@ -1,0 +1,172 @@
+@page "/companies"
+@page "/companies/search"
+@using FoodX.Admin.Data
+@using FoodX.Admin.Models
+@using Microsoft.EntityFrameworkCore
+@using FoodX.Admin.Components.Dialogs
+@inject FoodXDbContext DbContext
+@inject IDialogService DialogService
+@rendermode InteractiveServer
+
+<PageTitle>Companies</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h3" Class="mb-4">Companies Management</MudText>
+    
+    <MudPaper Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="8">
+                <MudTextField @bind-Value="searchTerm" Label="Search Companies" 
+                              Variant="Variant.Outlined" 
+                              Adornment="Adornment.Start" 
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true"
+                              @onkeyup="@(async (e) => { if (e.Key == "Enter") await SearchCompanies(); })" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudSelect @bind-Value="filterType" Label="Company Type" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("All")">All</MudSelectItem>
+                    <MudSelectItem Value="@("Buyer")">Buyer</MudSelectItem>
+                    <MudSelectItem Value="@("Supplier")">Supplier</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Add" 
+                           FullWidth="true"
+                           OnClick="OpenAddDialog">
+                    Add Company
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (companies.Any())
+    {
+        <MudTable Items="@companies" Hover="true" Striped="true" Bordered="true">
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Type</MudTh>
+                <MudTh>Country</MudTh>
+                <MudTh>Email</MudTh>
+                <MudTh>Phone</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Name">@context.Name</MudTd>
+                <MudTd DataLabel="Type">
+                    <MudChip T="string" Color="@(context.CompanyType == "Buyer" ? Color.Info : Color.Success)" 
+                             Size="Size.Small">
+                        @context.CompanyType
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Country">@context.Country</MudTd>
+                <MudTd DataLabel="Email">@context.MainEmail</MudTd>
+                <MudTd DataLabel="Phone">@context.MainPhone</MudTd>
+                <MudTd DataLabel="Status">
+                    <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Error)" 
+                             Size="Size.Small">
+                        @(context.IsActive ? "Active" : "Inactive")
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Actions">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                   Color="Color.Primary" 
+                                   Size="Size.Small"
+                                   OnClick="@(() => EditCompany(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                   Color="Color.Error" 
+                                   Size="Size.Small"
+                                   OnClick="@(() => DeleteCompany(context))" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info">No companies found. Click "Add Company" to create one.</MudAlert>
+    }
+</MudContainer>
+
+@code {
+    private List<Company> companies = new();
+    private bool isLoading = true;
+    private string searchTerm = "";
+    private string filterType = "All";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCompanies();
+    }
+
+    private async Task LoadCompanies()
+    {
+        isLoading = true;
+        try
+        {
+            var query = DbContext.Companies.AsQueryable();
+            
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                query = query.Where(c => c.Name != null && c.Name.Contains(searchTerm) || 
+                                        c.MainEmail != null && c.MainEmail.Contains(searchTerm) ||
+                                        c.Country != null && c.Country.Contains(searchTerm));
+            }
+            
+            if (filterType != "All")
+            {
+                query = query.Where(c => c.CompanyType == filterType);
+            }
+            
+            companies = await query.OrderBy(c => c.Name).ToListAsync();
+        }
+        catch (Exception)
+        {
+            // Log error
+            companies = new List<Company>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SearchCompanies()
+    {
+        await LoadCompanies();
+    }
+
+    private async Task OpenAddDialog()
+    {
+        var options = new DialogOptions 
+        { 
+            CloseButton = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<AddCompanyDialog>("Add New Company", options);
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadCompanies();
+        }
+    }
+
+    private void EditCompany(Company company)
+    {
+        // TODO: Implement edit dialog
+    }
+
+    private Task DeleteCompany(Company company)
+    {
+        // TODO: Implement delete confirmation and action
+        return Task.CompletedTask;
+    }
+}

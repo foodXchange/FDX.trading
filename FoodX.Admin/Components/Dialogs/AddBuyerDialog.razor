@@ -1,0 +1,119 @@
+@using FoodX.Admin.Models
+@using FoodX.Admin.Data
+@using Microsoft.EntityFrameworkCore
+@using MudBlazor
+@inject FoodXDbContext DbContext
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="firstName" Label="First Name" Required="true" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="lastName" Label="Last Name" Required="true" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="email" Label="Email" Required="true" Type="InputType.Email" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="phoneNumber" Label="Phone Number" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="department" Label="Department" Variant="Variant.Outlined" Class="mb-3" />
+        <MudSelect @bind-Value="companyId" Label="Company" Variant="Variant.Outlined" Class="mb-3">
+            @foreach (var company in companies)
+            {
+                <MudSelectItem Value="@company.Id">@company.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudTextField @bind-Value="address" Label="Address" Variant="Variant.Outlined" Lines="2" Class="mb-3" />
+        <MudTextField @bind-Value="city" Label="City" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="country" Label="Country" Variant="Variant.Outlined" Class="mb-3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@isProcessing">
+            @if (isProcessing)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Add Buyer
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] 
+    private object? MudDialog { get; set; }
+    
+    private string firstName = "";
+    private string lastName = "";
+    private string email = "";
+    private string phoneNumber = "";
+    private string department = "";
+    private int? companyId;
+    private string address = "";
+    private string city = "";
+    private string country = "";
+    private bool isProcessing = false;
+    
+    private List<Company> companies = new();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        companies = await DbContext.Companies.Where(c => c.IsActive).ToListAsync();
+    }
+    
+    private void Cancel()
+    {
+        // Dialog will be closed from parent
+    }
+    
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName) || string.IsNullOrWhiteSpace(email))
+        {
+            Snackbar.Add("Please fill in all required fields", Severity.Warning);
+            return;
+        }
+        
+        isProcessing = true;
+        
+        try
+        {
+            // Create the user
+            var user = new FoodXUser
+            {
+                FirstName = firstName,
+                LastName = lastName,
+                Email = email,
+                PhoneNumber = phoneNumber,
+                Address = address,
+                City = city,
+                Country = country,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            
+            DbContext.FoodXUsers.Add(user);
+            await DbContext.SaveChangesAsync();
+            
+            // Create the buyer
+            var buyer = new Buyer
+            {
+                UserId = user.Id,
+                Department = department,
+                CompanyId = companyId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            
+            DbContext.Buyers.Add(buyer);
+            await DbContext.SaveChangesAsync();
+            
+            Snackbar.Add("Buyer added successfully", Severity.Success);
+            // Dialog will be closed from parent
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error adding buyer: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}
