@@ -132,14 +132,16 @@
                     
                     <MudItem xs="12">
                         <MudStaticTextField For="@(() => Input.Password)" @bind-Value="Input.Password"
-                                            Label="Password" InputType="InputType.Password" Placeholder="password"
+                                            Label="Password" InputType="@PasswordInput" Placeholder="password"
+                                            Adornment="Adornment.End" AdornmentIcon="@PasswordInputIcon" OnAdornmentClick="TogglePasswordVisibility"
                                             UserAttributes="@(new() { { "autocomplete", "new-password" }, { "aria-required", "true" } } )"
                                             HelperText="Must be at least 8 characters with uppercase, lowercase, number and special character" />
                     </MudItem>
                     
                     <MudItem xs="12">
                         <MudStaticTextField For="@(() => Input.ConfirmPassword)" @bind-Value="Input.ConfirmPassword"
-                                            Label="Confirm Password" InputType="InputType.Password" Placeholder="confirm password"
+                                            Label="Confirm Password" InputType="@ConfirmPasswordInput" Placeholder="confirm password"
+                                            Adornment="Adornment.End" AdornmentIcon="@ConfirmPasswordInputIcon" OnAdornmentClick="ToggleConfirmPasswordVisibility"
                                             UserAttributes="@(new() { { "autocomplete", "new-password" }, { "aria-required", "true" } } )" />
                     </MudItem>
                     
@@ -172,6 +174,15 @@
     private IEnumerable<IdentityError>? identityErrors;
     private Invitation? invitation;
     private bool invitationValid = false;
+    
+    // Password visibility toggles
+    private bool isPasswordVisible = false;
+    private InputType PasswordInput = InputType.Password;
+    private string PasswordInputIcon = Icons.Material.Filled.Visibility;
+    
+    private bool isConfirmPasswordVisible = false;
+    private InputType ConfirmPasswordInput = InputType.Password;
+    private string ConfirmPasswordInputIcon = Icons.Material.Filled.Visibility;
 
     [SupplyParameterFromForm]
     private InputModel Input { get; set; } = new();
@@ -372,6 +383,36 @@
     private string GetLoginUrl()
     {
         return !string.IsNullOrEmpty(Role) ? $"/Account/RoleLogin?role={Role}" : "/Account/RoleLogin";
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        isPasswordVisible = !isPasswordVisible;
+        if (isPasswordVisible)
+        {
+            PasswordInput = InputType.Text;
+            PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+        }
+        else
+        {
+            PasswordInput = InputType.Password;
+            PasswordInputIcon = Icons.Material.Filled.Visibility;
+        }
+    }
+    
+    private void ToggleConfirmPasswordVisibility()
+    {
+        isConfirmPasswordVisible = !isConfirmPasswordVisible;
+        if (isConfirmPasswordVisible)
+        {
+            ConfirmPasswordInput = InputType.Text;
+            ConfirmPasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+        }
+        else
+        {
+            ConfirmPasswordInput = InputType.Password;
+            ConfirmPasswordInputIcon = Icons.Material.Filled.Visibility;
+        }
     }
 
     private sealed class InputModel

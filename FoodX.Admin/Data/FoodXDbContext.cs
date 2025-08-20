@@ -162,16 +162,18 @@ namespace FoodX.Admin.Data
                 entity.HasIndex(e => e.SupplierId).HasDatabaseName("IX_Products_SupplierId");
                 entity.HasIndex(e => e.CompanyId).HasDatabaseName("IX_Products_CompanyId");
 
-                // Relationships
-                entity.HasOne<Supplier>()
-                    .WithMany()
+                // Relationships - explicitly configure to avoid shadow properties
+                entity.HasOne(e => e.Supplier)
+                    .WithMany(s => s.Products)
                     .HasForeignKey(e => e.SupplierId)
-                    .OnDelete(DeleteBehavior.SetNull);
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .IsRequired(false);
 
-                entity.HasOne<Company>()
-                    .WithMany()
+                entity.HasOne(e => e.Company)
+                    .WithMany(c => c.Products)
                     .HasForeignKey(e => e.CompanyId)
-                    .OnDelete(DeleteBehavior.SetNull);
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .IsRequired(false);
             });
         }
     }

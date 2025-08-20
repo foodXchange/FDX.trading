@@ -56,5 +56,8 @@ namespace FoodX.Admin.Models
 
         // Navigation properties
         public ICollection<UserEmployment> UserEmployments { get; } = [];
+
+        // Collection navigation for Products
+        public virtual ICollection<Product> Products { get; set; } = [];
     }
 }

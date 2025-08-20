@@ -60,6 +60,21 @@
 
                     <MudDivider Class="my-4" />
                     
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                                       FullWidth="true" Href="/Account/MagicLink"
+                                       StartIcon="@Icons.Material.Filled.Email">
+                                Sign in with Magic Link
+                            </MudButton>
+                            <MudText Typo="Typo.caption" Class="text-center mt-2" Color="Color.Secondary">
+                                No password needed - we'll email you a secure link
+                            </MudText>
+                        </MudItem>
+                    </MudGrid>
+                    
+                    <MudDivider Class="my-4" />
+                    
                     <MudGrid Class="mt-4">
                         <MudItem xs="12" Class="text-center">
                             <MudText Typo="Typo.body2" Class="mb-2">Having trouble accessing your account?</MudText>
@@ -123,42 +138,51 @@
 
     public async Task LoginUser()
     {
-        // This doesn't count login failures towards account lockout
-        // To enable password failures to trigger account lockout, set lockoutOnFailure: true
-        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
-        if (result.Succeeded)
+        try
         {
-            Logger.LogInformation("User logged in.");
-            
-            // If no return URL specified, redirect to role-based dashboard
-            if (string.IsNullOrEmpty(ReturnUrl) || ReturnUrl == "/")
+            // This doesn't count login failures towards account lockout
+            // To enable password failures to trigger account lockout, set lockoutOnFailure: true
+            var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+            if (result.Succeeded)
             {
-                var user = await UserManager.FindByEmailAsync(Input.Email);
-                if (user != null)
+                Logger.LogInformation("User logged in.");
+                
+                // If no return URL specified, redirect to role-based dashboard
+                if (string.IsNullOrEmpty(ReturnUrl) || ReturnUrl == "/")
                 {
-                    var principal = await SignInManager.CreateUserPrincipalAsync(user);
-                    var dashboardUrl = await RoleNavigationService.GetRoleBasedDashboardUrl(principal);
-                    NavigationManager.NavigateTo(dashboardUrl);
-                    return;
+                    var user = await UserManager.FindByEmailAsync(Input.Email);
+                    if (user != null)
+                    {
+                        var principal = await SignInManager.CreateUserPrincipalAsync(user);
+                        var dashboardUrl = await RoleNavigationService.GetRoleBasedDashboardUrl(principal);
+                        RedirectManager.RedirectTo(dashboardUrl);
+                        return;
+                    }
                 }
+                
+                RedirectManager.RedirectTo(ReturnUrl);
             }
-            
-            RedirectManager.RedirectTo(ReturnUrl);
+            else if (result.RequiresTwoFactor)
+            {
+                RedirectManager.RedirectTo(
+                    "Account/LoginWith2fa",
+                    new() { ["returnUrl"] = ReturnUrl, ["rememberMe"] = Input.RememberMe });
+            }
+            else if (result.IsLockedOut)
+            {
+                Logger.LogWarning("User account locked out.");
+                RedirectManager.RedirectTo("Account/Lockout");
+            }
+            else
+            {
+                errorMessage = "Error: Invalid login attempt.";
+                Logger.LogWarning($"Login failed for user: {Input.Email}");
+            }
         }
-        else if (result.RequiresTwoFactor)
+        catch (Exception ex)
         {
-            RedirectManager.RedirectTo(
-                "Account/LoginWith2fa",
-                new() { ["returnUrl"] = ReturnUrl, ["rememberMe"] = Input.RememberMe });
-        }
-        else if (result.IsLockedOut)
-        {
-            Logger.LogWarning("User account locked out.");
-            RedirectManager.RedirectTo("Account/Lockout");
-        }
-        else
-        {
-            errorMessage = "Error: Invalid login attempt.";
+            Logger.LogError(ex, $"Login error for user: {Input.Email}");
+            errorMessage = "An error occurred during login. Please try again.";
         }
     }
 

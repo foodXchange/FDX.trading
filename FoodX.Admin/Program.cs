@@ -7,8 +7,14 @@ using FoodX.Admin.Components.Account;
 using FoodX.Admin.Data;
 using System.Globalization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
+using Azure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Azure Key Vault
+var keyVaultName = "fdx-kv-poland";
+var keyVaultUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
+builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential());
 
 // Configure Globalization (Israel/Jerusalem timezone)
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.GetCultureInfo("en-US");
@@ -130,6 +136,12 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 // Register role navigation service
 builder.Services.AddScoped<FoodX.Admin.Services.IRoleNavigationService, FoodX.Admin.Services.RoleNavigationService>();
 
+// Register Magic Link and Email services
+builder.Services.AddScoped<FoodX.Admin.Services.IMagicLinkService, FoodX.Admin.Services.MagicLinkService>();
+builder.Services.AddScoped<FoodX.Admin.Services.ISendGridEmailService, FoodX.Admin.Services.SendGridEmailService>();
+// Keep old IEmailService for backward compatibility
+builder.Services.AddScoped<FoodX.Admin.Services.IEmailService, FoodX.Admin.Services.EmailService>();
+
 // Add health checks
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ApplicationDbContext>("identity-db")
@@ -182,8 +194,11 @@ else
     app.UseHsts();
 }
 
-// Force HTTPS
-app.UseHttpsRedirection();
+// Only use HTTPS redirection in production
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 // Add security headers
 app.Use(async (context, next) =>
@@ -198,7 +213,7 @@ app.Use(async (context, next) =>
 // Use CORS if configured
 app.UseCors("AllowSpecificOrigins");
 
-// Use authentication and authorization1
+// Use authentication and authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -222,6 +237,47 @@ app.MapRazorComponents<App>()
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
 
+// Temporary endpoint to reset test passwords (REMOVE IN PRODUCTION)
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/reset-test-passwords", async (UserManager<ApplicationUser> userManager) =>
+    {
+        var testUsers = new Dictionary<string, string>
+        {
+            { "admin1@test.com", "Admin1@Pass123" },
+            { "buyer1@test.com", "Buyer1@Pass123" },
+            { "supplier1@test.com", "Supplier1@Pass123" }
+        };
+
+        var results = new List<string>();
+
+        foreach (var kvp in testUsers)
+        {
+            var user = await userManager.FindByEmailAsync(kvp.Key);
+            if (user != null)
+            {
+                var token = await userManager.GeneratePasswordResetTokenAsync(user);
+                var result = await userManager.ResetPasswordAsync(user, token, kvp.Value);
+
+                if (result.Succeeded)
+                {
+                    results.Add($"[OK] Reset password for: {kvp.Key}");
+                }
+                else
+                {
+                    results.Add($"[FAILED] Could not reset password for: {kvp.Key} - {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                }
+            }
+            else
+            {
+                results.Add($"[NOT FOUND] User: {kvp.Key}");
+            }
+        }
+
+        return string.Join("\n", results);
+    });
+}
+
 // Seed roles on startup
 using (var scope = app.Services.CreateScope())
 {
@@ -238,8 +294,5 @@ using (var scope = app.Services.CreateScope())
         }
     }
 }
-
-// Create admin accounts - commented out due to schema issues
-// await FoodX.Admin.CreateAdminUser.CreateAdminAccounts(app.Services);
 
 await app.RunAsync();

@@ -79,7 +79,7 @@ namespace FoodX.Admin.Services
         {
             if (user?.Identity?.IsAuthenticated != true)
             {
-                return new List<string>();
+                return [];
             }
 
             // Try to get roles from claims first (faster)
@@ -97,7 +97,7 @@ namespace FoodX.Admin.Services
             var email = user.Identity.Name;
             if (string.IsNullOrEmpty(email))
             {
-                return new List<string>();
+                return [];
             }
 
             try
@@ -114,7 +114,7 @@ namespace FoodX.Admin.Services
                 _logger.LogError(ex, "Error getting user roles for {Email}", email);
             }
 
-            return new List<string>();
+            return [];
         }
     }
 }

@@ -25,5 +25,8 @@ namespace FoodX.Admin.Models
 
         [ForeignKey("CompanyId")]
         public Company? Company { get; set; }
+
+        // Collection navigation for Products
+        public virtual ICollection<Product> Products { get; set; } = [];
     }
 }

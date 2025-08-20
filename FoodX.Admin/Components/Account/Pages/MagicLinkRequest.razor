@@ -1,0 +1,180 @@
+@page "/Account/MagicLink"
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using FoodX.Admin.Data
+@using FoodX.Admin.Services
+
+@inject UserManager<ApplicationUser> UserManager
+@inject ISendGridEmailService EmailService
+@inject IMagicLinkService MagicLinkService
+@inject NavigationManager NavigationManager
+@inject ILogger<MagicLinkRequest> Logger
+
+<PageTitle>Sign in with Magic Link - FoodX</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudCard Elevation="0" Class="pa-8" Style="border: 1px solid #e0e0e0;">
+        <MudCardContent>
+            <div class="text-center mb-6">
+                <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h4" Class="mt-2">Passwordless Sign In</MudText>
+                <MudText Typo="Typo.subtitle1" Color="Color.Secondary" Class="mt-2">
+                    Sign in without a password
+                </MudText>
+            </div>
+
+            @if (emailSent)
+            {
+                <MudAlert Severity="Severity.Success" Class="mb-4">
+                    <MudText>
+                        We've sent a magic link to <strong>@Input.Email</strong>
+                    </MudText>
+                    <MudText Typo="Typo.body2" Class="mt-2">
+                        Check your email and click the link to sign in. The link expires in 15 minutes.
+                    </MudText>
+                </MudAlert>
+                
+                <MudText Typo="Typo.body2" Class="text-center mt-4">
+                    Didn't receive the email? Check your spam folder or
+                    <MudLink @onclick="ResendEmail" Style="cursor: pointer;">request a new link</MudLink>
+                </MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.body1" Class="mb-4">
+                    Enter your email address and we'll send you a secure link to sign in instantly.
+                </MudText>
+
+                <EditForm Model="Input" OnValidSubmit="SendMagicLink" FormName="magic-link">
+                    <DataAnnotationsValidator />
+                    
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <MudAlert Severity="Severity.Error" Class="mb-4">@errorMessage</MudAlert>
+                    }
+
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <MudStaticTextField For="@(() => Input.Email)" @bind-Value="Input.Email" 
+                                Label="Email Address" Placeholder="name@example.com" 
+                                UserAttributes="@(new() { { "autocomplete", "email" }, { "aria-required", "true" } } )" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudStaticButton Variant="Variant.Filled" Color="Color.Primary" 
+                                FullWidth="true" FormAction="FormAction.Submit" 
+                                Disabled="@isProcessing">
+                                @if (isProcessing)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    <span>Sending...</span>
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Send" Class="mr-2" />
+                                    <span>Send Magic Link</span>
+                                }
+                            </MudStaticButton>
+                        </MudItem>
+                    </MudGrid>
+                </EditForm>
+
+                <MudDivider Class="my-4" />
+                
+                <MudGrid>
+                    <MudItem xs="12" Class="text-center">
+                        <MudText Typo="Typo.body2" Class="mb-2">
+                            Prefer to use a password?
+                        </MudText>
+                        <MudLink Href="/Account/Login">Sign in with password</MudLink>
+                    </MudItem>
+                </MudGrid>
+            }
+
+            <MudDivider Class="my-4" />
+            
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        <MudText Typo="Typo.caption">
+                            <strong>How it works:</strong><br />
+                            1. Enter your email address<br />
+                            2. We'll send you a secure, one-time login link<br />
+                            3. Click the link in your email to sign in instantly<br />
+                            4. No password needed!
+                        </MudText>
+                    </MudAlert>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private bool emailSent = false;
+    private bool isProcessing = false;
+    private string? errorMessage;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private async Task SendMagicLink()
+    {
+        errorMessage = null;
+        isProcessing = true;
+        
+        try
+        {
+            // Check if user exists
+            var user = await UserManager.FindByEmailAsync(Input.Email);
+            if (user == null)
+            {
+                // Don't reveal that the user doesn't exist for security
+                emailSent = true;
+                return;
+            }
+
+            // Check if email is confirmed
+            if (!user.EmailConfirmed)
+            {
+                errorMessage = "Please confirm your email address first.";
+                return;
+            }
+
+            // Generate magic link token
+            var token = await MagicLinkService.GenerateMagicLinkTokenAsync(Input.Email);
+            var magicLinkUrl = MagicLinkService.GenerateMagicLinkUrl(Input.Email, token);
+
+            // Send email
+            await EmailService.SendMagicLinkEmailAsync(Input.Email, magicLinkUrl);
+            
+            Logger.LogInformation($"Magic link sent to {Input.Email}");
+            emailSent = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Error sending magic link to {Input.Email}");
+            errorMessage = "An error occurred. Please try again.";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void ResendEmail()
+    {
+        emailSent = false;
+        Input.Email = string.Empty;
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [EmailAddress]
+        [Display(Name = "Email Address")]
+        public string Email { get; set; } = "";
+    }
+}
