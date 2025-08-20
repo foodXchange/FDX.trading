@@ -1,0 +1,62 @@
+@using FoodX.Admin.Models
+@using MudBlazor
+
+<MudCard Class="@GetCardClass()" Style="@GetCardStyle()" @onclick="OnCardClick">
+    <MudCardContent Class="text-center pa-6">
+        <MudIcon Icon="@Role.Icon" Color="@Role.Color" Class="feature-icon" />
+        <MudText Typo="Typo.h5" GutterBottom="true">@Role.Title</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            @Role.Description
+        </MudText>
+        
+        @if (Role.Features.Any())
+        {
+            <MudDivider Class="my-4" />
+            <MudList T="string" Dense="true">
+                @foreach (var feature in Role.Features)
+                {
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.Check" IconColor="Color.Success">
+                        <MudText Typo="Typo.caption">@feature</MudText>
+                    </MudListItem>
+                }
+            </MudList>
+        }
+        
+        @if (!Role.IsSpecial)
+        {
+            <MudButton Variant="Variant.Text" Color="@Role.Color" FullWidth="true" Class="mt-4">
+                @Role.ButtonText
+            </MudButton>
+        }
+        else if (!string.IsNullOrEmpty(Role.AlertMessage))
+        {
+            <MudDivider Class="my-4" />
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" Href="mailto:admin@foodx.com">
+                Request Invitation
+            </MudButton>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public RolePortal Role { get; set; } = new();
+    [Parameter] public EventCallback<RolePortal> OnClick { get; set; }
+
+    private async Task OnCardClick()
+    {
+        if (!Role.IsSpecial && OnClick.HasDelegate)
+        {
+            await OnClick.InvokeAsync(Role);
+        }
+    }
+
+    private string GetCardClass()
+    {
+        return Role.IsSpecial ? "role-card-special" : "role-card";
+    }
+
+    private string GetCardStyle()
+    {
+        return Role.SpecialStyle ?? string.Empty;
+    }
+}

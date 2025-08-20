@@ -1,0 +1,275 @@
+@page "/dashboard/buyer"
+@using FoodX.Admin.Data
+@using FoodX.Admin.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@inject FoodXDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize(Roles = "Buyer,Admin,SuperAdmin")]
+
+<PageTitle>Buyer Dashboard - FoodX</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h3" GutterBottom="true">
+                <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Class="mr-2" Style="vertical-align: middle;" />
+                Buyer Dashboard
+            </MudText>
+            <MudText Typo="Typo.body1" Class="mb-4">Find suppliers, source products, and manage procurement</MudText>
+        </MudItem>
+
+        <!-- Key Metrics -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Color="Color.Primary" Style="font-size: 3rem;" />
+                    <MudText Typo="Typo.h4" Class="mt-2">@_connectedSuppliers</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Connected Suppliers</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.Category" Color="Color.Success" Style="font-size: 3rem;" />
+                    <MudText Typo="Typo.h4" Class="mt-2">@_availableProducts</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Available Products</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.RequestQuote" Color="Color.Warning" Style="font-size: 3rem;" />
+                    <MudText Typo="Typo.h4" Class="mt-2">@_activeQuotes</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Active Quotes</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.Bookmark" Color="Color.Info" Style="font-size: 3rem;" />
+                    <MudText Typo="Typo.h4" Class="mt-2">@_savedProducts</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Saved Products</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Quick Actions -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h5" GutterBottom="true">Quick Actions</MudText>
+                <MudGrid Class="mt-3">
+                    <MudItem xs="12" sm="6">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Search" 
+                                   FullWidth="true" Href="/products/search">
+                            Search Products
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.LocalShipping" 
+                                   FullWidth="true" Href="/suppliers">
+                            Find Suppliers
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.RequestQuote" 
+                                   FullWidth="true" Href="/quotes/request">
+                            Request Quote
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.History" 
+                                   FullWidth="true" Href="/orders/history">
+                            Order History
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Product Categories -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h5" GutterBottom="true">Browse by Category</MudText>
+                <MudGrid Class="mt-3">
+                    <MudItem xs="6">
+                        <MudCard Class="cursor-pointer" @onclick="@(() => NavigateToCategory("Fruits"))">
+                            <MudCardContent Class="text-center">
+                                <MudIcon Icon="@Icons.Material.Filled.ShoppingBasket" Color="Color.Success" Style="font-size: 2rem;" />
+                                <MudText Typo="Typo.body2" Class="mt-2">Fruits & Vegetables</MudText>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudCard Class="cursor-pointer" @onclick="@(() => NavigateToCategory("Dairy"))">
+                            <MudCardContent Class="text-center">
+                                <MudIcon Icon="@Icons.Material.Filled.LocalDrink" Color="Color.Info" Style="font-size: 2rem;" />
+                                <MudText Typo="Typo.body2" Class="mt-2">Dairy Products</MudText>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudCard Class="cursor-pointer" @onclick="@(() => NavigateToCategory("Meat"))">
+                            <MudCardContent Class="text-center">
+                                <MudIcon Icon="@Icons.Material.Filled.Restaurant" Color="Color.Error" Style="font-size: 2rem;" />
+                                <MudText Typo="Typo.body2" Class="mt-2">Meat & Poultry</MudText>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudCard Class="cursor-pointer" @onclick="@(() => NavigateToCategory("Grains"))">
+                            <MudCardContent Class="text-center">
+                                <MudIcon Icon="@Icons.Material.Filled.Grass" Color="Color.Warning" Style="font-size: 2rem;" />
+                                <MudText Typo="Typo.body2" Class="mt-2">Grains & Cereals</MudText>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Recent Suppliers -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h5" GutterBottom="true">Recommended Suppliers</MudText>
+                @if (_recommendedSuppliers.Any())
+                {
+                    <MudList T="string">
+                        @foreach (var supplier in _recommendedSuppliers)
+                        {
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Store">
+                                <div class="d-flex justify-space-between align-center">
+                                    <div>
+                                        <MudText Typo="Typo.body1">@supplier.User.CompanyName</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@supplier.SupplierType</MudText>
+                                    </div>
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">
+                                        View Products
+                                    </MudButton>
+                                </div>
+                            </MudListItem>
+                        }
+                    </MudList>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">No suppliers available</MudText>
+                }
+            </MudPaper>
+        </MudItem>
+
+        <!-- Featured Products -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h5" GutterBottom="true">Featured Products</MudText>
+                @if (_featuredProducts.Any())
+                {
+                    <MudList T="string">
+                        @foreach (var product in _featuredProducts)
+                        {
+                            <MudListItem T="string" Icon="@Icons.Material.Filled.Category">
+                                <div class="d-flex justify-space-between align-center">
+                                    <div>
+                                        <MudText Typo="Typo.body1">@product.Name</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                            @product.Category - $@product.Price/@product.Unit
+                                        </MudText>
+                                    </div>
+                                    <MudIconButton Icon="@Icons.Material.Filled.AddShoppingCart" 
+                                                   Color="Color.Primary" Size="Size.Small" />
+                                </div>
+                            </MudListItem>
+                        }
+                    </MudList>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">No featured products</MudText>
+                }
+            </MudPaper>
+        </MudItem>
+
+        <!-- Procurement Tips -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h5" GutterBottom="true">Procurement Tips</MudText>
+                <MudGrid>
+                    <MudItem xs="12" md="4">
+                        <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Lightbulb">
+                            Compare prices from multiple suppliers before making a purchase decision
+                        </MudAlert>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Verified">
+                            Always verify supplier certifications and quality standards
+                        </MudAlert>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.TrendingUp">
+                            Track market trends to optimize your procurement timing
+                        </MudAlert>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private int _connectedSuppliers = 0;
+    private int _availableProducts = 0;
+    private int _activeQuotes = 0;
+    private int _savedProducts = 0;
+    private List<Supplier> _recommendedSuppliers = new();
+    private List<Product> _featuredProducts = new();
+    private string? _currentUserEmail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Get current user
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            _currentUserEmail = authState.User?.Identity?.Name;
+
+            // Get statistics
+            _availableProducts = await DbContext.Products.Where(p => p.IsActive).CountAsync();
+            _connectedSuppliers = await DbContext.Suppliers.CountAsync();
+            
+            // These would need actual implementation with proper tables
+            _activeQuotes = 5; // Placeholder
+            _savedProducts = 12; // Placeholder
+
+            // Get recommended suppliers (top 5)
+            _recommendedSuppliers = await DbContext.Suppliers
+                .Include(s => s.User)
+                .Include(s => s.Company)
+                .OrderByDescending(s => s.CreatedAt)
+                .Take(5)
+                .ToListAsync();
+
+            // Get featured products
+            _featuredProducts = await DbContext.Products
+                .Where(p => p.IsActive)
+                .OrderByDescending(p => p.CreatedAt)
+                .Take(5)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Database error: {ex.Message}");
+        }
+    }
+
+    private void NavigateToCategory(string category)
+    {
+        NavigationManager.NavigateTo($"/products/category/{category}");
+    }
+}

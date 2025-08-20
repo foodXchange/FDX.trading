@@ -13,9 +13,9 @@ public class ApplicationUser : IdentityUser
     public bool IsSuperAdmin { get; set; } = false;
     public string? ImpersonatedBy { get; set; } // UserId of admin impersonating this user
     public DateTime? LastLoginAt { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-    
+    public DateTime? CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+
     // For invitation tracking
     public string? InvitationCode { get; set; }
     public int? InvitationId { get; set; }

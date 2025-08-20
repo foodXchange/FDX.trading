@@ -56,7 +56,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
     options.AccessDeniedPath = "/Account/AccessDenied";
-    
+
     // In development, make authentication optional
     if (builder.Environment.IsDevelopment())
     {
@@ -228,7 +228,7 @@ using (var scope = app.Services.CreateScope())
     var roleManager = scope.ServiceProvider.GetService<RoleManager<IdentityRole>>();
     if (roleManager != null)
     {
-        string[] roles = { "Admin", "Buyer", "Seller", "Agent", "Expert" };
+        string[] roles = { "SuperAdmin", "Admin", "Buyer", "Supplier", "Agent", "Expert" };
         foreach (var role in roles)
         {
             if (!await roleManager.RoleExistsAsync(role))
@@ -238,5 +238,8 @@ using (var scope = app.Services.CreateScope())
         }
     }
 }
+
+// Create admin accounts - commented out due to schema issues
+// await FoodX.Admin.CreateAdminUser.CreateAdminAccounts(app.Services);
 
 await app.RunAsync();

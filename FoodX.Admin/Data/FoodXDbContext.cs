@@ -25,7 +25,7 @@ namespace FoodX.Admin.Data
         public DbSet<Agent> Agents { get; set; }
         public DbSet<SystemAdmin> SystemAdmins { get; set; }
         public DbSet<BackOffice> BackOffices { get; set; }
-        
+
         // Invitation system
         public DbSet<Invitation> Invitations { get; set; }
 
@@ -41,7 +41,7 @@ namespace FoodX.Admin.Data
                 entity.ToTable("Users", t =>
                 {
                     t.HasCheckConstraint("CK_Users_Role",
-                        "[Role] IN ('Buyer', 'Seller', 'Agent', 'Admin')");
+                        "[Role] IN ('Buyer', 'Supplier', 'Agent', 'Admin', 'Expert', 'SuperAdmin')");
                 });
                 entity.HasIndex(e => e.Email).IsUnique();
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
@@ -156,18 +156,18 @@ namespace FoodX.Admin.Data
                 entity.Property(e => e.IsAvailable).HasDefaultValue(true);
                 entity.Property(e => e.MinOrderQuantity).HasDefaultValue(1);
                 entity.Property(e => e.StockQuantity).HasDefaultValue(0);
-                
+
                 // Indexes
                 entity.HasIndex(e => e.Category).HasDatabaseName("IX_Products_Category");
                 entity.HasIndex(e => e.SupplierId).HasDatabaseName("IX_Products_SupplierId");
                 entity.HasIndex(e => e.CompanyId).HasDatabaseName("IX_Products_CompanyId");
-                
+
                 // Relationships
                 entity.HasOne<Supplier>()
                     .WithMany()
                     .HasForeignKey(e => e.SupplierId)
                     .OnDelete(DeleteBehavior.SetNull);
-                    
+
                 entity.HasOne<Company>()
                     .WithMany()
                     .HasForeignKey(e => e.CompanyId)

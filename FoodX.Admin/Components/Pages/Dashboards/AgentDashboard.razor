@@ -1,0 +1,315 @@
+@page "/dashboard/agent"
+@using FoodX.Admin.Data
+@using FoodX.Admin.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@inject FoodXDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize(Roles = "Agent,Admin,SuperAdmin")]
+
+<PageTitle>Agent Dashboard - FoodX</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h3" GutterBottom="true">
+                <MudIcon Icon="@Icons.Material.Filled.Support" Class="mr-2" Style="vertical-align: middle;" />
+                Agent Dashboard
+            </MudText>
+            <MudText Typo="Typo.body1" Class="mb-4">Manage territories, connect buyers and suppliers, close deals</MudText>
+        </MudItem>
+
+        <!-- Key Metrics -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.Handshake" Color="Color.Primary" Style="font-size: 3rem;" />
+                    <MudText Typo="Typo.h4" Class="mt-2">@_dealsCompleted</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Deals Completed</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Success">@_dealsThisMonth this month</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Success" Style="font-size: 3rem;" />
+                    <MudText Typo="Typo.h4" Class="mt-2">$@_totalRevenue.ToString("N0")</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Total Revenue</MudText>
+                    <MudText Typo="Typo.caption">Commission earned</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.Groups" Color="Color.Warning" Style="font-size: 3rem;" />
+                    <MudText Typo="Typo.h4" Class="mt-2">@_activeClients</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Active Clients</MudText>
+                    <MudText Typo="Typo.caption">@_newClientsThisWeek new this week</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.Map" Color="Color.Info" Style="font-size: 3rem;" />
+                    <MudText Typo="Typo.h4" Class="mt-2">@_territoriesManaged</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Territories</MudText>
+                    <MudText Typo="Typo.caption">Under management</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Quick Actions -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h5" GutterBottom="true">Quick Actions</MudText>
+                <MudGrid Class="mt-3">
+                    <MudItem xs="12" sm="6">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" 
+                                   FullWidth="true" Href="/clients/add">
+                            Add New Client
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Handshake" 
+                                   FullWidth="true" Href="/deals/create">
+                            Create Deal
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.ConnectWithoutContact" 
+                                   FullWidth="true" Href="/matchmaking">
+                            Match B2B Partners
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Analytics" 
+                                   FullWidth="true" Href="/reports/commission">
+                            Commission Report
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Territory Overview -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h5" GutterBottom="true">Territory Performance</MudText>
+                <MudList T="string">
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.LocationOn">
+                        <div class="d-flex justify-space-between align-center">
+                            <div>
+                                <MudText Typo="Typo.body1">North Region</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">15 clients, 8 active deals</MudText>
+                            </div>
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small">$45K/month</MudChip>
+                        </div>
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.LocationOn">
+                        <div class="d-flex justify-space-between align-center">
+                            <div>
+                                <MudText Typo="Typo.body1">Central District</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">12 clients, 5 active deals</MudText>
+                            </div>
+                            <MudChip T="string" Color="Color.Primary" Size="Size.Small">$32K/month</MudChip>
+                        </div>
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.LocationOn">
+                        <div class="d-flex justify-space-between align-center">
+                            <div>
+                                <MudText Typo="Typo.body1">South Zone</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">10 clients, 3 active deals</MudText>
+                            </div>
+                            <MudChip T="string" Color="Color.Warning" Size="Size.Small">$18K/month</MudChip>
+                        </div>
+                    </MudListItem>
+                </MudList>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Active Deals Pipeline -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h5" GutterBottom="true">Active Deals Pipeline</MudText>
+                <MudSimpleTable Hover="true" Bordered="true" Striped="true">
+                    <thead>
+                        <tr>
+                            <th>Deal</th>
+                            <th>Buyer</th>
+                            <th>Supplier</th>
+                            <th>Value</th>
+                            <th>Stage</th>
+                            <th>Expected Close</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Organic Produce Supply</td>
+                            <td>SuperMart Chain</td>
+                            <td>Green Farms Ltd</td>
+                            <td>$125,000</td>
+                            <td><MudChip T="string" Color="Color.Warning" Size="Size.Small">Negotiation</MudChip></td>
+                            <td>@DateTime.Now.AddDays(7).ToString("MMM dd")</td>
+                            <td>
+                                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">Update</MudButton>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Dairy Products Contract</td>
+                            <td>Restaurant Group</td>
+                            <td>Fresh Dairy Co</td>
+                            <td>$85,000</td>
+                            <td><MudChip T="string" Color="Color.Success" Size="Size.Small">Final Review</MudChip></td>
+                            <td>@DateTime.Now.AddDays(3).ToString("MMM dd")</td>
+                            <td>
+                                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">Update</MudButton>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Meat Supply Agreement</td>
+                            <td>Hotel Chain</td>
+                            <td>Premium Meats</td>
+                            <td>$200,000</td>
+                            <td><MudChip T="string" Color="Color.Info" Size="Size.Small">Proposal</MudChip></td>
+                            <td>@DateTime.Now.AddDays(14).ToString("MMM dd")</td>
+                            <td>
+                                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">Update</MudButton>
+                            </td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Client Activities -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h5" GutterBottom="true">Recent Client Activities</MudText>
+                <MudTimeline TimelineOrientation="TimelineOrientation.Vertical">
+                    <MudTimelineItem Color="Color.Success" Size="Size.Small">
+                        <ItemContent>
+                            <MudText Typo="Typo.body1">New client onboarded</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">ABC Foods - 2 hours ago</MudText>
+                        </ItemContent>
+                    </MudTimelineItem>
+                    <MudTimelineItem Color="Color.Primary" Size="Size.Small">
+                        <ItemContent>
+                            <MudText Typo="Typo.body1">Deal closed successfully</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">$45K deal - Yesterday</MudText>
+                        </ItemContent>
+                    </MudTimelineItem>
+                    <MudTimelineItem Color="Color.Warning" Size="Size.Small">
+                        <ItemContent>
+                            <MudText Typo="Typo.body1">Meeting scheduled</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">XYZ Corp - Tomorrow 2 PM</MudText>
+                        </ItemContent>
+                    </MudTimelineItem>
+                </MudTimeline>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Commission Overview -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h5" GutterBottom="true">Commission Overview</MudText>
+                <MudList T="string">
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.TrendingUp">
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText>This Month</MudText>
+                            <MudText Typo="Typo.h6" Color="Color.Success">$@_commissionThisMonth.ToString("N0")</MudText>
+                        </div>
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.History">
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText>Last Month</MudText>
+                            <MudText Typo="Typo.h6">$@_commissionLastMonth.ToString("N0")</MudText>
+                        </div>
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.AccountBalance">
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText>Pending Payment</MudText>
+                            <MudText Typo="Typo.h6" Color="Color.Warning">$@_pendingCommission.ToString("N0")</MudText>
+                        </div>
+                    </MudListItem>
+                </MudList>
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Average commission rate: 3.5%
+                </MudText>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Performance Tips -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h5" GutterBottom="true">Performance Tips</MudText>
+                <MudGrid>
+                    <MudItem xs="12" md="3">
+                        <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.TipsAndUpdates">
+                            Follow up with SuperMart Chain - High priority deal
+                        </MudAlert>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Schedule">
+                            3 clients haven't been contacted in 30+ days
+                        </MudAlert>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudAlert Severity="Severity.Success" Icon="@Icons.Material.Filled.Celebration">
+                            You're in top 10% agents this month!
+                        </MudAlert>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.Warning">
+                            2 proposals expiring this week
+                        </MudAlert>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private int _dealsCompleted = 127;
+    private int _dealsThisMonth = 8;
+    private decimal _totalRevenue = 485000;
+    private int _activeClients = 42;
+    private int _newClientsThisWeek = 3;
+    private int _territoriesManaged = 3;
+    private decimal _commissionThisMonth = 12500;
+    private decimal _commissionLastMonth = 10800;
+    private decimal _pendingCommission = 5200;
+    private string? _currentUserEmail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Get current user
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            _currentUserEmail = authState.User?.Identity?.Name;
+
+            // These would be fetched from actual deals/commission tables
+            // For now using placeholder values
+            
+            // In a real implementation, we would:
+            // - Get agent profile from database
+            // - Count deals, calculate commissions
+            // - Get territory assignments
+            // - Track client interactions
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Database error: {ex.Message}");
+        }
+    }
+}
