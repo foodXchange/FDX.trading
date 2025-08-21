@@ -10,16 +10,16 @@
 @inject NavigationManager NavigationManager
 @inject ILogger<MagicLinkRequest> Logger
 
-<PageTitle>Sign in with Magic Link - FoodX</PageTitle>
+<PageTitle>Sign In - FoodX</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
     <MudCard Elevation="0" Class="pa-8" Style="border: 1px solid #e0e0e0;">
         <MudCardContent>
             <div class="text-center mb-6">
-                <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Large" Color="Color.Primary" />
-                <MudText Typo="Typo.h4" Class="mt-2">Passwordless Sign In</MudText>
+                <MudIcon Icon="@Icons.Material.Filled.Store" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h4" Class="mt-2">Sign In to FoodX</MudText>
                 <MudText Typo="Typo.subtitle1" Color="Color.Secondary" Class="mt-2">
-                    Sign in without a password
+                    Enter your email to receive a secure login link
                 </MudText>
             </div>
 
@@ -41,9 +41,6 @@
             }
             else
             {
-                <MudText Typo="Typo.body1" Class="mb-4">
-                    Enter your email address and we'll send you a secure link to sign in instantly.
-                </MudText>
 
                 <EditForm Model="Input" OnValidSubmit="SendMagicLink" FormName="magic-link">
                     <DataAnnotationsValidator />
@@ -70,41 +67,16 @@
                                 }
                                 else
                                 {
-                                    <MudIcon Icon="@Icons.Material.Filled.Send" Class="mr-2" />
-                                    <span>Send Magic Link</span>
+                                    <MudIcon Icon="@Icons.Material.Filled.Email" Class="mr-2" />
+                                    <span>Send Login Link</span>
                                 }
                             </MudStaticButton>
                         </MudItem>
                     </MudGrid>
                 </EditForm>
 
-                <MudDivider Class="my-4" />
-                
-                <MudGrid>
-                    <MudItem xs="12" Class="text-center">
-                        <MudText Typo="Typo.body2" Class="mb-2">
-                            Prefer to use a password?
-                        </MudText>
-                        <MudLink Href="/Account/Login">Sign in with password</MudLink>
-                    </MudItem>
-                </MudGrid>
             }
 
-            <MudDivider Class="my-4" />
-            
-            <MudGrid>
-                <MudItem xs="12">
-                    <MudAlert Severity="Severity.Info" Dense="true">
-                        <MudText Typo="Typo.caption">
-                            <strong>How it works:</strong><br />
-                            1. Enter your email address<br />
-                            2. We'll send you a secure, one-time login link<br />
-                            3. Click the link in your email to sign in instantly<br />
-                            4. No password needed!
-                        </MudText>
-                    </MudAlert>
-                </MudItem>
-            </MudGrid>
         </MudCardContent>
     </MudCard>
 </MudContainer>

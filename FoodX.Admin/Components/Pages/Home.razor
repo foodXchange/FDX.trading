@@ -1,272 +1,103 @@
 @page "/"
 @using Microsoft.AspNetCore.Authorization
-@using FoodX.Admin.Models
-@using FoodX.Admin.Components.Shared
 @attribute [AllowAnonymous]
 
 <PageTitle>FoodX B2B Trading Platform</PageTitle>
 
-<link href="css/home.css" rel="stylesheet" />
-
-<a href="#main-content" class="skip-link">Skip to main content</a>
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        position: relative;
+    }
+    
+    .hero-content {
+        text-align: center;
+        animation: fadeInUp 0.8s ease-out;
+    }
+    
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .logo-icon {
+        font-size: 8rem;
+        margin-bottom: 2rem;
+        opacity: 0.9;
+    }
+    
+    .login-button {
+        background: white !important;
+        color: #667eea !important;
+        font-weight: 600 !important;
+        padding: 12px 48px !important;
+        font-size: 1.1rem !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1) !important;
+        transition: transform 0.2s, box-shadow 0.2s !important;
+    }
+    
+    .login-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 30px rgba(0,0,0,0.15) !important;
+    }
+    
+    .subtitle {
+        opacity: 0.95;
+        font-size: 1.5rem;
+        margin-bottom: 3rem;
+    }
+    
+    .description {
+        opacity: 0.9;
+        max-width: 600px;
+        margin: 0 auto 3rem auto;
+        font-size: 1.1rem;
+        line-height: 1.6;
+    }
+</style>
 
 <div class="hero-section">
-    <MudContainer MaxWidth="MaxWidth.Large" Class="hero-content">
-        <MudGrid Justify="Justify.Center" Spacing="3">
-            <MudItem xs="12" md="6" Class="fade-in">
-                <MudText Typo="Typo.h2" Class="mb-4" Style="font-weight: bold;">
-                    Welcome to FoodX
-                </MudText>
-                <MudText Typo="Typo.h5" Class="mb-6" Style="opacity: 0.95;">
-                    The Premier B2B Food Trading Platform
-                </MudText>
-                <MudText Typo="Typo.body1" Class="mb-6" Style="opacity: 0.9;">
-                    Connect buyers and suppliers, streamline procurement, ensure quality standards, and grow your food business with our comprehensive platform.
-                </MudText>
-                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" 
-                           StartIcon="@Icons.Material.Filled.Login" Href="/Account/RoleLogin"
-                           Style="background: white; color: #667eea;" Class="me-3">
-                    Access Your Portal
-                </MudButton>
-                <MudButton Variant="Variant.Outlined" Size="Size.Large" 
-                           StartIcon="@Icons.Material.Filled.PlayArrow" 
-                           Style="color: white; border-color: white;"
-                           OnClick="ScrollToPortals">
-                    Explore Portals
-                </MudButton>
-            </MudItem>
-            <MudItem xs="12" md="6" Class="text-center fade-in fade-in-delay-1">
-                <MudIcon Icon="@Icons.Material.Filled.Store" Style="font-size: 15rem; opacity: 0.3;" />
-            </MudItem>
-        </MudGrid>
-    </MudContainer>
-</div>
-
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8 mb-8" id="main-content">
-    <!-- Role-Based Portals Section -->
-    <div id="portals-section">
-        <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true" Class="mb-6 fade-in">
-            Choose Your Portal
-        </MudText>
-        <MudText Typo="Typo.body1" Align="Align.Center" Class="mb-8 fade-in fade-in-delay-1" Color="Color.Secondary">
-            Select your role to access specialized tools and features designed for your business needs
+    <div class="hero-content">
+        <MudIcon Icon="@Icons.Material.Filled.Store" Class="logo-icon" />
+        
+        <MudText Typo="Typo.h1" Style="font-weight: bold; font-size: 3.5rem; margin-bottom: 1rem;">
+            FoodX Trading Platform
         </MudText>
         
-        <MudGrid Spacing="4">
-            @foreach (var (role, index) in RolePortals.Select((r, i) => (r, i)))
-            {
-                <MudItem xs="12" sm="6" md="4" Class="@($"fade-in fade-in-delay-{Math.Min(index + 2, 6)}")">
-                    <RoleCard Role="role" OnClick="NavigateToLogin" />
-                </MudItem>
-            }
-        </MudGrid>
-    </div>
-
-    <!-- Statistics Section -->
-    <div class="stats-section mt-16">
-        <MudContainer MaxWidth="MaxWidth.Large">
-            <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true" Class="mb-6">
-                Platform Statistics
-            </MudText>
-            <MudGrid Spacing="3">
-                @foreach (var stat in Statistics)
-                {
-                    <MudItem xs="6" md="3">
-                        <div class="stat-card fade-in">
-                            <div class="stat-number">@stat.Value</div>
-                            <div class="stat-label">@stat.Label</div>
-                        </div>
-                    </MudItem>
-                }
-            </MudGrid>
-        </MudContainer>
-    </div>
-
-    <!-- Features Section -->
-    <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true" Class="mt-16 mb-6 fade-in">
-        Platform Features
-    </MudText>
-    
-    <MudGrid Spacing="3">
-        @foreach (var (feature, index) in Features.Select((f, i) => (f, i)))
-        {
-            <MudItem xs="12" sm="6" md="3" Class="@($"fade-in fade-in-delay-{Math.Min(index + 1, 4)}")">
-                <MudCard Elevation="0" Class="feature-card">
-                    <MudIcon Icon="@feature.Icon" Color="@feature.Color" Class="feature-icon" />
-                    <MudText Typo="Typo.h6" Class="mt-3">@feature.Title</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        @feature.Description
-                    </MudText>
-                </MudCard>
-            </MudItem>
-        }
-    </MudGrid>
-
-    <!-- Testimonials Section -->
-    <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true" Class="mt-16 mb-6">
-        What Our Users Say
-    </MudText>
-    
-    <MudGrid Spacing="4" Justify="Justify.Center">
-        <MudItem xs="12" md="4">
-            <MudCard Class="pa-4">
-                <MudText Typo="Typo.body1" Class="mb-3">
-                    "FoodX has transformed how we source products. The platform is intuitive and the supplier network is exceptional."
-                </MudText>
-                <MudText Typo="Typo.subtitle2" Color="Color.Primary">- Sarah Chen, Procurement Manager</MudText>
-            </MudCard>
-        </MudItem>
-        <MudItem xs="12" md="4">
-            <MudCard Class="pa-4">
-                <MudText Typo="Typo.body1" Class="mb-3">
-                    "As a supplier, FoodX has opened new markets for us. The quote management system saves us hours daily."
-                </MudText>
-                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">- Michael Rodriguez, Sales Director</MudText>
-            </MudCard>
-        </MudItem>
-        <MudItem xs="12" md="4">
-            <MudCard Class="pa-4">
-                <MudText Typo="Typo.body1" Class="mb-3">
-                    "The expert certification services have helped us maintain the highest quality standards."
-                </MudText>
-                <MudText Typo="Typo.subtitle2" Color="Color.Success">- Dr. Lisa Park, Quality Expert</MudText>
-            </MudCard>
-        </MudItem>
-    </MudGrid>
-
-    <!-- Call to Action -->
-    <MudPaper Class="mt-16 pa-8 text-center" Style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-        <MudText Typo="Typo.h4" GutterBottom="true">Ready to Transform Your Food Business?</MudText>
-        <MudText Typo="Typo.body1" Class="mb-4">Join thousands of companies already using FoodX</MudText>
-        <MudButton Variant="Variant.Filled" Size="Size.Large" 
-                   Style="background: white; color: #667eea;"
-                   Href="/Account/Register">
-            Get Started Today
+        <MudText Typo="Typo.h4" Class="subtitle">
+            Premier B2B Food Trading Network
+        </MudText>
+        
+        <MudText Typo="Typo.body1" Class="description">
+            Connect with verified suppliers and buyers. Streamline procurement. 
+            Ensure quality standards. Grow your food business.
+        </MudText>
+        
+        <MudButton Variant="Variant.Filled" 
+                   Size="Size.Large" 
+                   StartIcon="@Icons.Material.Filled.Login"
+                   Href="/Account/MagicLink"
+                   Class="login-button">
+            Sign In to Your Account
         </MudButton>
-    </MudPaper>
-</MudContainer>
+        
+        <MudText Typo="Typo.body2" Style="margin-top: 2rem; opacity: 0.8;">
+            Secure passwordless authentication
+        </MudText>
+    </div>
+</div>
 
 @code {
     [Inject] private NavigationManager NavigationManager { get; set; } = default!;
-    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
-
-    private List<RolePortal> RolePortals = new();
-    private List<(string Value, string Label)> Statistics = new();
-    private List<(string Icon, Color Color, string Title, string Description)> Features = new();
-
-    protected override void OnInitialized()
-    {
-        InitializeRolePortals();
-        InitializeStatistics();
-        InitializeFeatures();
-    }
-
-    private void InitializeRolePortals()
-    {
-        RolePortals = new List<RolePortal>
-        {
-            new RolePortal
-            {
-                Name = "Buyer",
-                Title = "Buyer Portal",
-                Description = "Source products, manage procurement, request quotes, and connect with verified suppliers",
-                Icon = Icons.Material.Filled.ShoppingCart,
-                Color = Color.Primary,
-                GradientClass = "buyer-gradient",
-                ButtonText = "Enter as Buyer →",
-                Features = new() { "Product Discovery", "Quote Management", "Order Tracking" }
-            },
-            new RolePortal
-            {
-                Name = "Supplier",
-                Title = "Supplier Portal",
-                Description = "List products, manage inventory, respond to RFQs, and expand your customer base",
-                Icon = Icons.Material.Filled.LocalShipping,
-                Color = Color.Secondary,
-                GradientClass = "supplier-gradient",
-                ButtonText = "Enter as Supplier →",
-                Features = new() { "Product Listings", "Inventory Control", "Buyer Connections" }
-            },
-            new RolePortal
-            {
-                Name = "Expert",
-                Title = "Expert Portal",
-                Description = "Provide consultations, issue certifications, conduct audits, and share expertise",
-                Icon = Icons.Material.Filled.School,
-                Color = Color.Success,
-                GradientClass = "expert-gradient",
-                ButtonText = "Enter as Expert →",
-                Features = new() { "Consultations", "Certifications", "Quality Audits" }
-            },
-            new RolePortal
-            {
-                Name = "Agent",
-                Title = "Agent Portal",
-                Description = "Manage territories, facilitate deals, connect partners, and earn commissions",
-                Icon = Icons.Material.Filled.Support,
-                Color = Color.Warning,
-                GradientClass = "agent-gradient",
-                ButtonText = "Enter as Agent →",
-                Features = new() { "Deal Pipeline", "Territory Management", "Commission Tracking" }
-            },
-            new RolePortal
-            {
-                Name = "Admin",
-                Title = "Admin Portal",
-                Description = "System administration, user management, platform configuration, and analytics",
-                Icon = Icons.Material.Filled.AdminPanelSettings,
-                Color = Color.Error,
-                GradientClass = "admin-gradient",
-                ButtonText = "Enter as Admin →",
-                Features = new() { "User Management", "System Settings", "Platform Analytics" }
-            },
-            new RolePortal
-            {
-                Name = "Guest",
-                Title = "Need Access?",
-                Description = "FoodX is an invitation-only platform. Contact your organization administrator for access.",
-                Icon = Icons.Material.Filled.Info,
-                Color = Color.Default,
-                IsSpecial = true,
-                SpecialStyle = "border: 2px dashed #ccc; background-color: #fafafa;",
-                AlertMessage = "Request an invitation to join",
-                Features = new()
-            }
-        };
-    }
-
-    private void InitializeStatistics()
-    {
-        Statistics = new List<(string, string)>
-        {
-            ("5,000+", "Active Suppliers"),
-            ("10,000+", "Products Listed"),
-            ("50,000+", "Monthly Transactions"),
-            ("98%", "Customer Satisfaction")
-        };
-    }
-
-    private void InitializeFeatures()
-    {
-        Features = new List<(string, Color, string, string)>
-        {
-            (Icons.Material.Filled.Security, Color.Primary, "Secure Platform", "Enterprise-grade security with Azure authentication"),
-            (Icons.Material.Filled.Verified, Color.Success, "Verified Partners", "All businesses are verified and certified"),
-            (Icons.Material.Filled.Speed, Color.Warning, "Fast Transactions", "Streamlined procurement and order processing"),
-            (Icons.Material.Filled.Analytics, Color.Info, "Data Insights", "Real-time analytics and market insights")
-        };
-    }
-
-    private void NavigateToLogin(RolePortal role)
-    {
-        if (!role.IsSpecial)
-        {
-            NavigationManager.NavigateTo($"/Account/RoleLogin?role={role.Name}");
-        }
-    }
-
-    private async Task ScrollToPortals()
-    {
-        await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('portals-section').scrollIntoView({ behavior: 'smooth' })");
-    }
 }
