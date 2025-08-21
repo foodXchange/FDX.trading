@@ -23,6 +23,15 @@ CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.GetCultureInfo("en-US");
 // Add MudBlazor services
 builder.Services.AddMudServices();
 
+// Add Memory Cache
+builder.Services.AddMemoryCache();
+
+// Add custom caching service
+builder.Services.AddSingleton<FoodX.Admin.Services.ICacheService, FoodX.Admin.Services.MemoryCacheService>();
+
+// Add Unit of Work and Repository pattern
+builder.Services.AddScoped<FoodX.Admin.Repositories.IUnitOfWork, FoodX.Admin.Repositories.UnitOfWork>();
+
 // Add services to the container with detailed error handling only in dev
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -78,26 +87,26 @@ builder.Services.ConfigureApplicationCookie(options =>
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-// Add both contexts with resilient SQL configuration
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString, sqlOptions =>
-    {
-        sqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorNumbersToAdd: null);
-        sqlOptions.CommandTimeout(60);
-    }));
+// Optimize connection string
+var optimizedConnectionString = FoodX.Admin.Data.DatabaseConfiguration.OptimizeConnectionString(connectionString);
 
-builder.Services.AddDbContext<FoodXDbContext>(options =>
-    options.UseSqlServer(connectionString, sqlOptions =>
-    {
-        sqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorNumbersToAdd: null);
-        sqlOptions.CommandTimeout(60);
-    }));
+// Create performance interceptor
+builder.Services.AddSingleton<FoodX.Admin.Data.PerformanceInterceptor>();
+
+// Add both contexts with resilient SQL configuration
+builder.Services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
+{
+    var interceptor = serviceProvider.GetRequiredService<FoodX.Admin.Data.PerformanceInterceptor>();
+    FoodX.Admin.Data.DatabaseConfiguration.ConfigureDbContext(options, optimizedConnectionString, builder.Environment.IsDevelopment());
+    options.AddInterceptors(interceptor);
+});
+
+builder.Services.AddDbContext<FoodXDbContext>((serviceProvider, options) =>
+{
+    var interceptor = serviceProvider.GetRequiredService<FoodX.Admin.Data.PerformanceInterceptor>();
+    FoodX.Admin.Data.DatabaseConfiguration.ConfigureDbContext(options, optimizedConnectionString, builder.Environment.IsDevelopment());
+    options.AddInterceptors(interceptor);
+});
 
 // Add database developer page exception filter only in development
 if (builder.Environment.IsDevelopment())
