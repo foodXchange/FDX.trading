@@ -8,7 +8,7 @@ public interface IUnitOfWork : IDisposable
     IRepository<Product> Products { get; }
     IRepository<Buyer> Buyers { get; }
     IRepository<Supplier> Suppliers { get; }
-    
+
     Task<int> SaveChangesAsync();
     Task BeginTransactionAsync();
     Task CommitTransactionAsync();

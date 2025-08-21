@@ -23,10 +23,10 @@ namespace FoodX.Admin.Services
 
             // Try to get API key from Key Vault first, then fall back to configuration
             var apiKey = _configuration["SendGridApiKey"] ?? _configuration["SendGrid:ApiKey"];
-            
+
             // Log the configuration attempt
             _logger.LogInformation($"Attempting to configure SendGrid. API Key found: {!string.IsNullOrEmpty(apiKey)}");
-            
+
             if (string.IsNullOrEmpty(apiKey))
             {
                 _logger.LogWarning("SendGrid API key not configured. Emails will be logged only.");

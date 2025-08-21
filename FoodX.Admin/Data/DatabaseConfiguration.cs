@@ -13,7 +13,7 @@ public static class DatabaseConfiguration
             sqlOptions.EnableRetryOnFailure(
                 maxRetryCount: 5,
                 maxRetryDelay: TimeSpan.FromSeconds(30),
-                errorNumbersToAdd: new[] 
+                errorNumbersToAdd: new[]
                 { 
                     // Add specific SQL error numbers for retry
                     -2, // Timeout
@@ -32,30 +32,30 @@ public static class DatabaseConfiguration
                     4060, // Cannot open database
                     18456 // Login failed
                 });
-            
+
             // Set command timeout
             sqlOptions.CommandTimeout(60);
-            
+
             // Use row number for paging (better performance for large datasets)
             sqlOptions.UseCompatibilityLevel(120);
-            
+
             // Enable query splitting for better performance with includes
             sqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
         });
 
         // Configure for optimal performance
         optionsBuilder.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTrackingWithIdentityResolution);
-        
+
         // Enable sensitive data logging only in development
         if (isDevelopment)
         {
             optionsBuilder.EnableSensitiveDataLogging();
             optionsBuilder.EnableDetailedErrors();
         }
-        
+
         // Enable service provider caching
         optionsBuilder.EnableServiceProviderCaching();
-        
+
         // Configure warning behaviors
         optionsBuilder.ConfigureWarnings(warnings =>
         {
@@ -72,20 +72,20 @@ public static class DatabaseConfiguration
             MinPoolSize = 5,
             MaxPoolSize = 100,
             Pooling = true,
-            
+
             // Connection resiliency
             ConnectTimeout = 30,
             ConnectRetryCount = 3,
             ConnectRetryInterval = 10,
-            
+
             // Performance optimizations
             MultipleActiveResultSets = true,
             ApplicationName = "FoodX.Admin",
-            
+
             // Security
             Encrypt = true,
             TrustServerCertificate = false,
-            
+
             // Application intent for read scale-out scenarios
             ApplicationIntent = ApplicationIntent.ReadWrite
         };

@@ -132,7 +132,7 @@ public class PerformanceInterceptor : DbCommandInterceptor
     private void LogPerformance(CommandExecutedEventData eventData)
     {
         var duration = eventData.Duration;
-        
+
         if (duration.TotalMilliseconds > _slowQueryThresholdMs)
         {
             _logger.LogWarning(
@@ -155,7 +155,7 @@ public class PerformanceInterceptor : DbCommandInterceptor
             "Database command failed. Duration: {Duration}ms, Command: {Command}",
             eventData.Duration.TotalMilliseconds,
             command.CommandText);
-        
+
         base.CommandFailed(command, eventData);
     }
 
@@ -169,7 +169,7 @@ public class PerformanceInterceptor : DbCommandInterceptor
             "Database command failed. Duration: {Duration}ms, Command: {Command}",
             eventData.Duration.TotalMilliseconds,
             command.CommandText);
-        
+
         await base.CommandFailedAsync(command, eventData, cancellationToken);
     }
 }

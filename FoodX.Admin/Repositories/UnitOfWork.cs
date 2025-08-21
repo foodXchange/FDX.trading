@@ -11,7 +11,7 @@ public class UnitOfWork : IUnitOfWork
     private IDbContextTransaction? _transaction;
     private readonly ILogger<UnitOfWork> _logger;
     private readonly ILoggerFactory _loggerFactory;
-    
+
     private IRepository<Company>? _companies;
     private IRepository<Product>? _products;
     private IRepository<Buyer>? _buyers;
@@ -24,16 +24,16 @@ public class UnitOfWork : IUnitOfWork
         _loggerFactory = loggerFactory;
     }
 
-    public IRepository<Company> Companies => 
+    public IRepository<Company> Companies =>
         _companies ??= new Repository<Company>(_context, _loggerFactory.CreateLogger<Repository<Company>>());
 
-    public IRepository<Product> Products => 
+    public IRepository<Product> Products =>
         _products ??= new Repository<Product>(_context, _loggerFactory.CreateLogger<Repository<Product>>());
 
-    public IRepository<Buyer> Buyers => 
+    public IRepository<Buyer> Buyers =>
         _buyers ??= new Repository<Buyer>(_context, _loggerFactory.CreateLogger<Repository<Buyer>>());
 
-    public IRepository<Supplier> Suppliers => 
+    public IRepository<Supplier> Suppliers =>
         _suppliers ??= new Repository<Supplier>(_context, _loggerFactory.CreateLogger<Repository<Supplier>>());
 
     public async Task<int> SaveChangesAsync()

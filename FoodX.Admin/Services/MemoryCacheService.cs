@@ -25,7 +25,7 @@ public class MemoryCacheService : ICacheService
                 _logger.LogDebug("Cache hit for key: {Key}", key);
                 return Task.FromResult(value);
             }
-            
+
             _logger.LogDebug("Cache miss for key: {Key}", key);
             return Task.FromResult<T?>(default);
         }
@@ -41,7 +41,7 @@ public class MemoryCacheService : ICacheService
         try
         {
             var options = new MemoryCacheEntryOptions();
-            
+
             if (expiration.HasValue)
             {
                 options.SetAbsoluteExpiration(expiration.Value);
@@ -59,7 +59,7 @@ public class MemoryCacheService : ICacheService
 
             _cache.Set(key, value, options);
             _cacheKeys.TryAdd(key, 0);
-            
+
             _logger.LogDebug("Cache set for key: {Key}", key);
             return Task.CompletedTask;
         }
@@ -91,13 +91,13 @@ public class MemoryCacheService : ICacheService
         try
         {
             var keysToRemove = _cacheKeys.Keys.Where(k => k.StartsWith(prefix)).ToList();
-            
+
             foreach (var key in keysToRemove)
             {
                 _cache.Remove(key);
                 _cacheKeys.TryRemove(key, out _);
             }
-            
+
             _logger.LogDebug("Cache removed for {Count} keys with prefix: {Prefix}", keysToRemove.Count, prefix);
             return Task.CompletedTask;
         }
