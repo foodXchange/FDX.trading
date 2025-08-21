@@ -36,6 +36,9 @@ builder.Services.AddScoped<FoodX.Admin.Repositories.IUnitOfWork, FoodX.Admin.Rep
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// Add controllers for API endpoints
+builder.Services.AddControllers();
+
 // Configure Blazor Server with circuit options
 builder.Services.AddServerSideBlazor()
     .AddCircuitOptions(options =>
@@ -97,14 +100,14 @@ builder.Services.AddSingleton<FoodX.Admin.Data.PerformanceInterceptor>();
 builder.Services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
 {
     var interceptor = serviceProvider.GetRequiredService<FoodX.Admin.Data.PerformanceInterceptor>();
-    FoodX.Admin.Data.DatabaseConfiguration.ConfigureDbContext(options, optimizedConnectionString, builder.Environment.IsDevelopment());
+    FoodX.Admin.Data.DatabaseConfiguration.ConfigureDbContext(options, optimizedConnectionString, false); // Disable sensitive logging in production
     options.AddInterceptors(interceptor);
 });
 
 builder.Services.AddDbContext<FoodXDbContext>((serviceProvider, options) =>
 {
     var interceptor = serviceProvider.GetRequiredService<FoodX.Admin.Data.PerformanceInterceptor>();
-    FoodX.Admin.Data.DatabaseConfiguration.ConfigureDbContext(options, optimizedConnectionString, builder.Environment.IsDevelopment());
+    FoodX.Admin.Data.DatabaseConfiguration.ConfigureDbContext(options, optimizedConnectionString, false); // Disable sensitive logging in production
     options.AddInterceptors(interceptor);
 });
 
@@ -147,7 +150,8 @@ builder.Services.AddScoped<FoodX.Admin.Services.IRoleNavigationService, FoodX.Ad
 
 // Register Magic Link and Email services
 builder.Services.AddScoped<FoodX.Admin.Services.IMagicLinkService, FoodX.Admin.Services.MagicLinkService>();
-builder.Services.AddScoped<FoodX.Admin.Services.ISendGridEmailService, FoodX.Admin.Services.SendGridEmailService>();
+// Register dual-mode email service (supports both API and SMTP)
+builder.Services.AddScoped<FoodX.Admin.Services.ISendGridEmailService, FoodX.Admin.Services.DualModeEmailService>();
 // Keep old IEmailService for backward compatibility
 builder.Services.AddScoped<FoodX.Admin.Services.IEmailService, FoodX.Admin.Services.EmailService>();
 
@@ -227,6 +231,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseAntiforgery();
+
+// Map API controllers
+app.MapControllers();
 
 // Map health checks endpoint
 app.MapHealthChecks("/health");

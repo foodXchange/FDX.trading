@@ -9,6 +9,7 @@ namespace FoodX.Admin.Services
     {
         Task<string> GenerateMagicLinkTokenAsync(string email);
         Task<bool> ValidateMagicLinkTokenAsync(string email, string token);
+        Task<bool> MarkTokenAsUsedAsync(string email, string token);
         Task<ApplicationUser?> GetUserByMagicLinkTokenAsync(string token);
         string GenerateMagicLinkUrl(string email, string token);
     }
@@ -85,10 +86,39 @@ namespace FoodX.Admin.Services
                 return false;
             }
 
+            // Don't mark token as used here - let it be marked after successful login
+            // This prevents the token from being consumed on validation check
+            
+            return true;
+        }
+
+        public async Task<bool> MarkTokenAsUsedAsync(string email, string token)
+        {
+            var magicLink = await _context.MagicLinkTokens
+                .FirstOrDefaultAsync(m =>
+                    m.Email == email &&
+                    m.Token == token &&
+                    !m.IsUsed &&
+                    m.ExpiresAt > DateTime.UtcNow);
+
+            if (magicLink == null)
+            {
+                return false;
+            }
+
             // Mark token as used
             magicLink.IsUsed = true;
             magicLink.UsedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+            
+            try
+            {
+                await _context.SaveChangesAsync();
+                _logger.LogInformation($"Magic link token marked as used for {email}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to mark token as used for {email}");
+            }
 
             return true;
         }

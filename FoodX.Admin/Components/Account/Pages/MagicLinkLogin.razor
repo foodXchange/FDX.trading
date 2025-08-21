@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Identity
 @using FoodX.Admin.Data
 @using FoodX.Admin.Services
+@inject IJSRuntime JSRuntime
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
@@ -30,8 +31,18 @@
                     <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" />
                     <MudText Typo="Typo.h5" Class="mt-4">Success!</MudText>
                     <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mt-2">
-                        You have been successfully signed in. Redirecting...
+                        You have been successfully signed in.
                     </MudText>
+                    <MudText Typo="Typo.body2" Class="mt-3">
+                        <MudLink Href="@redirectUrl">Click here if you're not redirected automatically</MudLink>
+                    </MudText>
+                    
+                    @* JavaScript redirect as backup *@
+                    <script>
+                        setTimeout(function() {
+                            window.location.href = '@redirectUrl';
+                        }, 1500);
+                    </script>
                 }
                 else
                 {
@@ -65,6 +76,7 @@
     private bool isProcessing = true;
     private bool success = false;
     private string errorMessage = "This link is invalid or has expired.";
+    private string redirectUrl = "/";
 
     [SupplyParameterFromQuery]
     private string? Email { get; set; }
@@ -112,24 +124,28 @@
             // Sign in the user
             await SignInManager.SignInAsync(user, isPersistent: false);
             Logger.LogInformation($"User {Email} signed in via magic link");
+            
+            // Mark the token as used after successful sign-in
+            await MagicLinkService.MarkTokenAsUsedAsync(Email, Token);
 
-            success = true;
-            isProcessing = false;
-
-            // Wait a moment to show success message
-            await Task.Delay(1500);
-
-            // Redirect to appropriate dashboard
+            // Determine redirect URL before marking success
             if (string.IsNullOrEmpty(ReturnUrl) || ReturnUrl == "/")
             {
                 var principal = await SignInManager.CreateUserPrincipalAsync(user);
-                var dashboardUrl = await RoleNavigationService.GetRoleBasedDashboardUrl(principal);
-                RedirectManager.RedirectTo(dashboardUrl);
+                redirectUrl = await RoleNavigationService.GetRoleBasedDashboardUrl(principal);
             }
             else
             {
-                RedirectManager.RedirectTo(ReturnUrl);
+                redirectUrl = ReturnUrl;
             }
+            
+            success = true;
+            isProcessing = false;
+            
+            // Force UI update to show success message with redirect link
+            StateHasChanged();
+            
+            // The redirect will now happen via the JavaScript in the template
         }
         catch (Exception ex)
         {
