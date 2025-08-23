@@ -5,6 +5,7 @@ using MudBlazor.Services;
 using FoodX.Admin.Components;
 using FoodX.Admin.Components.Account;
 using FoodX.Admin.Data;
+using FoodX.Core.Extensions;
 using System.Globalization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Azure.Identity;
@@ -23,11 +24,8 @@ CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.GetCultureInfo("en-US");
 // Add MudBlazor services
 builder.Services.AddMudServices();
 
-// Add Memory Cache
-builder.Services.AddMemoryCache();
-
-// Add custom caching service
-builder.Services.AddSingleton<FoodX.Admin.Services.ICacheService, FoodX.Admin.Services.MemoryCacheService>();
+// Add FoodX Core services (caching, email, etc.)
+builder.Services.AddFoodXCore(builder.Configuration);
 
 // Add Unit of Work and Repository pattern
 builder.Services.AddScoped<FoodX.Admin.Repositories.IUnitOfWork, FoodX.Admin.Repositories.UnitOfWork>();
@@ -154,6 +152,9 @@ builder.Services.AddScoped<FoodX.Admin.Services.IMagicLinkService, FoodX.Admin.S
 builder.Services.AddScoped<FoodX.Admin.Services.ISendGridEmailService, FoodX.Admin.Services.DualModeEmailService>();
 // Keep old IEmailService for backward compatibility
 builder.Services.AddScoped<FoodX.Admin.Services.IEmailService, FoodX.Admin.Services.EmailService>();
+
+// Register test user service for development
+builder.Services.AddScoped<FoodX.Admin.Services.TestUserService>();
 
 // Add health checks
 builder.Services.AddHealthChecks()
