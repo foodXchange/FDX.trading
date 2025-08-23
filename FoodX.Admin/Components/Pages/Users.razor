@@ -1,0 +1,212 @@
+@page "/users"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using FoodX.Admin.Data
+@using Microsoft.EntityFrameworkCore
+@inject UserManager<ApplicationUser> UserManager
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@rendermode InteractiveServer
+
+<PageTitle>Users Management</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h3" Class="mb-4">Users Management</MudText>
+    
+    <MudCard>
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" md="8">
+                    <MudTextField @bind-Value="searchString" Placeholder="Search users..." Immediate="true"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  @bind-Value:after="OnSearch" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="4" Class="d-flex justify-end">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
+                        Add User
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+    
+    <MudCard Class="mt-4">
+        <MudCardContent>
+            @if (isLoading)
+            {
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            }
+            else if (!users.Any())
+            {
+                <MudAlert Severity="Severity.Info">No users found.</MudAlert>
+            }
+            else
+            {
+                <MudTable Items="@filteredUsers" Hover="true" Striped="true" Dense="true">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Email</MudTh>
+                        <MudTh>Role</MudTh>
+                        <MudTh>Company</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Last Login</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name">
+                            <div class="d-flex align-center">
+                                <MudAvatar Color="Color.Primary" Size="Size.Small" Class="mr-2">
+                                    @GetUserInitials(context)
+                                </MudAvatar>
+                                @GetUserFullName(context)
+                            </div>
+                        </MudTd>
+                        <MudTd DataLabel="Email">@context.Email</MudTd>
+                        <MudTd DataLabel="Role">
+                            <MudChip T="string" Color="@GetRoleColor(context)" Size="Size.Small">
+                                @GetUserRole(context)
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Company">@(context.CompanyName ?? "N/A")</MudTd>
+                        <MudTd DataLabel="Status">
+                            <MudChip T="string" Color="@(context.EmailConfirmed ? Color.Success : Color.Warning)" Size="Size.Small">
+                                @(context.EmailConfirmed ? "Verified" : "Unverified")
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Last Login">
+                            @if (context.LastLoginAt.HasValue)
+                            {
+                                @context.LastLoginAt.Value.ToString("MMM dd, yyyy")
+                            }
+                            else
+                            {
+                                <span>Never</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Actions">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" 
+                                           OnClick="@(() => EditUser(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                           OnClick="@(() => DeleteUser(context))" />
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private List<ApplicationUser> users = new();
+    private List<ApplicationUser> filteredUsers = new();
+    private string searchString = "";
+    private bool isLoading = true;
+    private Dictionary<string, List<string>> userRoles = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        isLoading = true;
+        try
+        {
+            using var context = await DbFactory.CreateDbContextAsync();
+            users = await context.Users.ToListAsync();
+            
+            // Load roles for each user
+            foreach (var user in users)
+            {
+                var roles = await UserManager.GetRolesAsync(user);
+                userRoles[user.Id] = roles.ToList();
+            }
+            
+            filteredUsers = users;
+        }
+        catch (Exception)
+        {
+            // Log error - exception details logged by framework
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnSearch()
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+        {
+            filteredUsers = users;
+        }
+        else
+        {
+            filteredUsers = users.Where(u => 
+                (u.FirstName != null && u.FirstName.Contains(searchString, StringComparison.OrdinalIgnoreCase)) ||
+                (u.LastName != null && u.LastName.Contains(searchString, StringComparison.OrdinalIgnoreCase)) ||
+                (u.Email != null && u.Email.Contains(searchString, StringComparison.OrdinalIgnoreCase)) ||
+                (u.CompanyName != null && u.CompanyName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+        }
+    }
+
+    private string GetUserInitials(ApplicationUser user)
+    {
+        var initials = "";
+        if (!string.IsNullOrEmpty(user.FirstName))
+            initials += user.FirstName[0];
+        if (!string.IsNullOrEmpty(user.LastName))
+            initials += user.LastName[0];
+        if (string.IsNullOrEmpty(initials) && !string.IsNullOrEmpty(user.Email))
+            initials = user.Email[0].ToString().ToUpper();
+        return initials;
+    }
+
+    private string GetUserFullName(ApplicationUser user)
+    {
+        if (!string.IsNullOrEmpty(user.FirstName) || !string.IsNullOrEmpty(user.LastName))
+            return $"{user.FirstName} {user.LastName}".Trim();
+        return user.UserName ?? user.Email ?? "Unknown";
+    }
+
+    private string GetUserRole(ApplicationUser user)
+    {
+        if (user.IsSuperAdmin)
+            return "Super Admin";
+        
+        if (userRoles.ContainsKey(user.Id) && userRoles[user.Id].Any())
+            return userRoles[user.Id].First();
+            
+        return "User";
+    }
+
+    private Color GetRoleColor(ApplicationUser user)
+    {
+        var role = GetUserRole(user);
+        return role switch
+        {
+            "Super Admin" => Color.Error,
+            "Admin" => Color.Secondary,
+            "Buyer" => Color.Info,
+            "Supplier" => Color.Success,
+            "Seller" => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    private void EditUser(ApplicationUser user)
+    {
+        // Navigate to edit page or open dialog
+    }
+
+    private Task DeleteUser(ApplicationUser user)
+    {
+        // Implement delete logic with confirmation
+        return Task.CompletedTask;
+    }
+}

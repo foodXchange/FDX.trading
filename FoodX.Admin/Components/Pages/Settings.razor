@@ -1,0 +1,271 @@
+@page "/settings"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@rendermode InteractiveServer
+
+<PageTitle>Settings</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudText Typo="Typo.h3" Class="mb-4">System Settings</MudText>
+    
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+        <MudTabPanel Text="General Settings">
+            <MudCard>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.h6" Class="mb-3">Platform Configuration</MudText>
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6">
+                            <MudTextField Label="Platform Name" Value="@platformName" ReadOnly="@(!isEditing)" 
+                                          Variant="Variant.Outlined" Class="mb-3" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField Label="Support Email" Value="@supportEmail" ReadOnly="@(!isEditing)" 
+                                          Variant="Variant.Outlined" Class="mb-3" />
+                        </MudItem>
+                        
+                        <MudItem xs="12">
+                            <MudTextField Label="Platform Description" Lines="3" ReadOnly="@(!isEditing)"
+                                          Value="@platformDescription"
+                                          Variant="Variant.Outlined" Class="mb-3" />
+                        </MudItem>
+                        
+                        <MudItem xs="12">
+                            <MudSwitch @bind-Value="maintenanceMode" Label="Maintenance Mode" Color="Color.Warning" 
+                                       Disabled="@(!isEditing)" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+                <MudCardActions>
+                    @if (!isEditing)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="EnableEdit">
+                            Edit Settings
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SaveSettings">
+                            Save Changes
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" OnClick="CancelEdit">
+                            Cancel
+                        </MudButton>
+                    }
+                </MudCardActions>
+            </MudCard>
+        </MudTabPanel>
+        
+        <MudTabPanel Text="Email Settings">
+            <MudCard>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.h6" Class="mb-3">Email Configuration</MudText>
+                        </MudItem>
+                        
+                        <MudItem xs="12">
+                            <MudRadioGroup @bind-Value="emailProvider">
+                                <MudRadio Value="@("SendGrid")" Color="Color.Primary">SendGrid</MudRadio>
+                                <MudRadio Value="@("SMTP")" Color="Color.Primary">SMTP</MudRadio>
+                            </MudRadioGroup>
+                        </MudItem>
+                        
+                        @if (emailProvider == "SendGrid")
+                        {
+                            <MudItem xs="12">
+                                <MudTextField Label="SendGrid API Key" InputType="InputType.Password" 
+                                              Value="@sendGridApiKey" ReadOnly="true"
+                                              Variant="Variant.Outlined" Class="mb-3" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField Label="From Email" Value="@fromEmail"
+                                              Variant="Variant.Outlined" Class="mb-3" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField Label="From Name" Value="@fromName"
+                                              Variant="Variant.Outlined" Class="mb-3" />
+                            </MudItem>
+                        }
+                        else
+                        {
+                            <MudItem xs="12" md="6">
+                                <MudTextField Label="SMTP Host" Value="@smtpHost"
+                                              Variant="Variant.Outlined" Class="mb-3" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField Label="SMTP Port" Value="@smtpPort"
+                                              Variant="Variant.Outlined" Class="mb-3" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField Label="SMTP Username" Value="@smtpUsername"
+                                              Variant="Variant.Outlined" Class="mb-3" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField Label="SMTP Password" InputType="InputType.Password"
+                                              Value="@smtpPassword" Variant="Variant.Outlined" Class="mb-3" />
+                            </MudItem>
+                        }
+                        
+                        <MudItem xs="12">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                                       StartIcon="@Icons.Material.Filled.Send">
+                                Test Email Configuration
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudTabPanel>
+        
+        <MudTabPanel Text="Security Settings">
+            <MudCard>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.h6" Class="mb-3">Security Configuration</MudText>
+                        </MudItem>
+                        
+                        <MudItem xs="12">
+                            <MudSwitch @bind-Value="requireEmailConfirmation" 
+                                       Label="Require Email Confirmation" Color="Color.Primary" />
+                        </MudItem>
+                        
+                        <MudItem xs="12">
+                            <MudSwitch @bind-Value="enableTwoFactor" 
+                                       Label="Enable Two-Factor Authentication" Color="Color.Primary" />
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6">
+                            <MudNumericField @bind-Value="passwordMinLength" Label="Minimum Password Length" 
+                                             Min="6" Max="20" Variant="Variant.Outlined" />
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6">
+                            <MudNumericField @bind-Value="sessionTimeout" Label="Session Timeout (minutes)" 
+                                             Min="5" Max="1440" Variant="Variant.Outlined" />
+                        </MudItem>
+                        
+                        <MudItem xs="12">
+                            <MudSwitch @bind-Value="requireSpecialChars" 
+                                       Label="Require Special Characters in Password" Color="Color.Primary" />
+                        </MudItem>
+                        
+                        <MudItem xs="12">
+                            <MudSwitch @bind-Value="requireNumbers" 
+                                       Label="Require Numbers in Password" Color="Color.Primary" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudTabPanel>
+        
+        <MudTabPanel Text="Database">
+            <MudCard>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.h6" Class="mb-3">Database Information</MudText>
+                        </MudItem>
+                        
+                        <MudItem xs="12">
+                            <MudAlert Severity="Severity.Info" Class="mb-3">
+                                Database: Azure SQL (fdx-sql-prod.database.windows.net)
+                            </MudAlert>
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6">
+                            <MudPaper Class="pa-4" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+                                <MudText Typo="Typo.body2">Total Users</MudText>
+                                <MudText Typo="Typo.h5">@totalUsers</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6">
+                            <MudPaper Class="pa-4" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+                                <MudText Typo="Typo.body2">Total Companies</MudText>
+                                <MudText Typo="Typo.h5">@totalCompanies</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6">
+                            <MudPaper Class="pa-4" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+                                <MudText Typo="Typo.body2">Total Products</MudText>
+                                <MudText Typo="Typo.h5">@totalProducts</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6">
+                            <MudPaper Class="pa-4" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+                                <MudText Typo="Typo.body2">Database Size</MudText>
+                                <MudText Typo="Typo.h5">@databaseSize</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        
+                        <MudItem xs="12" Class="mt-3">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" 
+                                       StartIcon="@Icons.Material.Filled.Backup">
+                                Backup Database
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Info" 
+                                       StartIcon="@Icons.Material.Filled.Analytics" Class="ml-2">
+                                Optimize Database
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+@code {
+    private bool isEditing = false;
+    private bool maintenanceMode = false;
+    private string emailProvider = "SendGrid";
+    private bool requireEmailConfirmation = false;
+    private bool enableTwoFactor = false;
+    private int passwordMinLength = 8;
+    private int sessionTimeout = 30;
+    private bool requireSpecialChars = true;
+    private bool requireNumbers = true;
+    
+    // Platform settings
+    private string platformName = "FoodX Trading";
+    private string supportEmail = "support@fdx.trading";
+    private string platformDescription = "Global food trading platform connecting suppliers and buyers";
+    
+    // Email settings
+    private string sendGridApiKey = "SG.****************************";
+    private string fromEmail = "noreply@fdx.trading";
+    private string fromName = "FoodX Trading";
+    private string smtpHost = "smtp.gmail.com";
+    private string smtpPort = "587";
+    private string smtpUsername = "admin@fdx.trading";
+    private string smtpPassword = "********";
+    
+    // Statistics
+    private int totalUsers = 12;
+    private int totalCompanies = 10;
+    private int totalProducts = 15;
+    private string databaseSize = "125 MB";
+
+    private void EnableEdit()
+    {
+        isEditing = true;
+    }
+
+    private void CancelEdit()
+    {
+        isEditing = false;
+    }
+
+    private Task SaveSettings()
+    {
+        // Save settings logic
+        isEditing = false;
+        return Task.CompletedTask;
+    }
+}

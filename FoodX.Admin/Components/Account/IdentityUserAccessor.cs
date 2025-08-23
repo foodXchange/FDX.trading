@@ -7,6 +7,14 @@ internal sealed class IdentityUserAccessor(UserManager<ApplicationUser> userMana
 {
     public async Task<ApplicationUser> GetRequiredUserAsync(HttpContext context)
     {
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (context.User == null)
+        {
+            redirectManager.RedirectToWithStatus("Account/Login", "Error: Please log in to access this page.", context);
+            return null!;
+        }
+
         var user = await userManager.GetUserAsync(context.User);
 
         if (user is null)
@@ -14,6 +22,6 @@ internal sealed class IdentityUserAccessor(UserManager<ApplicationUser> userMana
             redirectManager.RedirectToWithStatus("Account/InvalidUser", $"Error: Unable to load user with ID '{userManager.GetUserId(context.User)}'.", context);
         }
 
-        return user;
+        return user!;
     }
 }
