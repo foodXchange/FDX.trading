@@ -15,10 +15,11 @@
         <MudTextField @bind-Value="phoneNumber" Label="Phone Number" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="supplierType" Label="Supplier Type" Variant="Variant.Outlined" Class="mb-3" 
                       HelperText="e.g., Manufacturer, Distributor, Wholesaler" />
-        <MudSelect @bind-Value="companyId" Label="Company" Variant="Variant.Outlined" Class="mb-3">
+        <MudSelect T="int?" @bind-Value="companyId" Label="Company" Variant="Variant.Outlined" Class="mb-3">
+            <MudSelectItem T="int?" Value="@((int?)null)">(No Company)</MudSelectItem>
             @foreach (var company in companies)
             {
-                <MudSelectItem Value="@company.Id">@company.Name</MudSelectItem>
+                <MudSelectItem T="int?" Value="@((int?)company.Id)">@company.Name</MudSelectItem>
             }
         </MudSelect>
         <MudTextField @bind-Value="address" Label="Address" Variant="Variant.Outlined" Lines="2" Class="mb-3" />
@@ -60,7 +61,14 @@
     
     protected override async Task OnInitializedAsync()
     {
-        companies = await DbContext.Companies.Where(c => c.IsActive).ToListAsync();
+        try
+        {
+            companies = await DbContext.Companies.Where(c => c.IsActive).ToListAsync();
+        }
+        catch
+        {
+            companies = new List<Company>();
+        }
     }
     
     private async Task Cancel()
@@ -86,7 +94,8 @@
                 FirstName = firstName,
                 LastName = lastName,
                 Email = email,
-                // PhoneNumber, Address, City, Country are stored in UserPhone/UserEmployment tables
+                Role = "Supplier",
+                // CompanyName and LastLoginAt will be null initially
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -101,9 +110,7 @@
                 UserId = user.Id,
                 SupplierType = supplierType,
                 CompanyId = companyId,
-                // ProductCategories not available in Supplier model
                 CreatedAt = DateTime.UtcNow
-                // UpdatedAt not available in Supplier model
             };
             
             DbContext.Suppliers.Add(supplier);

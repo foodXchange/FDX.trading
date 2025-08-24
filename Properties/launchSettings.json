@@ -1,0 +1,60 @@
+{
+  "profiles": {
+    "Multi-Portal": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "multipleStartupProjects": [
+        {
+          "name": "FoodX.Admin",
+          "action": "Start",
+          "applicationUrl": "http://localhost:5193"
+        },
+        {
+          "name": "FoodX.Buyer",
+          "action": "Start",
+          "applicationUrl": "http://localhost:5000"
+        },
+        {
+          "name": "FoodX.Supplier",
+          "action": "Start",
+          "applicationUrl": "http://localhost:5001"
+        },
+        {
+          "name": "FoodX.Marketplace",
+          "action": "Start",
+          "applicationUrl": "http://localhost:5002"
+        }
+      ]
+    },
+    "Admin Only": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "startupProject": "FoodX.Admin",
+      "applicationUrl": "http://localhost:5193"
+    },
+    "Buyer Portal": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "startupProject": "FoodX.Buyer",
+      "applicationUrl": "http://localhost:5000"
+    },
+    "Supplier Portal": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "startupProject": "FoodX.Supplier",
+      "applicationUrl": "http://localhost:5001"
+    }
+  }
+}

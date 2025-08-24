@@ -1,0 +1,211 @@
+@using FoodX.Admin.Models
+@using FoodX.Admin.Data
+@using FoodX.Admin.Repositories
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Forms
+@using System.IO
+@inject IUnitOfWork UnitOfWork
+@inject ISnackbar Snackbar
+
+<div @onkeydown="HandleKeyDown" @onkeydown:preventDefault="false">
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="productName" Label="Product Name" Required="true" Variant="Variant.Outlined" Class="mb-3" />
+        <MudSelect @bind-Value="category" Label="Category" Required="true" Variant="Variant.Outlined" Class="mb-3">
+            <MudSelectItem Value="@("Fruits")">Fruits</MudSelectItem>
+            <MudSelectItem Value="@("Vegetables")">Vegetables</MudSelectItem>
+            <MudSelectItem Value="@("Dairy")">Dairy</MudSelectItem>
+            <MudSelectItem Value="@("Meat")">Meat</MudSelectItem>
+            <MudSelectItem Value="@("Seafood")">Seafood</MudSelectItem>
+            <MudSelectItem Value="@("Grains")">Grains</MudSelectItem>
+            <MudSelectItem Value="@("Beverages")">Beverages</MudSelectItem>
+            <MudSelectItem Value="@("Snacks")">Snacks</MudSelectItem>
+            <MudSelectItem Value="@("Other")">Other</MudSelectItem>
+        </MudSelect>
+        <MudTextField @bind-Value="description" Label="Description" Variant="Variant.Outlined" Lines="3" Class="mb-3" />
+        <MudNumericField @bind-Value="price" Label="Price" Required="true" Variant="Variant.Outlined" 
+                         Format="F2" Adornment="Adornment.Start" AdornmentText="$" Class="mb-3" />
+        <MudTextField @bind-Value="unit" Label="Unit" Required="true" Variant="Variant.Outlined" 
+                      HelperText="e.g., kg, lb, piece, dozen" Class="mb-3" />
+        <MudNumericField T="int" @bind-Value="minOrderQuantity" Label="Minimum Order Quantity" Variant="Variant.Outlined" Class="mb-3" />
+        <MudNumericField T="int" @bind-Value="stockQuantity" Label="Stock Quantity" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="sku" Label="SKU" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="origin" Label="Origin/Source" Variant="Variant.Outlined" Class="mb-3" />
+        
+        <MudPaper Class="pa-3 mb-3" Outlined="true">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Product Image</MudText>
+            @if (!string.IsNullOrEmpty(imageUrl))
+            {
+                <MudImage Src="@imageUrl" Alt="Product preview" Class="mb-2" Style="max-height: 200px; width: 100%; object-fit: contain;" />
+            }
+            <MudStack Row="true">
+                <MudTextField @bind-Value="imageUrl" Label="Image URL" Variant="Variant.Outlined" 
+                              Placeholder="https://example.com/image.jpg" Class="flex-grow-1" />
+                <MudText Class="mx-2">OR</MudText>
+                <MudFileUpload T="IBrowserFile" Accept="image/*" FilesChanged="UploadImage" MaximumFileCount="1">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload">
+                            Upload Image
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+            </MudStack>
+            @if (isUploadingImage)
+            {
+                <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-2" />
+            }
+        </MudPaper>
+        
+        <MudSwitch T="bool" @bind-Value="isOrganic" Label="Organic" Color="Color.Success" Class="mb-3" />
+        <MudSwitch T="bool" @bind-Value="isActive" Label="Active" Color="Color.Primary" Class="mb-3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@isProcessing">
+            @if (isProcessing)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Update Product
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+</div>
+
+@code {
+    [Parameter] public Product Product { get; set; } = null!;
+    [Parameter] public EventCallback<Product> OnProductUpdated { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    
+    private string productName = "";
+    private string category = "";
+    private string? description;
+    private decimal price = 0;
+    private string unit = "";
+    private int minOrderQuantity = 1;
+    private int stockQuantity = 0;
+    private string? sku;
+    private string? origin;
+    private string? imageUrl;
+    private bool isOrganic = false;
+    private bool isActive = true;
+    private bool isProcessing = false;
+    private bool isUploadingImage = false;
+    
+    protected override void OnInitialized()
+    {
+        if (Product != null)
+        {
+            productName = Product.Name;
+            category = Product.Category ?? "";
+            description = Product.Description;
+            price = Product.Price;
+            unit = Product.Unit ?? "";
+            minOrderQuantity = Product.MinOrderQuantity;
+            stockQuantity = Product.StockQuantity;
+            sku = Product.SKU;
+            origin = Product.Origin;
+            imageUrl = Product.ImageUrl;
+            isOrganic = Product.IsOrganic;
+            isActive = Product.IsActive;
+        }
+    }
+    
+    private async Task Cancel()
+    {
+        await OnCancel.InvokeAsync();
+    }
+    
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(productName) || string.IsNullOrWhiteSpace(category) || 
+            price <= 0 || string.IsNullOrWhiteSpace(unit))
+        {
+            Snackbar.Add("Please fill in all required fields", Severity.Warning);
+            return;
+        }
+        
+        isProcessing = true;
+        
+        try
+        {
+            // Update the product
+            Product.Name = productName;
+            Product.Category = category;
+            Product.Description = description;
+            Product.Price = price;
+            Product.Unit = unit;
+            Product.MinOrderQuantity = minOrderQuantity;
+            Product.StockQuantity = stockQuantity;
+            Product.SKU = sku;
+            Product.Origin = origin;
+            Product.ImageUrl = imageUrl;
+            Product.IsOrganic = isOrganic;
+            Product.IsActive = isActive;
+            Product.UpdatedAt = DateTime.UtcNow;
+            
+            await UnitOfWork.Products.UpdateAsync(Product);
+            await UnitOfWork.SaveChangesAsync();
+            
+            Snackbar.Add("Product updated successfully", Severity.Success);
+            await OnProductUpdated.InvokeAsync(Product);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error updating product: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+    
+    private async Task UploadImage(IBrowserFile file)
+    {
+        isUploadingImage = true;
+        try
+        {
+            // For now, we'll convert to base64. In production, you'd upload to blob storage
+            var bufferSize = 1024 * 1024 * 5; // 5MB max
+            
+            if (file.Size > bufferSize)
+            {
+                Snackbar.Add("Image size must be less than 5MB", Severity.Warning);
+                return;
+            }
+            
+            using var stream = file.OpenReadStream(bufferSize);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            
+            var base64 = Convert.ToBase64String(bytes);
+            imageUrl = $"data:{file.ContentType};base64,{base64}";
+            
+            Snackbar.Add("Image uploaded successfully", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error uploading image: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isUploadingImage = false;
+        }
+    }
+    
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await Cancel();
+        }
+        else if (e.CtrlKey && e.Key == "s")
+        {
+            await Submit();
+        }
+    }
+}

@@ -2,10 +2,14 @@
 @using FoodX.Admin.Data
 @using FoodX.Admin.Models
 @using FoodX.Admin.Components.Dialogs
+@using FoodX.Admin.Repositories
 @using Microsoft.EntityFrameworkCore
-@inject FoodXDbContext DbContext
+@inject IUnitOfWork UnitOfWork
 @inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
 @rendermode InteractiveServer
+@implements IDisposable
 
 <PageTitle>Products</PageTitle>
 
@@ -14,59 +18,153 @@
     
     <MudPaper Class="pa-4 mb-4">
         <MudGrid>
-            <MudItem xs="12" md="6">
-                <MudTextField T="string" Label="Search Products" 
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="searchTerm" Label="Search Products" 
                               Variant="Variant.Outlined" 
                               Adornment="Adornment.Start" 
-                              AdornmentIcon="@Icons.Material.Filled.Search" />
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true"
+                              OnDebounceIntervalElapsed="@(() => ApplyFilters())" />
             </MudItem>
-            <MudItem xs="12" md="3">
-                <MudSelect T="string" Label="Category" Variant="Variant.Outlined">
-                    <MudSelectItem T="string" Value="@("All Categories")">All Categories</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("Fruits")">Fruits</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("Vegetables")">Vegetables</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("Dairy")">Dairy</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("Meat")">Meat</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("Grains")">Grains</MudSelectItem>
+            <MudItem xs="12" md="2">
+                <MudSelect @bind-Value="selectedCategory" Label="Category" Variant="Variant.Outlined">
+                    @foreach (var category in categories)
+                    {
+                        <MudSelectItem T="string" Value="@category">@category</MudSelectItem>
+                    }
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" md="3">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
-                           StartIcon="@Icons.Material.Filled.Add" 
-                           FullWidth="true"
-                           OnClick="OpenAddProductDialog">
-                    Add Product
-                </MudButton>
+            <MudItem xs="12" md="2">
+                <MudSelect @bind-Value="viewMode" Label="View" Variant="Variant.Outlined">
+                    <MudSelectItem T="ViewMode" Value="ViewMode.Cards">Cards</MudSelectItem>
+                    <MudSelectItem T="ViewMode" Value="ViewMode.Table">Table</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="OpenAddProductDialog">
+                        Add Product
+                    </MudButton>
+                    @if (selectedProducts.Any())
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                                   StartIcon="@Icons.Material.Filled.Delete"
+                                   OnClick="BulkDeleteProducts">
+                            Delete (@selectedProducts.Count)
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                                   StartIcon="@Icons.Material.Filled.FileDownload"
+                                   OnClick="ExportSelected">
+                            Export Selected
+                        </MudButton>
+                    }
+                </MudStack>
             </MudItem>
         </MudGrid>
     </MudPaper>
 
-    <MudGrid>
-        @foreach (var product in products)
+    @if (isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (viewMode == ViewMode.Table)
+    {
+        <MudTable Items="@filteredProducts" Hover="true" Striped="true" Dense="true" 
+                  MultiSelection="true" @bind-SelectedItems="selectedProducts">
+            <HeaderContent>
+                <MudTh><MudTableSortLabel SortBy="new Func<Product, object>(x => x.Name)">Name</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<Product, object>(x => x.Category)">Category</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<Product, object>(x => x.Price)">Price</MudTableSortLabel></MudTh>
+                <MudTh>Unit</MudTh>
+                <MudTh>SKU</MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<Product, object>(x => x.StockQuantity)">Stock</MudTableSortLabel></MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Name">
+                    <MudStack Row="true" Spacing="1">
+                        @if (!string.IsNullOrEmpty(context.ImageUrl))
+                        {
+                            <MudAvatar Size="Size.Small" Square="true">
+                                <MudImage Src="@context.ImageUrl" />
+                            </MudAvatar>
+                        }
+                        <MudText>@context.Name</MudText>
+                    </MudStack>
+                </MudTd>
+                <MudTd DataLabel="Category">@context.Category</MudTd>
+                <MudTd DataLabel="Price">$@context.Price.ToString("F2")</MudTd>
+                <MudTd DataLabel="Unit">@context.Unit</MudTd>
+                <MudTd DataLabel="SKU">@(context.SKU ?? "-")</MudTd>
+                <MudTd DataLabel="Stock">
+                    @if (context.StockQuantity > 10)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success">@context.StockQuantity</MudChip>
+                    }
+                    else if (context.StockQuantity > 0)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">@context.StockQuantity</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Error">Out of Stock</MudChip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Status">
+                    <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Error)">
+                        @(context.IsActive ? "Active" : "Inactive")
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Actions">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => EditProduct(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteProduct(context))" />
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    }
+    else
+    {
+        <MudGrid>
+            @foreach (var product in filteredProducts)
         {
             <MudItem xs="12" sm="6" md="4" lg="3">
                 <MudCard>
-                    <MudCardMedia Image="@product.ImageUrl" Height="200" />
+                    @if (!string.IsNullOrEmpty(product.ImageUrl))
+                    {
+                        <MudCardMedia Image="@product.ImageUrl" Height="200" />
+                    }
+                    else
+                    {
+                        <MudCardMedia Image="@($"https://via.placeholder.com/300x200?text={Uri.EscapeDataString(product.Name)}")" Height="200" />
+                    }
                     <MudCardContent>
                         <MudText Typo="Typo.h6">@product.Name</MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary">@product.Category</MudText>
                         <MudText Typo="Typo.body1" Class="mt-2">
-                            <strong>$@product.Price</strong> / @product.Unit
+                            <strong>$@product.Price.ToString("F2")</strong> / @(product.Unit ?? "unit")
                         </MudText>
-                        <MudChip T="string" Color="@(product.InStock ? Color.Success : Color.Error)" Size="Size.Small">
-                            @(product.InStock ? "In Stock" : "Out of Stock")
+                        <MudChip T="string" Color="@(product.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
+                            @(product.IsActive ? "Active" : "Inactive")
                         </MudChip>
                     </MudCardContent>
                     <MudCardActions>
-                        <MudButton Variant="Variant.Text" Color="Color.Primary">View</MudButton>
-                        <MudButton Variant="Variant.Text" Color="Color.Primary">Edit</MudButton>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => ViewProduct(product))">View</MudButton>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => EditProduct(product))">Edit</MudButton>
+                        <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => DeleteProduct(product))">Delete</MudButton>
                     </MudCardActions>
                 </MudCard>
             </MudItem>
-        }
-    </MudGrid>
+            }
+        </MudGrid>
+    }
 
-    @if (!products.Any())
+    @if (!isLoading && !filteredProducts.Any())
     {
         <MudAlert Severity="Severity.Info" Class="mt-4">
             No products available. Click "Add Product" to start adding products to the catalog.
@@ -75,30 +173,85 @@
 </MudContainer>
 
 @code {
-    private List<ProductViewModel> products = new();
-
-    protected override void OnInitialized()
-    {
-        // Sample data - replace with actual database query
-        products = new List<ProductViewModel>
-        {
-            new() { Name = "Fresh Tomatoes", Category = "Vegetables", Price = 2.99m, Unit = "kg", InStock = true, ImageUrl = "https://via.placeholder.com/300x200?text=Tomatoes" },
-            new() { Name = "Organic Apples", Category = "Fruits", Price = 3.49m, Unit = "kg", InStock = true, ImageUrl = "https://via.placeholder.com/300x200?text=Apples" },
-            new() { Name = "Whole Milk", Category = "Dairy", Price = 1.99m, Unit = "liter", InStock = false, ImageUrl = "https://via.placeholder.com/300x200?text=Milk" },
-            new() { Name = "Chicken Breast", Category = "Meat", Price = 8.99m, Unit = "kg", InStock = true, ImageUrl = "https://via.placeholder.com/300x200?text=Chicken" }
-        };
-    }
-
-    private class ProductViewModel
-    {
-        public string Name { get; set; } = "";
-        public string Category { get; set; } = "";
-        public decimal Price { get; set; }
-        public string Unit { get; set; } = "";
-        public bool InStock { get; set; }
-        public string ImageUrl { get; set; } = "";
-    }
+    private enum ViewMode { Cards, Table }
     
+    private List<Product> products = new();
+    private List<Product> filteredProducts = new();
+    private HashSet<Product> selectedProducts = new();
+    private string searchTerm = "";
+    private ViewMode viewMode = ViewMode.Cards;
+    private string _selectedCategory = "All Categories";
+    private string selectedCategory 
+    { 
+        get => _selectedCategory; 
+        set 
+        { 
+            _selectedCategory = value; 
+            ApplyFilters(); 
+        } 
+    }
+    private List<string> categories = new() { "All Categories" };
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        try
+        {
+            isLoading = true;
+            
+            // Get all products from database using Unit of Work
+            var allProducts = await UnitOfWork.Products.GetAllAsync();
+            products = allProducts.ToList();
+            
+            // Extract unique categories
+            categories = new List<string> { "All Categories" };
+            categories.AddRange(products
+                .Where(p => !string.IsNullOrEmpty(p.Category))
+                .Select(p => p.Category!)
+                .Distinct()
+                .OrderBy(c => c));
+            
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading products: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        filteredProducts = products;
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredProducts = filteredProducts.Where(p =>
+                p.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                (p.Description?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (p.SKU?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+            ).ToList();
+        }
+
+        // Apply category filter
+        if (selectedCategory != "All Categories")
+        {
+            filteredProducts = filteredProducts.Where(p => p.Category == selectedCategory).ToList();
+        }
+        
+        StateHasChanged();
+    }
+
+
     private async Task OpenAddProductDialog()
     {
         var parameters = new DialogParameters
@@ -110,7 +263,7 @@
         var options = new DialogOptions 
         { 
             CloseButton = true,
-            MaxWidth = MaxWidth.Small,
+            MaxWidth = MaxWidth.Medium,
             FullWidth = true,
             CloseOnEscapeKey = true
         };
@@ -122,24 +275,124 @@
     private async Task OnProductAdded(Product product)
     {
         await LoadProducts();
+        Snackbar.Add("Product added successfully", Severity.Success);
     }
     
     private void OnDialogCancel()
     {
         // Dialog cancelled
     }
-    
-    private async Task LoadProducts()
+
+    private Task ViewProduct(Product product)
     {
-        var dbProducts = await DbContext.Products.ToListAsync();
-        products = dbProducts.Select(p => new ProductViewModel
+        // TODO: Implement view product details
+        Snackbar.Add($"View product: {product.Name}", Severity.Info);
+        return Task.CompletedTask;
+    }
+
+    private async Task EditProduct(Product product)
+    {
+        var parameters = new DialogParameters
         {
-            Name = p.Name,
-            Category = p.Category,
-            Price = p.Price,
-            Unit = p.Unit,
-            InStock = p.IsAvailable && p.StockQuantity > 0,
-            ImageUrl = p.ImageUrl ?? "https://via.placeholder.com/300x200?text=" + Uri.EscapeDataString(p.Name)
-        }).ToList();
+            { "Product", product },
+            { nameof(EditProductDialog.OnProductUpdated), EventCallback.Factory.Create<Product>(this, OnProductUpdated) },
+            { nameof(EditProductDialog.OnCancel), EventCallback.Factory.Create(this, OnDialogCancel) }
+        };
+        
+        var options = new DialogOptions 
+        { 
+            CloseButton = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<EditProductDialog>("Edit Product", parameters, options);
+        await dialog.Result;
+    }
+
+    private async Task OnProductUpdated(Product product)
+    {
+        await LoadProducts();
+        Snackbar.Add("Product updated successfully", Severity.Success);
+    }
+
+    private async Task DeleteProduct(Product product)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Delete Product",
+            $"Are you sure you want to delete '{product.Name}'?",
+            yesText: "Delete", cancelText: "Cancel");
+            
+        if (result == true)
+        {
+            try
+            {
+                await UnitOfWork.Products.DeleteAsync(product);
+                await UnitOfWork.SaveChangesAsync();
+                await LoadProducts();
+                Snackbar.Add("Product deleted successfully", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting product: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task BulkDeleteProducts()
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Delete Products",
+            $"Are you sure you want to delete {selectedProducts.Count} selected products?",
+            yesText: "Delete All", cancelText: "Cancel");
+            
+        if (result == true)
+        {
+            try
+            {
+                foreach (var product in selectedProducts)
+                {
+                    await UnitOfWork.Products.DeleteAsync(product);
+                }
+                await UnitOfWork.SaveChangesAsync();
+                
+                selectedProducts.Clear();
+                await LoadProducts();
+                Snackbar.Add($"Products deleted successfully", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting products: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+    
+    private async Task ExportSelected()
+    {
+        try
+        {
+            var csv = new System.Text.StringBuilder();
+            csv.AppendLine("Name,Category,Price,Unit,SKU,Stock,Origin,IsOrganic,IsActive");
+            
+            foreach (var product in selectedProducts)
+            {
+                csv.AppendLine($"\"{product.Name}\",\"{product.Category}\",{product.Price},\"{product.Unit}\",\"{product.SKU ?? ""}\",{product.StockQuantity},\"{product.Origin ?? ""}\",{product.IsOrganic},{product.IsActive}");
+            }
+            
+            // In a real app, you'd download this as a file
+            // For now, we'll copy to clipboard
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", csv.ToString());
+            Snackbar.Add($"Exported {selectedProducts.Count} products to clipboard (CSV format)", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error exporting products: {ex.Message}", Severity.Error);
+        }
+    }
+    
+    public void Dispose()
+    {
+        UnitOfWork?.Dispose();
     }
 }

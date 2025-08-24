@@ -29,6 +29,9 @@ namespace FoodX.Admin.Data
         // Invitation system
         public DbSet<Invitation> Invitations { get; set; }
 
+        // External data tables (imported from external sources)
+        public DbSet<FoodXBuyer> FoodXBuyers { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             ArgumentNullException.ThrowIfNull(builder);
@@ -174,6 +177,18 @@ namespace FoodX.Admin.Data
                     .HasForeignKey(e => e.CompanyId)
                     .OnDelete(DeleteBehavior.SetNull)
                     .IsRequired(false);
+            });
+
+            // Configure FoodXBuyer (external data table - read-only)
+            builder.Entity<FoodXBuyer>(entity =>
+            {
+                entity.ToTable("FoodXBuyers");
+                entity.HasKey(e => e.Id);
+                
+                // Indexes for common queries
+                entity.HasIndex(e => e.Company).HasDatabaseName("IX_FoodXBuyers_Company");
+                entity.HasIndex(e => e.Region).HasDatabaseName("IX_FoodXBuyers_Region");
+                entity.HasIndex(e => e.Type).HasDatabaseName("IX_FoodXBuyers_Type");
             });
         }
     }

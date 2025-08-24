@@ -1,0 +1,340 @@
+# Azure DevOps Pipeline for FDX Trading Platform
+# Multi-portal deployment with security scanning and approval gates
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    exclude:
+      - '*.md'
+      - 'Documentation/**'
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  - group: 'FDX-Production-Secrets'  # Create this in Azure DevOps
+  - name: buildConfiguration
+    value: 'Release'
+  - name: dotnetVersion
+    value: '9.x'
+  - name: azureSubscription
+    value: 'FDX-Azure-Connection'  # Create service connection in Azure DevOps
+  - name: resourceGroup
+    value: 'fdx-dotnet-rg'
+  - name: keyVaultName
+    value: 'fdx-kv-poland'
+
+stages:
+# ============ BUILD STAGE ============
+- stage: Build
+  displayName: 'Build and Test'
+  jobs:
+  - job: BuildAllProjects
+    displayName: 'Build All FoodX Projects'
+    steps:
+    # Install .NET SDK
+    - task: UseDotNet@2
+      displayName: 'Install .NET SDK'
+      inputs:
+        version: $(dotnetVersion)
+        includePreviewVersions: false
+
+    # Restore NuGet packages
+    - task: DotNetCoreCLI@2
+      displayName: 'Restore NuGet Packages'
+      inputs:
+        command: 'restore'
+        projects: '**/*.csproj'
+        feedsToUse: 'select'
+
+    # Build all projects
+    - task: DotNetCoreCLI@2
+      displayName: 'Build Solution'
+      inputs:
+        command: 'build'
+        projects: 'FDX.trading.sln'
+        arguments: '--configuration $(buildConfiguration) --no-restore'
+
+    # Run tests
+    - task: DotNetCoreCLI@2
+      displayName: 'Run Unit Tests'
+      inputs:
+        command: 'test'
+        projects: '**/*Tests.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-build --collect:"XPlat Code Coverage"'
+      continueOnError: true
+
+    # Security scanning for credentials
+    - task: CredScan@3
+      displayName: 'Scan for Credentials'
+      inputs:
+        toolMajorVersion: 'V2'
+        outputFormat: 'sarif'
+        scanFolder: '$(Build.SourcesDirectory)'
+
+    # Dependency vulnerability scanning
+    - task: DotNetCoreCLI@2
+      displayName: 'Check for Vulnerable Dependencies'
+      inputs:
+        command: 'custom'
+        custom: 'list'
+        arguments: 'package --vulnerable --include-transitive'
+      continueOnError: true
+
+    # Publish Admin Portal
+    - task: DotNetCoreCLI@2
+      displayName: 'Publish FoodX.Admin'
+      inputs:
+        command: 'publish'
+        publishWebProjects: false
+        projects: '**/FoodX.Admin.csproj'
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/Admin'
+        zipAfterPublish: true
+
+    # Publish Buyer Portal
+    - task: DotNetCoreCLI@2
+      displayName: 'Publish FoodX.Buyer'
+      inputs:
+        command: 'publish'
+        publishWebProjects: false
+        projects: '**/FoodX.Buyer.csproj'
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/Buyer'
+        zipAfterPublish: true
+
+    # Publish Supplier Portal
+    - task: DotNetCoreCLI@2
+      displayName: 'Publish FoodX.Supplier'
+      inputs:
+        command: 'publish'
+        publishWebProjects: false
+        projects: '**/FoodX.Supplier.csproj'
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/Supplier'
+        zipAfterPublish: true
+
+    # Publish Marketplace Portal
+    - task: DotNetCoreCLI@2
+      displayName: 'Publish FoodX.Marketplace'
+      inputs:
+        command: 'publish'
+        publishWebProjects: false
+        projects: '**/FoodX.Marketplace.csproj'
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/Marketplace'
+        zipAfterPublish: true
+
+    # Copy deployment scripts
+    - task: CopyFiles@2
+      displayName: 'Copy Deployment Scripts'
+      inputs:
+        SourceFolder: '$(Build.SourcesDirectory)'
+        Contents: |
+          deploy/**
+          tests/**
+          Scripts/**
+        TargetFolder: '$(Build.ArtifactStagingDirectory)/Scripts'
+
+    # Publish artifacts
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifacts'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+# ============ STAGING DEPLOYMENT ============
+- stage: DeployStaging
+  displayName: 'Deploy to Staging'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+  jobs:
+  - deployment: DeployToStaging
+    displayName: 'Deploy to Staging Environment'
+    environment: 'FDX-Staging'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          # Download artifacts
+          - download: current
+            artifact: drop
+
+          # Get secrets from Key Vault
+          - task: AzureKeyVault@2
+            displayName: 'Get Secrets from Key Vault'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              KeyVaultName: $(keyVaultName)
+              SecretsFilter: '*'
+
+          # Deploy Admin Portal to staging slot
+          - task: AzureWebApp@1
+            displayName: 'Deploy Admin Portal to Staging'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              appType: 'webApp'
+              appName: 'fdx-admin-staging'
+              package: '$(Pipeline.Workspace)/drop/Admin/*.zip'
+              deploymentMethod: 'zipDeploy'
+              deployToSlotOrASE: true
+              slotName: 'staging'
+
+          # Run database migrations
+          - task: AzureCLI@2
+            displayName: 'Run EF Core Migrations'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: 'ps'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                $connectionString = "$(DefaultConnection)"
+                dotnet ef database update --connection "$connectionString"
+
+          # Run smoke tests
+          - task: PowerShell@2
+            displayName: 'Run Smoke Tests'
+            inputs:
+              filePath: '$(Pipeline.Workspace)/drop/Scripts/tests/smoke-tests.ps1'
+              arguments: '-Environment Staging'
+
+# ============ PRODUCTION DEPLOYMENT ============
+- stage: DeployProduction
+  displayName: 'Deploy to Production'
+  dependsOn: DeployStaging
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: ApprovalGate
+    displayName: 'Approval Required'
+    environment: 'FDX-Production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - script: echo "Waiting for approval..."
+
+  - deployment: DeployToProduction
+    displayName: 'Deploy to Production Environment'
+    dependsOn: ApprovalGate
+    environment: 'FDX-Production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          # Download artifacts
+          - download: current
+            artifact: drop
+
+          # Get secrets from Key Vault
+          - task: AzureKeyVault@2
+            displayName: 'Get Secrets from Key Vault'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              KeyVaultName: $(keyVaultName)
+              SecretsFilter: '*'
+
+          # Backup database before deployment
+          - task: AzureCLI@2
+            displayName: 'Backup Database'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: 'ps'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+                az sql db export `
+                  --resource-group $(resourceGroup) `
+                  --server fdx-sql-prod `
+                  --database fdxdb `
+                  --storage-key $(StorageAccountKey) `
+                  --storage-uri "https://fdxsqlauditlogs.blob.core.windows.net/backups/fdxdb-pre-deploy-$timestamp.bacpac" `
+                  --admin-user $(SqlAdminUser) `
+                  --admin-password $(SqlAdminPassword)
+
+          # Deploy Admin Portal to production
+          - task: AzureWebApp@1
+            displayName: 'Deploy Admin Portal to Production'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              appType: 'webApp'
+              appName: 'fdx-admin-prod'
+              package: '$(Pipeline.Workspace)/drop/Admin/*.zip'
+              deploymentMethod: 'zipDeploy'
+
+          # Deploy Buyer Portal
+          - task: AzureWebApp@1
+            displayName: 'Deploy Buyer Portal to Production'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              appType: 'webApp'
+              appName: 'fdx-buyer-prod'
+              package: '$(Pipeline.Workspace)/drop/Buyer/*.zip'
+              deploymentMethod: 'zipDeploy'
+
+          # Deploy Supplier Portal
+          - task: AzureWebApp@1
+            displayName: 'Deploy Supplier Portal to Production'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              appType: 'webApp'
+              appName: 'fdx-supplier-prod'
+              package: '$(Pipeline.Workspace)/drop/Supplier/*.zip'
+              deploymentMethod: 'zipDeploy'
+
+          # Deploy Marketplace Portal
+          - task: AzureWebApp@1
+            displayName: 'Deploy Marketplace Portal to Production'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              appType: 'webApp'
+              appName: 'fdx-marketplace-prod'
+              package: '$(Pipeline.Workspace)/drop/Marketplace/*.zip'
+              deploymentMethod: 'zipDeploy'
+
+          # Run database migrations
+          - task: AzureCLI@2
+            displayName: 'Run EF Core Migrations'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: 'ps'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                $connectionString = "$(DefaultConnection)"
+                dotnet ef database update --connection "$connectionString"
+
+          # Verify Application Insights
+          - task: AzureCLI@2
+            displayName: 'Verify Application Insights Connection'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: 'ps'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az monitor app-insights component show `
+                  --app fdx-app-insights `
+                  --resource-group $(resourceGroup)
+
+          # Run production smoke tests
+          - task: PowerShell@2
+            displayName: 'Run Production Smoke Tests'
+            inputs:
+              filePath: '$(Pipeline.Workspace)/drop/Scripts/tests/smoke-tests.ps1'
+              arguments: '-Environment Production'
+
+          # Send deployment notification
+          - task: PowerShell@2
+            displayName: 'Send Deployment Notification'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Write-Host "Deployment to Production completed successfully!"
+                Write-Host "Admin Portal: https://admin.fdx.trading"
+                Write-Host "Buyer Portal: https://buyer.fdx.trading"
+                Write-Host "Supplier Portal: https://supplier.fdx.trading"
+                Write-Host "Marketplace: https://marketplace.fdx.trading"

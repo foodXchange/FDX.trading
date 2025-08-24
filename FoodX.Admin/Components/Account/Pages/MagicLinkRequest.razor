@@ -36,7 +36,7 @@
                 
                 <MudText Typo="Typo.body2" Class="text-center mt-4">
                     Didn't receive the email? Check your spam folder or
-                    <MudLink @onclick="ResendEmail" Style="cursor: pointer;">request a new link</MudLink>
+                    <MudLink @onclick="async () => await ResendEmail()" Style="cursor: pointer; color: #667eea; text-decoration: underline;">request a new link</MudLink>
                 </MudText>
             }
             else
@@ -94,8 +94,15 @@
 
     private async Task SendMagicLink()
     {
+        // Prevent duplicate submissions
+        if (isProcessing)
+        {
+            return;
+        }
+        
         errorMessage = null;
         isProcessing = true;
+        StateHasChanged(); // Update UI to show processing state
         
         try
         {
@@ -133,13 +140,16 @@
         finally
         {
             isProcessing = false;
+            StateHasChanged(); // Update UI after processing
         }
     }
 
-    private void ResendEmail()
+    private async Task ResendEmail()
     {
         emailSent = false;
-        Input.Email = string.Empty;
+        errorMessage = null;
+        // Keep the email address for convenience
+        await SendMagicLink(); // Resend to the same email
     }
 
     private sealed class InputModel

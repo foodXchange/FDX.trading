@@ -336,3 +336,37 @@ appsettings.Production.json
 *.pfx
 *.cer
 secrets.json
+
+# SENSITIVE DATA - NEVER COMMIT
+appsettings.*.json
+!appsettings.Development.json
+!appsettings.json
+azure_credentials.txt
+*.password
+*.pwd
+*_credentials.*
+*.apikey
+*.secret
+update_sql_password.sql
+*.bak
+*.bacpac
+connectionstrings.config
+**/secrets/*
+**/Scripts/*_prod.sql
+**/Scripts/*_credentials.sql
+
+# Local environment
+.env
+.env.local
+.env.*.local
+
+# Deployment and CI/CD
+*.deploy.ps1
+deployment/
+!deploy/*.ps1
+
+# Temporary cleanup files
+bfg.jar
+passwords.txt
+files-to-remove.txt
+strings-to-replace.txt

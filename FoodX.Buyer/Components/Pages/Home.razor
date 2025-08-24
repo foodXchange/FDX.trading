@@ -1,0 +1,136 @@
+@page "/"
+@rendermode InteractiveServer
+
+<PageTitle>Buyer Dashboard - FoodX</PageTitle>
+
+<MudText Typo="Typo.h3" Class="mb-4">Welcome to FoodX Buyer Portal</MudText>
+
+<MudGrid>
+    <!-- Quick Stats -->
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard>
+            <MudCardContent>
+                <MudText Typo="Typo.h6">Active RFQs</MudText>
+                <MudText Typo="Typo.h3" Color="Color.Primary">5</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">2 expiring soon</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard>
+            <MudCardContent>
+                <MudText Typo="Typo.h6">Pending Quotes</MudText>
+                <MudText Typo="Typo.h3" Color="Color.Info">12</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Awaiting review</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard>
+            <MudCardContent>
+                <MudText Typo="Typo.h6">Active Orders</MudText>
+                <MudText Typo="Typo.h3" Color="Color.Success">8</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">3 in transit</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard>
+            <MudCardContent>
+                <MudText Typo="Typo.h6">This Month Spend</MudText>
+                <MudText Typo="Typo.h3" Color="Color.Warning">$45.2K</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">↓ 12% from last month</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    
+    <!-- Quick Actions -->
+    <MudItem xs="12">
+        <MudText Typo="Typo.h5" Class="mb-3 mt-4">Quick Actions</MudText>
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="4">
+        <MudCard>
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h6" Class="mt-2">Create New RFQ</MudText>
+                <MudText Typo="Typo.body2">Start a new request for quotation</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" FullWidth="true">
+                    Create RFQ
+                </MudButton>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="4">
+        <MudCard>
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.LocalOffer" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Typo="Typo.h6" Class="mt-2">Browse Offers</MudText>
+                <MudText Typo="Typo.body2">View latest supplier offers</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Class="mt-3" FullWidth="true">
+                    View Offers
+                </MudButton>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="4">
+        <MudCard>
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Assessment" Size="Size.Large" Color="Color.Info" />
+                <MudText Typo="Typo.h6" Class="mt-2">Compare Quotes</MudText>
+                <MudText Typo="Typo.body2">Analyze received quotations</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Info" Class="mt-3" FullWidth="true">
+                    Compare
+                </MudButton>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    
+    <!-- Recent Activity -->
+    <MudItem xs="12">
+        <MudText Typo="Typo.h5" Class="mb-3 mt-4">Recent Activity</MudText>
+        <MudCard>
+            <MudCardContent>
+                <MudSimpleTable>
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><MudChip T="string" Color="Color.Primary" Size="Size.Small">RFQ</MudChip></td>
+                            <td>Fresh Vegetables - 500kg</td>
+                            <td>2 hours ago</td>
+                            <td><MudChip T="string" Color="Color.Success" Size="Size.Small">Published</MudChip></td>
+                        </tr>
+                        <tr>
+                            <td><MudChip T="string" Color="Color.Info" Size="Size.Small">Quote</MudChip></td>
+                            <td>Quote received for Dairy Products</td>
+                            <td>5 hours ago</td>
+                            <td><MudChip T="string" Color="Color.Warning" Size="Size.Small">Pending Review</MudChip></td>
+                        </tr>
+                        <tr>
+                            <td><MudChip T="string" Color="Color.Success" Size="Size.Small">Order</MudChip></td>
+                            <td>Order #12345 delivered</td>
+                            <td>1 day ago</td>
+                            <td><MudChip T="string" Color="Color.Success" Size="Size.Small">Completed</MudChip></td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+@code {
+    // Future: Add real data from database
+}

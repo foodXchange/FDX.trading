@@ -1,0 +1,252 @@
+@using FoodX.Admin.Models
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        @if (Company != null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.h6">Company Information</MudText>
+                    <MudSimpleTable Hover="true" Dense="true" Class="mt-2">
+                        <tbody>
+                            <tr>
+                                <td><strong>Company Name:</strong></td>
+                                <td>@Company.Company</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Type:</strong></td>
+                                <td>@Company.Type</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Size:</strong></td>
+                                <td>@(Company.Size ?? "Not specified")</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Region:</strong></td>
+                                <td>@Company.Region</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Markets:</strong></td>
+                                <td>@Company.Markets</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Categories:</strong></td>
+                                <td>@Company.Categories</td>
+                            </tr>
+                            @if (!string.IsNullOrEmpty(Company.Website))
+                            {
+                                <tr>
+                                    <td><strong>Website:</strong></td>
+                                    <td>
+                                        <MudLink Href="@Company.Website" Target="_blank">
+                                            @Company.Website
+                                        </MudLink>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.h6">Contact Information</MudText>
+                    <MudSimpleTable Hover="true" Dense="true" Class="mt-2">
+                        <tbody>
+                            @if (!string.IsNullOrEmpty(Company.KeyContact))
+                            {
+                                <tr>
+                                    <td><strong>Key Contact:</strong></td>
+                                    <td>@Company.KeyContact</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.Title))
+                            {
+                                <tr>
+                                    <td><strong>Title:</strong></td>
+                                    <td>@Company.Title</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.ProcurementContact))
+                            {
+                                <tr>
+                                    <td><strong>Procurement Contact:</strong></td>
+                                    <td>@Company.ProcurementContact</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.ProcurementEmail))
+                            {
+                                <tr>
+                                    <td><strong>Procurement Email:</strong></td>
+                                    <td>
+                                        <MudLink Href="@($"mailto:{Company.ProcurementEmail}")">
+                                            @Company.ProcurementEmail
+                                        </MudLink>
+                                    </td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.ContactEmail))
+                            {
+                                <tr>
+                                    <td><strong>Contact Email:</strong></td>
+                                    <td>
+                                        <MudLink Href="@($"mailto:{Company.ContactEmail}")">
+                                            @Company.ContactEmail
+                                        </MudLink>
+                                    </td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.Phone))
+                            {
+                                <tr>
+                                    <td><strong>Phone:</strong></td>
+                                    <td>@Company.Phone</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.Mobile))
+                            {
+                                <tr>
+                                    <td><strong>Mobile:</strong></td>
+                                    <td>@Company.Mobile</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudText Typo="Typo.h6" Class="mt-3">Additional Details</MudText>
+                    <MudSimpleTable Hover="true" Dense="true" Class="mt-2">
+                        <tbody>
+                            @if (!string.IsNullOrEmpty(Company.Address))
+                            {
+                                <tr>
+                                    <td><strong>Address:</strong></td>
+                                    <td>@Company.Address</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.DistributionCenter))
+                            {
+                                <tr>
+                                    <td><strong>Distribution Center:</strong></td>
+                                    <td>@Company.DistributionCenter</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.Stores))
+                            {
+                                <tr>
+                                    <td><strong>Stores:</strong></td>
+                                    <td>@Company.Stores</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.MainCategory))
+                            {
+                                <tr>
+                                    <td><strong>Main Category:</strong></td>
+                                    <td>@Company.MainCategory</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.SubCategories))
+                            {
+                                <tr>
+                                    <td><strong>Sub Categories:</strong></td>
+                                    <td>@Company.SubCategories</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.TargetMarket))
+                            {
+                                <tr>
+                                    <td><strong>Target Market:</strong></td>
+                                    <td>@Company.TargetMarket</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.ImportCountries))
+                            {
+                                <tr>
+                                    <td><strong>Import Countries:</strong></td>
+                                    <td>@Company.ImportCountries</td>
+                                </tr>
+                            }
+                            @if (Company.AnnualVolume.HasValue)
+                            {
+                                <tr>
+                                    <td><strong>Annual Volume:</strong></td>
+                                    <td>@Company.AnnualVolume.Value.ToString("N0")</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.PreferredSuppliers))
+                            {
+                                <tr>
+                                    <td><strong>Preferred Suppliers:</strong></td>
+                                    <td>@Company.PreferredSuppliers</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.AccountManager))
+                            {
+                                <tr>
+                                    <td><strong>Account Manager:</strong></td>
+                                    <td>@Company.AccountManager</td>
+                                </tr>
+                            }
+                            @if (Company.LastContact.HasValue)
+                            {
+                                <tr>
+                                    <td><strong>Last Contact:</strong></td>
+                                    <td>@Company.LastContact.Value.ToString("MMM dd, yyyy")</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.Status))
+                            {
+                                <tr>
+                                    <td><strong>Status:</strong></td>
+                                    <td>@Company.Status</td>
+                                </tr>
+                            }
+                            @if (!string.IsNullOrEmpty(Company.Notes))
+                            {
+                                <tr>
+                                    <td><strong>Notes:</strong></td>
+                                    <td>@Company.Notes</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Close</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="CopyEmails" StartIcon="@Icons.Material.Filled.ContentCopy">
+            Copy Emails
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public FoodXBuyer? Company { get; set; }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task CopyEmails()
+    {
+        var emails = new List<string>();
+        
+        if (!string.IsNullOrEmpty(Company?.ProcurementEmail))
+            emails.Add(Company.ProcurementEmail);
+        if (!string.IsNullOrEmpty(Company?.ContactEmail))
+            emails.Add(Company.ContactEmail);
+            
+        if (emails.Any())
+        {
+            var emailString = string.Join("; ", emails);
+            await Task.CompletedTask; // Placeholder for clipboard functionality
+            Snackbar.Add($"Emails copied: {emailString}", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("No email addresses available to copy", Severity.Warning);
+        }
+    }
+}

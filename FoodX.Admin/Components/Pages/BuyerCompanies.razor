@@ -1,0 +1,264 @@
+@page "/buyer-companies"
+@using FoodX.Admin.Data
+@using FoodX.Admin.Models
+@using Microsoft.EntityFrameworkCore
+@inject FoodXDbContext DbContext
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@rendermode InteractiveServer
+
+<PageTitle>Buyer Companies</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h3" Class="mb-4">Buyer Companies Database</MudText>
+    
+    <MudPaper Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="searchTerm" Label="Search Companies" 
+                              Variant="Variant.Outlined" 
+                              Adornment="Adornment.Start" 
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true"
+                              OnKeyUp="@(async (e) => { if (e.Key == "Enter") await SearchCompanies(); })" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudSelect @bind-Value="selectedType" Label="Type" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("")">All Types</MudSelectItem>
+                    <MudSelectItem Value="@("Retail Chain")">Retail Chain</MudSelectItem>
+                    <MudSelectItem Value="@("Hotel")">Hotel</MudSelectItem>
+                    <MudSelectItem Value="@("Restaurant")">Restaurant</MudSelectItem>
+                    <MudSelectItem Value="@("Distributor")">Distributor</MudSelectItem>
+                    <MudSelectItem Value="@("Catering")">Catering</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudSelect @bind-Value="selectedRegion" Label="Region" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("")">All Regions</MudSelectItem>
+                    <MudSelectItem Value="@("Center")">Center</MudSelectItem>
+                    <MudSelectItem Value="@("North")">North</MudSelectItem>
+                    <MudSelectItem Value="@("South")">South</MudSelectItem>
+                    <MudSelectItem Value="@("Jerusalem")">Jerusalem</MudSelectItem>
+                    <MudSelectItem Value="@("Haifa")">Haifa</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.FilterList"
+                           OnClick="SearchCompanies">
+                    Apply Filters
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" 
+                           StartIcon="@Icons.Material.Filled.Clear"
+                           OnClick="ClearFilters">
+                    Clear
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+        
+        <MudText Typo="Typo.body2" Class="mt-2">
+            Total Companies: <strong>@totalCount</strong> | Showing: <strong>@companies.Count</strong>
+        </MudText>
+    </MudPaper>
+
+    @if (isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else
+    {
+        <MudDataGrid Items="@companies" Filterable="false" Hideable="true" 
+                     Hover="true" Dense="true" RowsPerPage="25">
+            <Columns>
+                <PropertyColumn Property="x => x.Id" Title="ID" Sortable="true" />
+                <PropertyColumn Property="x => x.Company" Title="Company Name" Sortable="true" />
+                <PropertyColumn Property="x => x.Type" Title="Type" Sortable="true" />
+                <PropertyColumn Property="x => x.Categories" Title="Categories" />
+                <PropertyColumn Property="x => x.Region" Title="Region" Sortable="true" />
+                <PropertyColumn Property="x => x.Markets" Title="Markets" />
+                <TemplateColumn Title="Contact">
+                    <CellTemplate>
+                        @if (!string.IsNullOrEmpty(context.Item.ProcurementEmail))
+                        {
+                            <MudTooltip Text="@context.Item.ProcurementEmail">
+                                <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Color="Color.Primary" />
+                            </MudTooltip>
+                        }
+                        @if (!string.IsNullOrEmpty(context.Item.Phone))
+                        {
+                            <MudTooltip Text="@context.Item.Phone">
+                                <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" Color="Color.Secondary" />
+                            </MudTooltip>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Size">
+                    <CellTemplate>
+                        <MudChip T="string" Size="Size.Small" Color="@GetSizeColor(context.Item.Size)">
+                            @(context.Item.Size ?? "Unknown")
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Actions">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" 
+                                       Size="Size.Small" 
+                                       Color="Color.Primary"
+                                       OnClick="@(() => ViewCompanyDetails(context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" 
+                                       Size="Size.Small" 
+                                       Color="Color.Secondary"
+                                       OnClick="@(() => ImportToCompanies(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager />
+            </PagerContent>
+        </MudDataGrid>
+    }
+</MudContainer>
+
+@code {
+    private List<FoodXBuyer> companies = new();
+    private bool isLoading = true;
+    private string searchTerm = "";
+    private string selectedType = "";
+    private string selectedRegion = "";
+    private int totalCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCompanies();
+    }
+
+    private async Task LoadCompanies()
+    {
+        isLoading = true;
+        try
+        {
+            var query = DbContext.FoodXBuyers.AsQueryable();
+            
+            // Get total count before filtering
+            totalCount = await query.CountAsync();
+            
+            // Apply filters
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                query = query.Where(c => 
+                    (c.Company != null && c.Company.Contains(searchTerm)) ||
+                    (c.ProcurementEmail != null && c.ProcurementEmail.Contains(searchTerm)) ||
+                    (c.ContactEmail != null && c.ContactEmail.Contains(searchTerm)) ||
+                    (c.KeyContact != null && c.KeyContact.Contains(searchTerm)));
+            }
+            
+            if (!string.IsNullOrWhiteSpace(selectedType))
+            {
+                query = query.Where(c => c.Type == selectedType);
+            }
+            
+            if (!string.IsNullOrWhiteSpace(selectedRegion))
+            {
+                query = query.Where(c => c.Region == selectedRegion);
+            }
+            
+            companies = await query
+                .OrderBy(c => c.Company)
+                .Take(500) // Limit results for performance
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading companies: {ex.Message}", Severity.Error);
+            companies = new List<FoodXBuyer>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SearchCompanies()
+    {
+        await LoadCompanies();
+    }
+
+    private async Task ClearFilters()
+    {
+        searchTerm = "";
+        selectedType = "";
+        selectedRegion = "";
+        await LoadCompanies();
+    }
+
+    private Color GetSizeColor(string? size)
+    {
+        return size switch
+        {
+            "Large" => Color.Success,
+            "Medium" => Color.Info,
+            "Small" => Color.Warning,
+            _ => Color.Default
+        };
+    }
+
+    private async Task ViewCompanyDetails(FoodXBuyer company)
+    {
+        var parameters = new DialogParameters
+        {
+            { "Company", company }
+        };
+        
+        var options = new DialogOptions 
+        { 
+            CloseButton = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<ViewBuyerCompanyDialog>("Company Details", parameters, options);
+        await dialog.Result;
+    }
+
+    private async Task ImportToCompanies(FoodXBuyer buyerCompany)
+    {
+        try
+        {
+            // Check if company already exists
+            var exists = await DbContext.Companies
+                .AnyAsync(c => c.Name == buyerCompany.Company);
+                
+            if (exists)
+            {
+                Snackbar.Add("Company already exists in the main database", Severity.Warning);
+                return;
+            }
+            
+            // Create new company
+            var company = new Company
+            {
+                Name = buyerCompany.Company ?? "Unknown",
+                CompanyType = "Buyer",
+                Website = buyerCompany.Website,
+                Email = buyerCompany.ProcurementEmail ?? buyerCompany.ContactEmail,
+                Phone = buyerCompany.Phone,
+                Address = buyerCompany.Address,
+                Country = buyerCompany.Region,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            
+            DbContext.Companies.Add(company);
+            await DbContext.SaveChangesAsync();
+            
+            Snackbar.Add($"Company '{company.Name}' imported successfully", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error importing company: {ex.Message}", Severity.Error);
+        }
+    }
+}

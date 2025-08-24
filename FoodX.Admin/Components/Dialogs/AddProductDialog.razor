@@ -1,8 +1,11 @@
 @using FoodX.Admin.Models
 @using FoodX.Admin.Data
+@using FoodX.Admin.Repositories
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Web
-@inject FoodXDbContext DbContext
+@using Microsoft.AspNetCore.Components.Forms
+@using System.IO
+@inject IUnitOfWork UnitOfWork
 @inject ISnackbar Snackbar
 
 <div @onkeydown="HandleKeyDown" @onkeydown:preventDefault="false">
@@ -29,6 +32,33 @@
         <MudNumericField @bind-Value="stockQuantity" Label="Stock Quantity" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="sku" Label="SKU" Variant="Variant.Outlined" Class="mb-3" />
         <MudTextField @bind-Value="origin" Label="Origin/Source" Variant="Variant.Outlined" Class="mb-3" />
+        
+        <MudPaper Class="pa-3 mb-3" Outlined="true">
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Product Image</MudText>
+            @if (!string.IsNullOrEmpty(imageUrl))
+            {
+                <MudImage Src="@imageUrl" Alt="Product preview" Class="mb-2" Style="max-height: 200px; width: 100%; object-fit: contain;" />
+            }
+            <MudStack Row="true">
+                <MudTextField @bind-Value="imageUrl" Label="Image URL" Variant="Variant.Outlined" 
+                              Placeholder="https://example.com/image.jpg" Class="flex-grow-1" />
+                <MudText Class="mx-2">OR</MudText>
+                <MudFileUpload T="IBrowserFile" Accept="image/*" FilesChanged="UploadImage" MaximumFileCount="1">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload">
+                            Upload Image
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+            </MudStack>
+            @if (isUploadingImage)
+            {
+                <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-2" />
+            }
+        </MudPaper>
+        
         <MudSwitch T="bool" @bind-Value="isOrganic" Label="Organic" Color="Color.Success" Class="mb-3" />
         <MudSwitch T="bool" @bind-Value="isAvailable" Label="Available" Color="Color.Primary" Class="mb-3" />
     </DialogContent>
@@ -58,9 +88,11 @@
     private int stockQuantity = 0;
     private string sku = "";
     private string origin = "";
+    private string imageUrl = "";
     private bool isOrganic = false;
     private bool isAvailable = true;
     private bool isProcessing = false;
+    private bool isUploadingImage = false;
     
     private async Task Cancel()
     {
@@ -92,14 +124,15 @@
                 StockQuantity = stockQuantity,
                 SKU = sku,
                 Origin = origin,
+                ImageUrl = imageUrl,
                 IsOrganic = isOrganic,
                 IsAvailable = isAvailable,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
             
-            DbContext.Products.Add(product);
-            await DbContext.SaveChangesAsync();
+            await UnitOfWork.Products.AddAsync(product);
+            await UnitOfWork.SaveChangesAsync();
             
             Snackbar.Add("Product added successfully", Severity.Success);
             await OnProductAdded.InvokeAsync(product);
@@ -111,6 +144,40 @@
         finally
         {
             isProcessing = false;
+        }
+    }
+    
+    private async Task UploadImage(IBrowserFile file)
+    {
+        isUploadingImage = true;
+        try
+        {
+            // For now, we'll convert to base64. In production, you'd upload to blob storage
+            var bufferSize = 1024 * 1024 * 5; // 5MB max
+            
+            if (file.Size > bufferSize)
+            {
+                Snackbar.Add("Image size must be less than 5MB", Severity.Warning);
+                return;
+            }
+            
+            using var stream = file.OpenReadStream(bufferSize);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            
+            var base64 = Convert.ToBase64String(bytes);
+            imageUrl = $"data:{file.ContentType};base64,{base64}";
+            
+            Snackbar.Add("Image uploaded successfully", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error uploading image: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isUploadingImage = false;
         }
     }
     

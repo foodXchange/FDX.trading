@@ -1,0 +1,315 @@
+# GitHub Actions CI/CD Pipeline for FDX Trading Platform
+# Alternative to Azure DevOps with enhanced security scanning
+
+name: FDX Trading CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**.md'
+      - 'Documentation/**'
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '9.x'
+  AZURE_WEBAPP_PACKAGE_PATH: '.'
+  CONFIGURATION: Release
+
+jobs:
+  # ============ BUILD AND TEST JOB ============
+  build:
+    name: Build and Test
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Full history for better code analysis
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
+    - name: Restore dependencies
+      run: dotnet restore FDX.trading.sln
+
+    - name: Build solution
+      run: dotnet build FDX.trading.sln --configuration ${{ env.CONFIGURATION }} --no-restore
+
+    - name: Run tests
+      run: dotnet test --configuration ${{ env.CONFIGURATION }} --no-build --verbosity normal --collect:"XPlat Code Coverage"
+
+    # Security Scanning
+    - name: Run security scan with dotnet-security-scan
+      run: |
+        dotnet tool install --global security-scan
+        security-scan FDX.trading.sln --excl-proj "**/*Tests.csproj"
+      continue-on-error: true
+
+    - name: Check for vulnerable packages
+      run: dotnet list package --vulnerable --include-transitive
+
+    - name: Scan for secrets with Gitleaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Publish artifacts
+    - name: Publish Admin Portal
+      run: dotnet publish FoodX.Admin/FoodX.Admin.csproj -c ${{ env.CONFIGURATION }} -o ./publish/Admin
+
+    - name: Publish Buyer Portal
+      run: dotnet publish FoodX.Buyer/FoodX.Buyer.csproj -c ${{ env.CONFIGURATION }} -o ./publish/Buyer
+
+    - name: Publish Supplier Portal
+      run: dotnet publish FoodX.Supplier/FoodX.Supplier.csproj -c ${{ env.CONFIGURATION }} -o ./publish/Supplier
+
+    - name: Publish Marketplace Portal
+      run: dotnet publish FoodX.Marketplace/FoodX.Marketplace.csproj -c ${{ env.CONFIGURATION }} -o ./publish/Marketplace
+
+    - name: Upload Admin artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: admin-portal
+        path: ./publish/Admin
+
+    - name: Upload Buyer artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: buyer-portal
+        path: ./publish/Buyer
+
+    - name: Upload Supplier artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: supplier-portal
+        path: ./publish/Supplier
+
+    - name: Upload Marketplace artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: marketplace-portal
+        path: ./publish/Marketplace
+
+  # ============ DEPLOY TO STAGING ============
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build
+    runs-on: windows-latest
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: Staging
+      url: https://fdx-admin-staging.azurewebsites.net
+    
+    steps:
+    - name: Download Admin artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: admin-portal
+        path: ./admin
+
+    - name: Download Buyer artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: buyer-portal
+        path: ./buyer
+
+    - name: Download Supplier artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: supplier-portal
+        path: ./supplier
+
+    - name: Download Marketplace artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: marketplace-portal
+        path: ./marketplace
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Get Key Vault secrets
+      uses: Azure/get-keyvault-secrets@v1
+      with:
+        keyvault: "fdx-kv-poland"
+        secrets: 'DefaultConnection, ApplicationInsights--InstrumentationKey'
+      id: keyvault
+
+    - name: Deploy Admin to Staging
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'fdx-admin-staging'
+        package: ./admin
+        slot-name: 'staging'
+
+    - name: Deploy Buyer to Staging
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'fdx-buyer-staging'
+        package: ./buyer
+        slot-name: 'staging'
+
+    - name: Deploy Supplier to Staging
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'fdx-supplier-staging'
+        package: ./supplier
+        slot-name: 'staging'
+
+    - name: Deploy Marketplace to Staging
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'fdx-marketplace-staging'
+        package: ./marketplace
+        slot-name: 'staging'
+
+    - name: Run smoke tests
+      run: |
+        Invoke-WebRequest -Uri "https://fdx-admin-staging.azurewebsites.net/health" -UseBasicParsing
+        Invoke-WebRequest -Uri "https://fdx-buyer-staging.azurewebsites.net/health" -UseBasicParsing
+        Invoke-WebRequest -Uri "https://fdx-supplier-staging.azurewebsites.net/health" -UseBasicParsing
+        Invoke-WebRequest -Uri "https://fdx-marketplace-staging.azurewebsites.net/health" -UseBasicParsing
+      shell: pwsh
+
+  # ============ DEPLOY TO PRODUCTION ============
+  deploy-production:
+    name: Deploy to Production
+    needs: [build, deploy-staging]
+    runs-on: windows-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: Production
+      url: https://admin.fdx.trading
+    
+    steps:
+    - name: Download Admin artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: admin-portal
+        path: ./admin
+
+    - name: Download Buyer artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: buyer-portal
+        path: ./buyer
+
+    - name: Download Supplier artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: supplier-portal
+        path: ./supplier
+
+    - name: Download Marketplace artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: marketplace-portal
+        path: ./marketplace
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Get Key Vault secrets
+      uses: Azure/get-keyvault-secrets@v1
+      with:
+        keyvault: "fdx-kv-poland"
+        secrets: 'DefaultConnection, ApplicationInsights--InstrumentationKey, SqlAdminPassword'
+      id: keyvault
+
+    - name: Backup database
+      run: |
+        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        az sql db export `
+          --resource-group fdx-dotnet-rg `
+          --server fdx-sql-prod `
+          --database fdxdb `
+          --storage-key ${{ secrets.STORAGE_ACCOUNT_KEY }} `
+          --storage-uri "https://fdxsqlauditlogs.blob.core.windows.net/backups/fdxdb-pre-deploy-$timestamp.bacpac" `
+          --admin-user fdxadmin `
+          --admin-password "${{ steps.keyvault.outputs.SqlAdminPassword }}"
+      shell: pwsh
+
+    - name: Deploy Admin to Production
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'fdx-admin-prod'
+        package: ./admin
+
+    - name: Deploy Buyer to Production
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'fdx-buyer-prod'
+        package: ./buyer
+
+    - name: Deploy Supplier to Production
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'fdx-supplier-prod'
+        package: ./supplier
+
+    - name: Deploy Marketplace to Production
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'fdx-marketplace-prod'
+        package: ./marketplace
+
+    - name: Verify Application Insights
+      run: |
+        az monitor app-insights component show `
+          --app fdx-app-insights `
+          --resource-group fdx-dotnet-rg
+      shell: pwsh
+
+    - name: Run production smoke tests
+      run: |
+        $urls = @(
+          "https://admin.fdx.trading/health",
+          "https://buyer.fdx.trading/health",
+          "https://supplier.fdx.trading/health",
+          "https://marketplace.fdx.trading/health"
+        )
+        
+        foreach ($url in $urls) {
+          $response = Invoke-WebRequest -Uri $url -UseBasicParsing
+          if ($response.StatusCode -ne 200) {
+            throw "Health check failed for $url"
+          }
+        }
+        
+        Write-Host "All health checks passed!" -ForegroundColor Green
+      shell: pwsh
+
+    - name: Send deployment notification
+      if: success()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '✅ Production deployment completed successfully!\n\n' +
+                  '**URLs:**\n' +
+                  '- Admin: https://admin.fdx.trading\n' +
+                  '- Buyer: https://buyer.fdx.trading\n' +
+                  '- Supplier: https://supplier.fdx.trading\n' +
+                  '- Marketplace: https://marketplace.fdx.trading'
+          })

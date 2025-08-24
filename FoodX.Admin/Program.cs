@@ -12,10 +12,20 @@ using Azure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Azure Key Vault
-var keyVaultName = "fdx-kv-poland";
-var keyVaultUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
-builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential());
+// Configure Azure Key Vault (only in Production)
+if (builder.Environment.IsProduction())
+{
+    var keyVaultName = "fdx-kv-poland";
+    var keyVaultUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
+    builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential());
+}
+
+// Add Application Insights
+builder.Services.AddApplicationInsightsTelemetry(options =>
+{
+    options.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"] 
+        ?? builder.Configuration["ApplicationInsights--ConnectionString"];
+});
 
 // Configure Globalization (Israel/Jerusalem timezone)
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.GetCultureInfo("en-US");
@@ -47,6 +57,11 @@ builder.Services.AddServerSideBlazor()
         options.JSInteropDefaultCallTimeout = TimeSpan.FromMinutes(1);
         options.MaxBufferedUnacknowledgedRenderBatches = 10;
     });
+
+// Add Vector Search Services
+builder.Services.AddScoped<FoodX.Core.Services.IVectorSearchService, FoodX.Core.Services.VectorSearchService>();
+builder.Services.AddHttpClient<FoodX.Core.Services.IEmbeddingService, FoodX.Core.Services.AzureOpenAIEmbeddingService>();
+builder.Services.AddScoped<FoodX.Admin.Services.TestUserService>();
 
 // Add Authentication
 builder.Services.AddCascadingAuthenticationState();
@@ -85,8 +100,16 @@ builder.Services.ConfigureApplicationCookie(options =>
     }
 });
 
+// Get connection string from configuration (Key Vault in Production, appsettings in Development)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+    ?? builder.Configuration["DefaultConnection"] 
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found in configuration.");
+
+// Log the connection string for debugging (remove sensitive parts)
+var debugConnStr = connectionString.Contains("Password=") 
+    ? connectionString.Substring(0, connectionString.IndexOf("Password=")) + "Password=***" 
+    : connectionString;
+Console.WriteLine($"[DEBUG] Using connection string: {debugConnStr}");
 
 // Optimize connection string
 var optimizedConnectionString = FoodX.Admin.Data.DatabaseConfiguration.OptimizeConnectionString(connectionString);

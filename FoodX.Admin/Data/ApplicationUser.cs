@@ -10,6 +10,7 @@ public class ApplicationUser : IdentityUser
     public string? CompanyName { get; set; }
     public string? Department { get; set; }
     public string? JobTitle { get; set; }
+    public string? Country { get; set; } // Country code (e.g., "US", "IL", "GB")
     public bool IsSuperAdmin { get; set; } = false;
     public string? ImpersonatedBy { get; set; } // UserId of admin impersonating this user
     public DateTime? LastLoginAt { get; set; }
