@@ -4,10 +4,12 @@
 @using FoodX.Admin.Components.Dialogs
 @using FoodX.Admin.Repositories
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.Caching.Memory
 @inject IUnitOfWork UnitOfWork
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
+@inject IMemoryCache MemoryCache
 @rendermode InteractiveServer
 @implements IDisposable
 

@@ -3,10 +3,13 @@
 @using FoodX.Admin.Models
 @using FoodX.Admin.Components.Dialogs
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.Caching.Memory
 @inject FoodXDbContext DbContext
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject IMemoryCache MemoryCache
 @rendermode InteractiveServer
+@implements IDisposable
 
 <PageTitle>Buyer Companies</PageTitle>
 
@@ -140,35 +143,60 @@
         isLoading = true;
         try
         {
-            var query = DbContext.FoodXBuyers.AsQueryable();
+            // Create cache key based on filters
+            var cacheKey = $"buyers_{searchTerm}_{selectedType}_{selectedRegion}";
             
-            // Get total count before filtering
-            totalCount = await query.CountAsync();
-            
-            // Apply filters
-            if (!string.IsNullOrWhiteSpace(searchTerm))
+            // Try to get from cache first
+            if (!MemoryCache.TryGetValue(cacheKey, out List<FoodXBuyer>? cachedCompanies))
             {
-                query = query.Where(c => 
-                    (c.Company != null && c.Company.Contains(searchTerm)) ||
-                    (c.ProcurementEmail != null && c.ProcurementEmail.Contains(searchTerm)) ||
-                    (c.ContactEmail != null && c.ContactEmail.Contains(searchTerm)) ||
-                    (c.KeyContact != null && c.KeyContact.Contains(searchTerm)));
+                var query = DbContext.FoodXBuyers
+                    .AsNoTracking() // Improve performance for read-only data
+                    .AsQueryable();
+                
+                // Get total count before filtering (cache this separately)
+                if (!MemoryCache.TryGetValue("buyers_total_count", out int cachedCount))
+                {
+                    cachedCount = await query.CountAsync();
+                    MemoryCache.Set("buyers_total_count", cachedCount, TimeSpan.FromMinutes(5));
+                }
+                totalCount = cachedCount;
+                
+                // Apply filters
+                if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    var searchTermLower = searchTerm.ToLower();
+                    query = query.Where(c => 
+                        (c.Company != null && c.Company.ToLower().Contains(searchTermLower)) ||
+                        (c.ProcurementEmail != null && c.ProcurementEmail.ToLower().Contains(searchTermLower)) ||
+                        (c.ContactEmail != null && c.ContactEmail.ToLower().Contains(searchTermLower)) ||
+                        (c.KeyContact != null && c.KeyContact.ToLower().Contains(searchTermLower)));
+                }
+                
+                if (!string.IsNullOrWhiteSpace(selectedType))
+                {
+                    query = query.Where(c => c.Type == selectedType);
+                }
+                
+                if (!string.IsNullOrWhiteSpace(selectedRegion))
+                {
+                    query = query.Where(c => c.Region == selectedRegion);
+                }
+                
+                // Execute query with optimized projection
+                cachedCompanies = await query
+                    .OrderBy(c => c.Company)
+                    .Take(500) // Limit results for performance
+                    .ToListAsync();
+                
+                // Cache the results for 2 minutes
+                var cacheOptions = new MemoryCacheEntryOptions()
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(2))
+                    .SetAbsoluteExpiration(TimeSpan.FromMinutes(5));
+                    
+                MemoryCache.Set(cacheKey, cachedCompanies, cacheOptions);
             }
             
-            if (!string.IsNullOrWhiteSpace(selectedType))
-            {
-                query = query.Where(c => c.Type == selectedType);
-            }
-            
-            if (!string.IsNullOrWhiteSpace(selectedRegion))
-            {
-                query = query.Where(c => c.Region == selectedRegion);
-            }
-            
-            companies = await query
-                .OrderBy(c => c.Company)
-                .Take(500) // Limit results for performance
-                .ToListAsync();
+            companies = cachedCompanies ?? new List<FoodXBuyer>();
         }
         catch (Exception ex)
         {
@@ -229,6 +257,7 @@
         {
             // Check if company already exists
             var exists = await DbContext.Companies
+                .AsNoTracking()
                 .AnyAsync(c => c.Name == buyerCompany.Company);
                 
             if (exists)
@@ -255,11 +284,29 @@
             DbContext.Companies.Add(company);
             await DbContext.SaveChangesAsync();
             
+            // Clear cache after import
+            ClearCache();
+            
             Snackbar.Add($"Company '{company.Name}' imported successfully", Severity.Success);
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Error importing company: {ex.Message}", Severity.Error);
         }
+    }
+    
+    private void ClearCache()
+    {
+        // Clear all buyer-related cache entries
+        MemoryCache.Remove("buyers_total_count");
+        // Clear filter-based cache entries
+        var cacheKey = $"buyers_{searchTerm}_{selectedType}_{selectedRegion}";
+        MemoryCache.Remove(cacheKey);
+    }
+    
+    public void Dispose()
+    {
+        // Clean up resources if needed
+        ClearCache();
     }
 }

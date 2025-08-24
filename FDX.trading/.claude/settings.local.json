@@ -295,7 +295,8 @@
       "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT TOP 10 SupplierName, ProductCategory, Country, CompanyWebsite FROM FoodXSuppliers WHERE Id > 25900 AND ProductCategory IS NOT NULL AND LEN(ProductCategory) > 0\")",
       "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT SupplierName, Description FROM FoodXSuppliers WHERE Id > 25900 AND SupplierName LIKE ''%Podravka%''\")",
       "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT TOP 3 SupplierName, Description FROM FoodXSuppliers WHERE Id > 25900 ORDER BY Id DESC\")",
-      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT COUNT(*) as ImportedSuppliers FROM FoodXSuppliers WHERE Id > 25600\")"
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT COUNT(*) as ImportedSuppliers FROM FoodXSuppliers WHERE Id > 25600\")",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py ../optimize_database_performance.sql)"
     ],
     "deny": [],
     "ask": [],
