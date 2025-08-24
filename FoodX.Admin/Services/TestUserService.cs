@@ -31,17 +31,17 @@ namespace FoodX.Admin.Services
                 .ToListAsync();
 
             var results = new List<string>();
-            
+
             foreach (var user in testUsers)
             {
                 try
                 {
                     // Generate password reset token
                     var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                    
+
                     // Reset password
                     var result = await _userManager.ResetPasswordAsync(user, token, testPassword);
-                    
+
                     if (result.Succeeded)
                     {
                         _logger.LogInformation($"Password reset successful for {user.Email}");
@@ -67,7 +67,7 @@ namespace FoodX.Admin.Services
         public async Task<bool> EnsureRolesExistAsync()
         {
             string[] roles = { "SuperAdmin", "Admin", "Buyer", "Supplier", "Agent", "Expert" };
-            
+
             foreach (var role in roles)
             {
                 if (!await _roleManager.RoleExistsAsync(role))
@@ -81,7 +81,7 @@ namespace FoodX.Admin.Services
                     _logger.LogInformation($"Created role: {role}");
                 }
             }
-            
+
             return true;
         }
 
@@ -89,13 +89,13 @@ namespace FoodX.Admin.Services
         {
             var usersByRole = new Dictionary<string, List<string>>();
             var roles = await _roleManager.Roles.ToListAsync();
-            
+
             foreach (var role in roles)
             {
                 var usersInRole = await _userManager.GetUsersInRoleAsync(role.Name!);
                 usersByRole[role.Name!] = usersInRole.Select(u => u.Email ?? "No Email").ToList();
             }
-            
+
             return usersByRole;
         }
 
@@ -120,7 +120,7 @@ namespace FoodX.Admin.Services
             {
                 _logger.LogWarning($"Invalid password for {email}");
             }
-            
+
             return result;
         }
     }

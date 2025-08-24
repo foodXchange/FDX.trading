@@ -14,7 +14,7 @@ public static class DatabaseConfiguration
                 maxRetryCount: 5,
                 maxRetryDelay: TimeSpan.FromSeconds(30),
                 errorNumbersToAdd: new[]
-                { 
+                {
                     // Add specific SQL error numbers for retry
                     -2, // Timeout
                     -1, // Connection broken

@@ -34,14 +34,14 @@ namespace FoodX.Admin.Services
             }
             else
             {
-                _logger.LogInformation($"SendGrid API key configured successfully. Key starts with: {apiKey.Substring(0, Math.Min(10, apiKey.Length))}");
+                _logger.LogInformation($"SendGrid API key configured successfully. Key starts with: {apiKey[..Math.Min(10, apiKey.Length)]}");
                 _sendGridClient = new SendGridClient(apiKey);
             }
         }
 
         public async Task<bool> SendMagicLinkEmailAsync(string toEmail, string magicLinkUrl)
         {
-            var subject = "Sign in to FoodX Trading Platform";
+            const string subject = "Sign in to FoodX Trading Platform";
 
             var htmlContent = $@"
 <!DOCTYPE html>
@@ -73,20 +73,20 @@ namespace FoodX.Admin.Services
             <p style='font-size: 16px; color: #555;'>
                 Click the button below to instantly sign in to your FoodX account. No password needed!
             </p>
-            
+
             <div class='button-container'>
                 <a href='{magicLinkUrl}' class='magic-button'>
                     ✨ Sign In with Magic Link
                 </a>
             </div>
-            
+
             <p style='color: #888; font-size: 14px; text-align: center;'>
                 Or copy and paste this link into your browser:
             </p>
             <div class='link-text'>
                 {magicLinkUrl}
             </div>
-            
+
             <div class='security-notice'>
                 <strong>🔒 Security Notice:</strong>
                 <ul style='margin: 10px 0; padding-left: 20px;'>
@@ -95,7 +95,7 @@ namespace FoodX.Admin.Services
                     <li>Never share this link with anyone</li>
                 </ul>
             </div>
-            
+
             <p style='color: #888; font-size: 14px;'>
                 If you didn't request this sign-in link, you can safely ignore this email.
             </p>
@@ -135,7 +135,7 @@ FoodX Trading Platform
 
         public async Task<bool> SendInvitationEmailAsync(string toEmail, string invitationUrl, string inviterName)
         {
-            var subject = "You're Invited to Join FoodX Trading Platform";
+            const string subject = "You're Invited to Join FoodX Trading Platform";
 
             var htmlContent = $@"
 <!DOCTYPE html>
@@ -173,12 +173,12 @@ FoodX Trading Platform
                     the FoodX B2B Trading Platform
                 </p>
             </div>
-            
+
             <p style='font-size: 16px; color: #555;'>
-                Join thousands of food industry professionals who are revolutionizing B2B food trading with our 
+                Join thousands of food industry professionals who are revolutionizing B2B food trading with our
                 innovative platform.
             </p>
-            
+
             <div class='benefits'>
                 <h3 style='color: #333; margin-top: 0;'>What You'll Get:</h3>
                 <div class='benefit-item'>
@@ -198,22 +198,22 @@ FoodX Trading Platform
                     <span><strong>Secure Platform:</strong> Enterprise-grade security for your business</span>
                 </div>
             </div>
-            
+
             <div class='button-container'>
                 <a href='{invitationUrl}' class='accept-button'>
                     Accept Invitation & Join
                 </a>
             </div>
-            
+
             <p style='color: #888; font-size: 14px; text-align: center;'>
                 Or copy and paste this link into your browser:
             </p>
             <div class='link-text'>
                 {invitationUrl}
             </div>
-            
+
             <p style='color: #888; font-size: 14px; margin-top: 30px;'>
-                <strong>Note:</strong> This invitation link expires in 7 days. If you need a new invitation, 
+                <strong>Note:</strong> This invitation link expires in 7 days. If you need a new invitation,
                 please contact {inviterName}.
             </p>
         </div>

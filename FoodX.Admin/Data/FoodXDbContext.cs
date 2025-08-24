@@ -184,7 +184,7 @@ namespace FoodX.Admin.Data
             {
                 entity.ToTable("FoodXBuyers");
                 entity.HasKey(e => e.Id);
-                
+
                 // Indexes for common queries
                 entity.HasIndex(e => e.Company).HasDatabaseName("IX_FoodXBuyers_Company");
                 entity.HasIndex(e => e.Region).HasDatabaseName("IX_FoodXBuyers_Region");

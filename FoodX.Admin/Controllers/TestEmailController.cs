@@ -31,9 +31,9 @@ namespace FoodX.Admin.Controllers
                 var testMagicLink = $"{baseUrl}/Account/MagicLinkLogin?email={Uri.EscapeDataString(testEmail)}&token=TEST_TOKEN_12345";
 
                 _logger.LogInformation($"Sending test HTML email to {testEmail}");
-                
+
                 var success = await _emailService.SendMagicLinkEmailAsync(testEmail, testMagicLink);
-                
+
                 if (success)
                 {
                     return Ok(new
@@ -71,7 +71,7 @@ namespace FoodX.Admin.Controllers
             var useApi = _configuration.GetValue<bool>("SendGrid:UseApi", true);
             var useSmtp = _configuration.GetValue<bool>("SendGrid:UseSmtp", true);
             var environment = _configuration["ASPNETCORE_ENVIRONMENT"];
-            
+
             return Ok(new
             {
                 hasApiKey,

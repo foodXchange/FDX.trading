@@ -39,7 +39,7 @@ namespace FoodX.Admin.Controllers
 
                 // Generate embedding for the search query
                 var embedding = await _embeddingService.GetEmbeddingAsync(request.Query);
-                
+
                 if (embedding == null)
                 {
                     _logger.LogWarning("Failed to generate embedding for search query");
@@ -81,7 +81,7 @@ namespace FoodX.Admin.Controllers
 
                 // Generate embedding for the search query
                 var embedding = await _embeddingService.GetEmbeddingAsync(request.Query);
-                
+
                 if (embedding == null)
                 {
                     _logger.LogWarning("Failed to generate embedding for search query");
@@ -117,7 +117,7 @@ namespace FoodX.Admin.Controllers
             try
             {
                 var results = await _vectorSearchService.FindSimilarProductsAsync(productId, topN);
-                
+
                 return Ok(new
                 {
                     productId = productId,
@@ -179,9 +179,9 @@ namespace FoodX.Admin.Controllers
             try
             {
                 _logger.LogInformation("Starting batch update of all product embeddings");
-                
+
                 var success = await _embeddingService.UpdateAllProductEmbeddingsAsync();
-                
+
                 if (success)
                 {
                     return Ok(new { message = "All product embeddings updated successfully" });
@@ -205,9 +205,9 @@ namespace FoodX.Admin.Controllers
             try
             {
                 _logger.LogInformation("Starting batch update of all company embeddings");
-                
+
                 var success = await _embeddingService.UpdateAllCompanyEmbeddingsAsync();
-                
+
                 if (success)
                 {
                     return Ok(new { message = "All company embeddings updated successfully" });

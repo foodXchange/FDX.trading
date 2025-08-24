@@ -88,7 +88,7 @@ namespace FoodX.Admin.Services
 
             // Don't mark token as used here - let it be marked after successful login
             // This prevents the token from being consumed on validation check
-            
+
             return true;
         }
 
@@ -109,7 +109,7 @@ namespace FoodX.Admin.Services
             // Mark token as used
             magicLink.IsUsed = true;
             magicLink.UsedAt = DateTime.UtcNow;
-            
+
             try
             {
                 await _context.SaveChangesAsync();

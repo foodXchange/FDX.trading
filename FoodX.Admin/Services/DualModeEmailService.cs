@@ -41,19 +41,19 @@ namespace FoodX.Admin.Services
                     Host = "https://api.sendgrid.com", // Default host
                     Version = "v3"
                 };
-                
+
                 // Use global endpoint (EU endpoint requires special account configuration)
                 // If you have EU data residency configured in SendGrid, uncomment the line below:
                 // options.Host = "https://api.eu.sendgrid.com";
                 _logger.LogInformation("SendGrid API client initialized with global endpoint");
-                
+
                 _sendGridClient = new SendGridClient(options);
             }
         }
 
         public async Task<bool> SendMagicLinkEmailAsync(string toEmail, string magicLinkUrl)
         {
-            var subject = "Sign in to FoodX Trading Platform";
+            const string subject = "Sign in to FoodX Trading Platform";
             var htmlContent = GetMagicLinkHtmlTemplate(magicLinkUrl);
             var plainText = GetMagicLinkPlainText(magicLinkUrl);
 
@@ -62,7 +62,7 @@ namespace FoodX.Admin.Services
 
         public async Task<bool> SendInvitationEmailAsync(string toEmail, string invitationUrl, string inviterName)
         {
-            var subject = "You're Invited to Join FoodX Trading Platform";
+            const string subject = "You're Invited to Join FoodX Trading Platform";
             var htmlContent = GetInvitationHtmlTemplate(invitationUrl, inviterName);
             var plainText = GetInvitationPlainText(invitationUrl, inviterName);
 
@@ -224,7 +224,7 @@ namespace FoodX.Admin.Services
             {
                 var linkMatch = System.Text.RegularExpressions.Regex.Match(htmlContent, @"href='([^']+)'");
                 var logPath = Path.Combine(Directory.GetCurrentDirectory(), "magic-links.txt");
-                
+
                 var logEntry = $@"
 ========================================
 Time: {DateTime.Now}
@@ -277,7 +277,7 @@ Link: {(linkMatch.Success ? linkMatch.Groups[1].Value : "N/A")}
                             <p style=""margin: 8px 0 0 0; color: #e8e3ff; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;"">Trading Platform</p>
                         </td>
                     </tr>
-                    
+
                     <!-- Main Content -->
                     <tr>
                         <td style=""padding: 48px 40px 24px 40px;"">
@@ -285,7 +285,7 @@ Link: {(linkMatch.Success ? linkMatch.Groups[1].Value : "N/A")}
                             <p style=""margin: 0 0 32px 0; color: #4a5568; font-size: 16px; line-height: 1.6; text-align: center;"">
                                 You're just one click away from accessing your FoodX account. No password needed!
                             </p>
-                            
+
                             <!-- Button Container -->
                             <table border=""0"" cellspacing=""0"" cellpadding=""0"" width=""100%"">
                                 <tr>
@@ -305,7 +305,7 @@ Link: {(linkMatch.Success ? linkMatch.Groups[1].Value : "N/A")}
                                     </td>
                                 </tr>
                             </table>
-                            
+
                             <!-- Alternative Link Section -->
                             <table border=""0"" cellspacing=""0"" cellpadding=""0"" width=""100%"" style=""margin: 0 0 32px 0;"">
                                 <tr>
@@ -319,7 +319,7 @@ Link: {(linkMatch.Success ? linkMatch.Groups[1].Value : "N/A")}
                                     </td>
                                 </tr>
                             </table>
-                            
+
                             <!-- Security Notice -->
                             <table border=""0"" cellspacing=""0"" cellpadding=""0"" width=""100%"">
                                 <tr>
@@ -342,7 +342,7 @@ Link: {(linkMatch.Success ? linkMatch.Groups[1].Value : "N/A")}
                             </table>
                         </td>
                     </tr>
-                    
+
                     <!-- Footer -->
                     <tr>
                         <td style=""background-color: #f8fafc; padding: 32px 40px; text-align: center; border-top: 1px solid #e2e8f0;"">
@@ -428,12 +428,12 @@ FoodX Trading Platform
                             <p style=""margin: 8px 0 0 0; color: #c6f7e2; font-size: 16px; font-weight: 500;"">You've been invited to join our platform</p>
                         </td>
                     </tr>
-                    
+
                     <!-- Main Content -->
                     <tr>
                         <td style=""padding: 48px 40px 24px 40px;"">
                             <h2 style=""margin: 0 0 24px 0; color: #1a1a1a; font-size: 28px; font-weight: 700; text-align: center;"">You're In! 🚀</h2>
-                            
+
                             <!-- Inviter Info Card -->
                             <table border=""0"" cellspacing=""0"" cellpadding=""0"" width=""100%"" style=""margin: 0 0 32px 0;"">
                                 <tr>
@@ -446,11 +446,11 @@ FoodX Trading Platform
                                     </td>
                                 </tr>
                             </table>
-                            
+
                             <p style=""margin: 0 0 32px 0; color: #4a5568; font-size: 16px; line-height: 1.6; text-align: center;"">
                                 Join thousands of businesses revolutionizing food trading with cutting-edge technology and seamless transactions.
                             </p>
-                            
+
                             <!-- Button Container -->
                             <table border=""0"" cellspacing=""0"" cellpadding=""0"" width=""100%"">
                                 <tr>
@@ -470,7 +470,7 @@ FoodX Trading Platform
                                     </td>
                                 </tr>
                             </table>
-                            
+
                             <!-- Benefits Section -->
                             <table border=""0"" cellspacing=""0"" cellpadding=""0"" width=""100%"" style=""margin: 0 0 32px 0;"">
                                 <tr>
@@ -505,7 +505,7 @@ FoodX Trading Platform
                                     </td>
                                 </tr>
                             </table>
-                            
+
                             <!-- Alternative Link Section -->
                             <table border=""0"" cellspacing=""0"" cellpadding=""0"" width=""100%"" style=""margin: 0 0 24px 0;"">
                                 <tr>
@@ -519,7 +519,7 @@ FoodX Trading Platform
                                     </td>
                                 </tr>
                             </table>
-                            
+
                             <!-- Expiry Notice -->
                             <table border=""0"" cellspacing=""0"" cellpadding=""0"" width=""100%"">
                                 <tr>
@@ -532,7 +532,7 @@ FoodX Trading Platform
                             </table>
                         </td>
                     </tr>
-                    
+
                     <!-- Footer -->
                     <tr>
                         <td style=""background-color: #f8fafc; padding: 32px 40px; text-align: center; border-top: 1px solid #e2e8f0;"">

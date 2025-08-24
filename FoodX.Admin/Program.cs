@@ -23,7 +23,7 @@ if (builder.Environment.IsProduction())
 // Add Application Insights
 builder.Services.AddApplicationInsightsTelemetry(options =>
 {
-    options.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"] 
+    options.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"]
         ?? builder.Configuration["ApplicationInsights--ConnectionString"];
 });
 
@@ -102,12 +102,13 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 // Get connection string from configuration (Key Vault in Production, appsettings in Development)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? builder.Configuration["DefaultConnection"] 
+    ?? builder.Configuration["DefaultConnection"]
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found in configuration.");
 
 // Log the connection string for debugging (remove sensitive parts)
-var debugConnStr = connectionString.Contains("Password=") 
-    ? connectionString.Substring(0, connectionString.IndexOf("Password=")) + "Password=***" 
+var passwordIndex = connectionString.IndexOf("Password=", StringComparison.OrdinalIgnoreCase);
+var debugConnStr = passwordIndex >= 0
+    ? string.Concat(connectionString.AsSpan(0, passwordIndex), "Password=***")
     : connectionString;
 Console.WriteLine($"[DEBUG] Using connection string: {debugConnStr}");
 

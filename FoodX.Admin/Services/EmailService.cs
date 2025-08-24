@@ -22,7 +22,7 @@ namespace FoodX.Admin.Services
 
         public async Task SendMagicLinkEmailAsync(string email, string magicLinkUrl)
         {
-            var subject = "Your FoodX Login Link";
+            const string subject = "Your FoodX Login Link";
             var htmlMessage = $@"
                 <html>
                 <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
@@ -31,7 +31,7 @@ namespace FoodX.Admin.Services
                         <p>Hello,</p>
                         <p>You requested a magic link to sign in to your FoodX account. Click the button below to sign in:</p>
                         <div style='text-align: center; margin: 30px 0;'>
-                            <a href='{magicLinkUrl}' 
+                            <a href='{magicLinkUrl}'
                                style='display: inline-block; padding: 12px 30px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;'>
                                 Sign In to FoodX
                             </a>

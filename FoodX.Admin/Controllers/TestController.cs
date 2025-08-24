@@ -31,11 +31,11 @@ namespace FoodX.Admin.Controllers
             }
 
             var success = await _testUserService.ResetTestUserPasswordsAsync();
-            
+
             if (success)
             {
-                return Ok(new 
-                { 
+                return Ok(new
+                {
                     message = "Test user passwords reset successfully",
                     password = "TestPass123!",
                     users = new[]
@@ -53,7 +53,7 @@ namespace FoodX.Admin.Controllers
                     }
                 });
             }
-            
+
             return StatusCode(500, "Some passwords could not be reset. Check logs for details.");
         }
 
@@ -89,12 +89,12 @@ namespace FoodX.Admin.Controllers
             }
 
             var success = await _testUserService.TestLoginAsync(request.Email, request.Password);
-            
+
             if (success)
             {
                 return Ok(new { message = $"Login successful for {request.Email}" });
             }
-            
+
             return Unauthorized(new { message = "Invalid email or password" });
         }
 
@@ -105,8 +105,8 @@ namespace FoodX.Admin.Controllers
         [AllowAnonymous]
         public IActionResult Health()
         {
-            return Ok(new 
-            { 
+            return Ok(new
+            {
                 status = "healthy",
                 environment = _environment.EnvironmentName,
                 timestamp = DateTime.UtcNow
