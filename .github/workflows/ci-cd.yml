@@ -26,17 +26,17 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Full history for better code analysis
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Cache NuGet packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.nuget/packages
         key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
@@ -81,25 +81,25 @@ jobs:
       run: dotnet publish FoodX.Marketplace/FoodX.Marketplace.csproj -c ${{ env.CONFIGURATION }} -o ./publish/Marketplace
 
     - name: Upload Admin artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: admin-portal
         path: ./publish/Admin
 
     - name: Upload Buyer artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: buyer-portal
         path: ./publish/Buyer
 
     - name: Upload Supplier artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: supplier-portal
         path: ./publish/Supplier
 
     - name: Upload Marketplace artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: marketplace-portal
         path: ./publish/Marketplace
@@ -116,31 +116,31 @@ jobs:
     
     steps:
     - name: Download Admin artifact
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: admin-portal
         path: ./admin
 
     - name: Download Buyer artifact
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: buyer-portal
         path: ./buyer
 
     - name: Download Supplier artifact
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: supplier-portal
         path: ./supplier
 
     - name: Download Marketplace artifact
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: marketplace-portal
         path: ./marketplace
 
     - name: Azure Login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -152,28 +152,28 @@ jobs:
       id: keyvault
 
     - name: Deploy Admin to Staging
-      uses: azure/webapps-deploy@v2
+      uses: azure/webapps-deploy@v3
       with:
         app-name: 'fdx-admin-staging'
         package: ./admin
         slot-name: 'staging'
 
     - name: Deploy Buyer to Staging
-      uses: azure/webapps-deploy@v2
+      uses: azure/webapps-deploy@v3
       with:
         app-name: 'fdx-buyer-staging'
         package: ./buyer
         slot-name: 'staging'
 
     - name: Deploy Supplier to Staging
-      uses: azure/webapps-deploy@v2
+      uses: azure/webapps-deploy@v3
       with:
         app-name: 'fdx-supplier-staging'
         package: ./supplier
         slot-name: 'staging'
 
     - name: Deploy Marketplace to Staging
-      uses: azure/webapps-deploy@v2
+      uses: azure/webapps-deploy@v3
       with:
         app-name: 'fdx-marketplace-staging'
         package: ./marketplace
@@ -199,31 +199,31 @@ jobs:
     
     steps:
     - name: Download Admin artifact
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: admin-portal
         path: ./admin
 
     - name: Download Buyer artifact
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: buyer-portal
         path: ./buyer
 
     - name: Download Supplier artifact
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: supplier-portal
         path: ./supplier
 
     - name: Download Marketplace artifact
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: marketplace-portal
         path: ./marketplace
 
     - name: Azure Login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -248,25 +248,25 @@ jobs:
       shell: pwsh
 
     - name: Deploy Admin to Production
-      uses: azure/webapps-deploy@v2
+      uses: azure/webapps-deploy@v3
       with:
         app-name: 'fdx-admin-prod'
         package: ./admin
 
     - name: Deploy Buyer to Production
-      uses: azure/webapps-deploy@v2
+      uses: azure/webapps-deploy@v3
       with:
         app-name: 'fdx-buyer-prod'
         package: ./buyer
 
     - name: Deploy Supplier to Production
-      uses: azure/webapps-deploy@v2
+      uses: azure/webapps-deploy@v3
       with:
         app-name: 'fdx-supplier-prod'
         package: ./supplier
 
     - name: Deploy Marketplace to Production
-      uses: azure/webapps-deploy@v2
+      uses: azure/webapps-deploy@v3
       with:
         app-name: 'fdx-marketplace-prod'
         package: ./marketplace
@@ -299,7 +299,7 @@ jobs:
 
     - name: Send deployment notification
       if: success()
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       with:
         script: |
           github.rest.issues.createComment({
