@@ -1,6 +1,7 @@
 @page "/buyer-companies"
 @using FoodX.Admin.Data
 @using FoodX.Admin.Models
+@using FoodX.Admin.Components.Dialogs
 @using Microsoft.EntityFrameworkCore
 @inject FoodXDbContext DbContext
 @inject IDialogService DialogService
@@ -242,8 +243,8 @@
                 Name = buyerCompany.Company ?? "Unknown",
                 CompanyType = "Buyer",
                 Website = buyerCompany.Website,
-                Email = buyerCompany.ProcurementEmail ?? buyerCompany.ContactEmail,
-                Phone = buyerCompany.Phone,
+                MainEmail = buyerCompany.ProcurementEmail ?? buyerCompany.ContactEmail,
+                MainPhone = buyerCompany.Phone,
                 Address = buyerCompany.Address,
                 Country = buyerCompany.Region,
                 IsActive = true,
