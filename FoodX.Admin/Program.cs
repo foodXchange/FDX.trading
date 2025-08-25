@@ -12,12 +12,22 @@ using Azure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Azure Key Vault (only in Production)
-if (builder.Environment.IsProduction())
+// Configure Azure Key Vault (optional in Development)
+try
 {
-    var keyVaultName = "fdx-kv-poland";
+    const string keyVaultName = "fdx-kv-poland";
     var keyVaultUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
     builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential());
+    Console.WriteLine("[INFO] Azure Key Vault configured successfully");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[WARNING] Could not connect to Azure Key Vault: {ex.Message}");
+    if (builder.Environment.IsProduction())
+    {
+        throw; // Re-throw in production - Key Vault is required
+    }
+    Console.WriteLine("[INFO] Continuing without Key Vault in Development mode");
 }
 
 // Add Application Insights
@@ -62,6 +72,10 @@ builder.Services.AddServerSideBlazor()
 builder.Services.AddScoped<FoodX.Core.Services.IVectorSearchService, FoodX.Core.Services.VectorSearchService>();
 builder.Services.AddHttpClient<FoodX.Core.Services.IEmbeddingService, FoodX.Core.Services.AzureOpenAIEmbeddingService>();
 builder.Services.AddScoped<FoodX.Admin.Services.TestUserService>();
+
+// Add AI Request Analyzer Service
+builder.Services.AddHttpClient<FoodX.Admin.Services.IAIRequestAnalyzer, FoodX.Admin.Services.AIRequestAnalyzer>();
+builder.Services.AddScoped<FoodX.Admin.Services.IAIRequestAnalyzer, FoodX.Admin.Services.AIRequestAnalyzer>();
 
 // Add Authentication
 builder.Services.AddCascadingAuthenticationState();
@@ -169,6 +183,18 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 
 // Register role navigation service
 builder.Services.AddScoped<FoodX.Admin.Services.IRoleNavigationService, FoodX.Admin.Services.RoleNavigationService>();
+
+// Configure SendGrid with API key from Azure Key Vault
+var sendGridApiKey = builder.Configuration["SendGridApiKey"];
+if (!string.IsNullOrEmpty(sendGridApiKey))
+{
+    builder.Services.AddSingleton<SendGrid.ISendGridClient>(new SendGrid.SendGridClient(sendGridApiKey));
+    Console.WriteLine($"[INFO] SendGrid configured with API key from Azure Key Vault (key starts with: {sendGridApiKey[..Math.Min(10, sendGridApiKey.Length)]})");
+}
+else
+{
+    Console.WriteLine("[WARNING] SendGrid API key not found in Azure Key Vault");
+}
 
 // Register Magic Link and Email services
 builder.Services.AddScoped<FoodX.Admin.Services.IMagicLinkService, FoodX.Admin.Services.MagicLinkService>();

@@ -32,6 +32,10 @@ namespace FoodX.Admin.Data
         // External data tables (imported from external sources)
         public DbSet<FoodXBuyer> FoodXBuyers { get; set; }
 
+        // AI Request System tables
+        public DbSet<BuyerRequest> BuyerRequests { get; set; }
+        public DbSet<AIAnalysisResult> AIAnalysisResults { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             ArgumentNullException.ThrowIfNull(builder);
@@ -189,6 +193,50 @@ namespace FoodX.Admin.Data
                 entity.HasIndex(e => e.Company).HasDatabaseName("IX_FoodXBuyers_Company");
                 entity.HasIndex(e => e.Region).HasDatabaseName("IX_FoodXBuyers_Region");
                 entity.HasIndex(e => e.Type).HasDatabaseName("IX_FoodXBuyers_Type");
+            });
+
+            // Configure BuyerRequest
+            builder.Entity<BuyerRequest>(entity =>
+            {
+                entity.ToTable("BuyerRequests");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.InputType).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.InputContent).IsRequired();
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("GETUTCDATE()");
+
+                // Indexes
+                entity.HasIndex(e => e.BuyerId).HasDatabaseName("IX_BuyerRequests_BuyerId");
+                entity.HasIndex(e => e.Status).HasDatabaseName("IX_BuyerRequests_Status");
+                entity.HasIndex(e => e.CreatedAt).HasDatabaseName("IX_BuyerRequests_CreatedAt");
+
+                // Relationship with FoodXBuyer
+                entity.HasOne(e => e.Buyer)
+                    .WithMany()
+                    .HasForeignKey(e => e.BuyerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Configure AIAnalysisResult
+            builder.Entity<AIAnalysisResult>(entity =>
+            {
+                entity.ToTable("AIAnalysisResults");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.AnalysisData).IsRequired();
+                entity.Property(e => e.ConfidenceScore).HasColumnType("decimal(5,2)");
+                entity.Property(e => e.AIProvider).HasMaxLength(50);
+                entity.Property(e => e.ProcessedAt).HasDefaultValueSql("GETUTCDATE()");
+
+                // Index
+                entity.HasIndex(e => e.RequestId).HasDatabaseName("IX_AIAnalysisResults_RequestId");
+
+                // Relationship with BuyerRequest
+                entity.HasOne(e => e.Request)
+                    .WithMany(r => r.AnalysisResults)
+                    .HasForeignKey(e => e.RequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }
