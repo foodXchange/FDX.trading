@@ -12,15 +12,15 @@
 
 <PageTitle>AI Product Request Analysis</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h3" Class="mb-4">AI Product Request Analysis</MudText>
     <MudText Typo="Typo.body1" Class="mb-4">
         Define what product you're looking for using AI-powered analysis
     </MudText>
 
-    <MudGrid>
+    <MudGrid Style="height: calc(100vh - 250px);">
         <!-- Input Section -->
-        <MudItem xs="12" md="6">
+        <MudItem xs="12" md="4" Style="height: 100%; overflow-y: auto;">
             <MudPaper Class="pa-4" Elevation="2">
                 <MudText Typo="Typo.h5" Class="mb-3">Create New Request</MudText>
                 
@@ -64,7 +64,7 @@
                 }
                 else if (inputType == InputTypes.Image)
                 {
-                    <MudFileUpload T="IBrowserFile" FilesChanged="HandleFileSelected" Accept="image/*" aria-label="Upload image file" Title="Upload image file">
+                    <MudFileUpload T="IBrowserFile" FilesChanged="HandleFileSelected" Accept="image/*" aria-label="Upload image file">
                         <ActivatorContent>
                             <MudButton Variant="Variant.Filled"
                                        Color="Color.Primary"
@@ -127,136 +127,305 @@
         </MudItem>
 
         <!-- Analysis Results Section -->
-        <MudItem xs="12" md="6">
+        <MudItem xs="12" md="8" Style="height: 100%; overflow-y: auto;">
             @if (currentAnalysis != null)
             {
-                <MudPaper Class="pa-4" Elevation="2">
+                <MudPaper Class="pa-4" Elevation="2" Style="height: 100%;">
                     <MudText Typo="Typo.h5" Class="mb-3">AI Analysis Results</MudText>
                     
-                    @if (currentAnalysis.ProductIdentification != null)
-                    {
-                        <!-- Product Identification -->
-                        <MudCard Class="mb-3">
-                            <MudCardContent>
-                                <MudText Typo="Typo.h6" Color="Color.Primary">Product Identified</MudText>
-                                <MudText Typo="Typo.body1" Class="mt-2">
-                                    <strong>@currentAnalysis.ProductIdentification.DetectedProduct</strong>
-                                </MudText>
-                                <MudText Typo="Typo.body2">
-                                    Generic Name: @currentAnalysis.ProductIdentification.GenericName
-                                </MudText>
-                                @if (!string.IsNullOrEmpty(currentAnalysis.ProductIdentification.BrandReference))
-                                {
-                                    <MudText Typo="Typo.body2">
-                                        Brand Reference: @currentAnalysis.ProductIdentification.BrandReference
-                                    </MudText>
-                                }
-                                <MudProgressLinear Color="Color.Success" 
-                                                   Value="@(currentAnalysis.ProductIdentification.Confidence * 100)" 
-                                                   Class="mt-2" />
-                                <MudText Typo="Typo.caption">
-                                    Confidence: @($"{currentAnalysis.ProductIdentification.Confidence:P0}")
-                                </MudText>
-                            </MudCardContent>
-                        </MudCard>
-                    }
-
-                    @if (currentAnalysis.DetailedDescription != null)
-                    {
-                        <!-- Description -->
-                        <MudCard Class="mb-3">
-                            <MudCardContent>
-                                <MudText Typo="Typo.h6" Color="Color.Primary">Description</MudText>
-                                <MudText Typo="Typo.body1" Class="mt-2">
-                                    @currentAnalysis.DetailedDescription.Summary
-                                </MudText>
-                                @if (currentAnalysis.DetailedDescription.KeyCharacteristics?.Any() == true)
-                                {
-                                    <MudText Typo="Typo.subtitle2" Class="mt-2">Key Characteristics:</MudText>
-                                    <MudList T="string" Dense="true">
-                                        @foreach (var characteristic in currentAnalysis.DetailedDescription.KeyCharacteristics)
+                    <MudTabs Elevation="0" ApplyEffectsToContainer="true" PanelClass="pa-6">
+                        <MudTabPanel Text="Overview" Icon="@Icons.Material.Filled.Info">
+                            @if (currentAnalysis.ProductIdentification != null)
+                            {
+                                <!-- Product Identification -->
+                                <MudCard Class="mb-3">
+                                    <MudCardContent>
+                                        <MudText Typo="Typo.h6" Color="Color.Primary">Product Identified</MudText>
+                                        <MudText Typo="Typo.body1" Class="mt-2">
+                                            <strong>@currentAnalysis.ProductIdentification.DetectedProduct</strong>
+                                        </MudText>
+                                        <MudText Typo="Typo.body2">
+                                            Generic Name: @currentAnalysis.ProductIdentification.GenericName
+                                        </MudText>
+                                        @if (!string.IsNullOrEmpty(currentAnalysis.ProductIdentification.BrandReference))
                                         {
-                                            <MudListItem Icon="@Icons.Material.Filled.Check">
-                                                @characteristic
-                                            </MudListItem>
+                                            <MudText Typo="Typo.body2">
+                                                Brand Reference: @currentAnalysis.ProductIdentification.BrandReference
+                                            </MudText>
                                         }
-                                    </MudList>
-                                }
-                            </MudCardContent>
-                        </MudCard>
-                    }
+                                        <MudProgressLinear Color="Color.Success" 
+                                                           Value="@(currentAnalysis.ProductIdentification.Confidence * 100)" 
+                                                           Class="mt-2" />
+                                        <MudText Typo="Typo.caption">
+                                            Confidence: @($"{currentAnalysis.ProductIdentification.Confidence:P0}")
+                                        </MudText>
+                                    </MudCardContent>
+                                </MudCard>
+                            }
 
-                    @if (currentAnalysis.CategoryClassification != null)
-                    {
-                        <!-- Category -->
-                        <MudCard Class="mb-3">
-                            <MudCardContent>
-                                <MudText Typo="Typo.h6" Color="Color.Primary">Category Classification</MudText>
-                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Class="mt-2">
-                                    @currentAnalysis.CategoryClassification.PrimaryCategory
-                                </MudChip>
-                                <MudChip T="string" Color="Color.Secondary" Size="Size.Small">
-                                    @currentAnalysis.CategoryClassification.SecondaryCategory
-                                </MudChip>
-                                <MudChip T="string" Color="Color.Tertiary" Size="Size.Small">
-                                    @currentAnalysis.CategoryClassification.SpecificType
-                                </MudChip>
-                            </MudCardContent>
-                        </MudCard>
-                    }
-
-                    @if (currentAnalysis.CommonAttributes != null)
-                    {
-                        <!-- Attributes -->
-                        <MudCard Class="mb-3">
-                            <MudCardContent>
-                                <MudText Typo="Typo.h6" Color="Color.Primary">Product Attributes</MudText>
-                                
-                                @if (currentAnalysis.CommonAttributes.TypicalIngredients?.Any() == true)
-                                {
-                                    <MudText Typo="Typo.subtitle2" Class="mt-2">Typical Ingredients:</MudText>
-                                    <MudChipSet T="string">
-                                        @foreach (var ingredient in currentAnalysis.CommonAttributes.TypicalIngredients)
+                            @if (currentAnalysis.DetailedDescription != null)
+                            {
+                                <!-- Description -->
+                                <MudCard Class="mb-3">
+                                    <MudCardContent>
+                                        <MudText Typo="Typo.h6" Color="Color.Primary">Description</MudText>
+                                        <MudText Typo="Typo.body1" Class="mt-2">
+                                            @currentAnalysis.DetailedDescription.Summary
+                                        </MudText>
+                                        @if (currentAnalysis.DetailedDescription.KeyCharacteristics?.Any() == true)
                                         {
-                                            <MudChip T="string" Size="Size.Small">@ingredient</MudChip>
+                                            <MudText Typo="Typo.subtitle2" Class="mt-2">Key Characteristics:</MudText>
+                                            <MudList T="string" Dense="true">
+                                                @foreach (var characteristic in currentAnalysis.DetailedDescription.KeyCharacteristics)
+                                                {
+                                                    <MudListItem Icon="@Icons.Material.Filled.Check">
+                                                        @characteristic
+                                                    </MudListItem>
+                                                }
+                                            </MudList>
                                         }
-                                    </MudChipSet>
-                                }
-                                
-                                @if (!string.IsNullOrEmpty(currentAnalysis.CommonAttributes.FlavorNotes))
-                                {
-                                    <MudText Typo="Typo.body2" Class="mt-2">
-                                        <strong>Flavor:</strong> @currentAnalysis.CommonAttributes.FlavorNotes
-                                    </MudText>
-                                }
-                                
-                                @if (!string.IsNullOrEmpty(currentAnalysis.CommonAttributes.ShelfLife))
-                                {
-                                    <MudText Typo="Typo.body2">
-                                        <strong>Shelf Life:</strong> @currentAnalysis.CommonAttributes.ShelfLife
-                                    </MudText>
-                                }
-                            </MudCardContent>
-                        </MudCard>
-                    }
+                                    </MudCardContent>
+                                </MudCard>
+                            }
+
+                            @if (currentAnalysis.CategoryClassification != null)
+                            {
+                                <!-- Category -->
+                                <MudCard Class="mb-3">
+                                    <MudCardContent>
+                                        <MudText Typo="Typo.h6" Color="Color.Primary">Category Classification</MudText>
+                                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" Class="mt-2">
+                                            @currentAnalysis.CategoryClassification.PrimaryCategory
+                                        </MudChip>
+                                        <MudChip T="string" Color="Color.Secondary" Size="Size.Small">
+                                            @currentAnalysis.CategoryClassification.SecondaryCategory
+                                        </MudChip>
+                                        <MudChip T="string" Color="Color.Tertiary" Size="Size.Small">
+                                            @currentAnalysis.CategoryClassification.SpecificType
+                                        </MudChip>
+                                    </MudCardContent>
+                                </MudCard>
+                            }
+                        </MudTabPanel>
+
+                        <MudTabPanel Text="Packaging" Icon="@Icons.Material.Filled.Inventory">
+                            @if (currentAnalysis.PackagingDetails != null)
+                            {
+                                <!-- Packaging Details -->
+                                <MudCard Class="mb-3">
+                                    <MudCardContent>
+                                        <MudText Typo="Typo.h6" Color="Color.Primary">Packaging Specifications</MudText>
+                                        
+                                        <MudGrid Class="mt-2">
+                                            @if (!string.IsNullOrEmpty(currentAnalysis.PackagingDetails.PackageType))
+                                            {
+                                                <MudItem xs="6">
+                                                    <MudText Typo="Typo.body2">
+                                                        <strong>Type:</strong> @currentAnalysis.PackagingDetails.PackageType
+                                                    </MudText>
+                                                </MudItem>
+                                            }
+                                            @if (!string.IsNullOrEmpty(currentAnalysis.PackagingDetails.Material))
+                                            {
+                                                <MudItem xs="6">
+                                                    <MudText Typo="Typo.body2">
+                                                        <strong>Material:</strong> @currentAnalysis.PackagingDetails.Material
+                                                    </MudText>
+                                                </MudItem>
+                                            }
+                                            @if (!string.IsNullOrEmpty(currentAnalysis.PackagingDetails.NetWeight))
+                                            {
+                                                <MudItem xs="6">
+                                                    <MudText Typo="Typo.body2">
+                                                        <strong>Net Weight:</strong> @currentAnalysis.PackagingDetails.NetWeight
+                                                        @if (!string.IsNullOrEmpty(currentAnalysis.PackagingDetails.NetWeightOz))
+                                                        {
+                                                            <span> (@currentAnalysis.PackagingDetails.NetWeightOz)</span>
+                                                        }
+                                                    </MudText>
+                                                </MudItem>
+                                            }
+                                            @if (!string.IsNullOrEmpty(currentAnalysis.PackagingDetails.Dimensions))
+                                            {
+                                                <MudItem xs="6">
+                                                    <MudText Typo="Typo.body2">
+                                                        <strong>Dimensions:</strong> @currentAnalysis.PackagingDetails.Dimensions
+                                                    </MudText>
+                                                </MudItem>
+                                            }
+                                        </MudGrid>
+                                        
+                                        @if (currentAnalysis.PackagingDetails.PackagingComponents?.Any() == true)
+                                        {
+                                            <MudText Typo="Typo.subtitle2" Class="mt-2">Components:</MudText>
+                                            <MudChipSet T="string">
+                                                @foreach (var component in currentAnalysis.PackagingDetails.PackagingComponents)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small">@component</MudChip>
+                                                }
+                                            </MudChipSet>
+                                        }
+                                    </MudCardContent>
+                                </MudCard>
+                            }
+                        </MudTabPanel>
+
+                        <MudTabPanel Text="Labeling" Icon="@Icons.Material.Filled.Label">
+                            @if (currentAnalysis.LabelingInformation != null)
+                            {
+                                <!-- Labeling Information -->
+                                <MudCard Class="mb-3">
+                                    <MudCardContent>
+                                        <MudText Typo="Typo.h6" Color="Color.Primary">Labeling Information</MudText>
+                                        
+                                        @if (!string.IsNullOrEmpty(currentAnalysis.LabelingInformation.ProductNameOnLabel))
+                                        {
+                                            <MudText Typo="Typo.body1" Class="mt-2">
+                                                <strong>Product Name:</strong> @currentAnalysis.LabelingInformation.ProductNameOnLabel
+                                            </MudText>
+                                        }
+                                        
+                                        @if (!string.IsNullOrEmpty(currentAnalysis.LabelingInformation.Manufacturer))
+                                        {
+                                            <MudText Typo="Typo.body2">
+                                                <strong>Manufacturer:</strong> @currentAnalysis.LabelingInformation.Manufacturer
+                                            </MudText>
+                                        }
+                                        
+                                        @if (currentAnalysis.LabelingInformation.IngredientsText?.Any() == true)
+                                        {
+                                            <MudExpansionPanels Class="mt-2">
+                                                <MudExpansionPanel Text="Full Ingredients List">
+                                                    <MudList T="string" Dense="true">
+                                                        @foreach (var ingredient in currentAnalysis.LabelingInformation.IngredientsText)
+                                                        {
+                                                            <MudListItem>@ingredient</MudListItem>
+                                                        }
+                                                    </MudList>
+                                                </MudExpansionPanel>
+                                            </MudExpansionPanels>
+                                        }
+                                        
+                                        @if (currentAnalysis.LabelingInformation.Allergens?.Any() == true)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" Class="mt-2">
+                                                <strong>Allergens:</strong> @string.Join(", ", currentAnalysis.LabelingInformation.Allergens)
+                                            </MudAlert>
+                                        }
+                                    </MudCardContent>
+                                </MudCard>
+                            }
+                        </MudTabPanel>
+
+                        <MudTabPanel Text="Attributes" Icon="@Icons.Material.Filled.Category">
+                            @if (currentAnalysis.ProductAttributes != null)
+                            {
+                                <!-- Product Dietary Attributes -->
+                                <MudCard Class="mb-3">
+                                    <MudCardContent>
+                                        <MudText Typo="Typo.h6" Color="Color.Primary">Dietary & Nutritional Attributes</MudText>
+                                        
+                                        <!-- Certifications -->
+                                        <MudGrid Class="mt-3">
+                                            <MudItem xs="12">
+                                                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Certifications</MudText>
+                                            </MudItem>
+                                            <MudItem xs="6" md="3">
+                                                <MudCheckBox T="bool?" Value="@currentAnalysis.ProductAttributes.IsKosher" 
+                                                             ReadOnly="true" Label="Kosher" Color="Color.Success" />
+                                                @if (!string.IsNullOrEmpty(currentAnalysis.ProductAttributes.KosherCertification))
+                                                {
+                                                    <MudText Typo="Typo.caption" Class="ml-8">@currentAnalysis.ProductAttributes.KosherCertification</MudText>
+                                                }
+                                            </MudItem>
+                                            <MudItem xs="6" md="3">
+                                                <MudCheckBox T="bool?" Value="@currentAnalysis.ProductAttributes.IsHalal" 
+                                                             ReadOnly="true" Label="Halal" Color="Color.Success" />
+                                            </MudItem>
+                                            <MudItem xs="6" md="3">
+                                                <MudCheckBox T="bool?" Value="@currentAnalysis.ProductAttributes.IsOrganic" 
+                                                             ReadOnly="true" Label="Organic" Color="Color.Success" />
+                                            </MudItem>
+                                            <MudItem xs="6" md="3">
+                                                <MudCheckBox T="bool?" Value="@currentAnalysis.ProductAttributes.IsNonGMO" 
+                                                             ReadOnly="true" Label="Non-GMO" Color="Color.Success" />
+                                            </MudItem>
+                                        </MudGrid>
+                                        
+                                        <!-- Allergen Free Claims -->
+                                        <MudDivider Class="my-3" />
+                                        <MudGrid>
+                                            <MudItem xs="12">
+                                                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Allergen Information</MudText>
+                                            </MudItem>
+                                            <MudItem xs="6" md="3">
+                                                <MudCheckBox T="bool?" Value="@currentAnalysis.ProductAttributes.IsGlutenFree" 
+                                                             ReadOnly="true" Label="Gluten Free" Color="Color.Info" />
+                                            </MudItem>
+                                            <MudItem xs="6" md="3">
+                                                <MudCheckBox T="bool?" Value="@currentAnalysis.ProductAttributes.IsNutFree" 
+                                                             ReadOnly="true" Label="Nut Free" Color="Color.Info" />
+                                            </MudItem>
+                                            <MudItem xs="6" md="3">
+                                                <MudCheckBox T="bool?" Value="@currentAnalysis.ProductAttributes.IsDairyFree" 
+                                                             ReadOnly="true" Label="Dairy Free" Color="Color.Info" />
+                                            </MudItem>
+                                            <MudItem xs="6" md="3">
+                                                <MudCheckBox T="bool?" Value="@currentAnalysis.ProductAttributes.IsSoyFree" 
+                                                             ReadOnly="true" Label="Soy Free" Color="Color.Info" />
+                                            </MudItem>
+                                        </MudGrid>
+                                        
+                                        <!-- Sugar & Dietary -->
+                                        <MudDivider Class="my-3" />
+                                        <MudGrid>
+                                            <MudItem xs="12">
+                                                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Sugar & Dietary</MudText>
+                                            </MudItem>
+                                            <MudItem xs="6" md="3">
+                                                <MudCheckBox T="bool?" Value="@currentAnalysis.ProductAttributes.IsSugarFree" 
+                                                             ReadOnly="true" Label="Sugar Free" Color="Color.Warning" />
+                                            </MudItem>
+                                            <MudItem xs="6" md="3">
+                                                <MudCheckBox T="bool?" Value="@currentAnalysis.ProductAttributes.IsVegan" 
+                                                             ReadOnly="true" Label="Vegan" Color="Color.Success" />
+                                            </MudItem>
+                                            <MudItem xs="6" md="3">
+                                                <MudCheckBox T="bool?" Value="@currentAnalysis.ProductAttributes.IsVitaminEnriched" 
+                                                             ReadOnly="true" Label="Vitamin Enriched" Color="Color.Tertiary" />
+                                            </MudItem>
+                                            <MudItem xs="6" md="3">
+                                                <MudCheckBox T="bool?" Value="@currentAnalysis.ProductAttributes.IsProteinEnriched" 
+                                                             ReadOnly="true" Label="Protein Enriched" Color="Color.Tertiary" />
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudCardContent>
+                                </MudCard>
+                            }
+                        </MudTabPanel>
+                    </MudTabs>
 
                     <!-- Action Buttons -->
-                    <MudButton Variant="Variant.Filled" 
-                               Color="Color.Success" 
-                               OnClick="SaveAnalysis"
-                               FullWidth="true"
-                               Class="mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.Save" Class="mr-1" />
-                        Save Analysis
-                    </MudButton>
-                    
-                    <MudButton Variant="Variant.Outlined" 
-                               Color="Color.Primary" 
-                               OnClick="ClearAnalysis"
-                               FullWidth="true">
-                        <MudIcon Icon="@Icons.Material.Filled.Clear" Class="mr-1" />
-                        Start New Analysis
-                    </MudButton>
+                    <MudGrid Class="mt-4">
+                        <MudItem xs="6">
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Success" 
+                                       OnClick="SaveAnalysis"
+                                       FullWidth="true">
+                                <MudIcon Icon="@Icons.Material.Filled.Save" Class="mr-1" />
+                                Save Analysis
+                            </MudButton>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudButton Variant="Variant.Outlined" 
+                                       Color="Color.Primary" 
+                                       OnClick="ClearAnalysis"
+                                       FullWidth="true">
+                                <MudIcon Icon="@Icons.Material.Filled.Clear" Class="mr-1" />
+                                Start New Analysis
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
                 </MudPaper>
             }
             else if (!string.IsNullOrEmpty(errorMessage))
@@ -309,23 +478,48 @@
                         <tr>
                             <td>@request.Title</td>
                             <td>
-                                <MudChip T="string" Size="Size.Small" Color="GetInputTypeColor(request.InputType)">
-                                    @request.InputType
-                                </MudChip>
+                                @switch(request.InputType.ToLower())
+                                {
+                                    case "text":
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info">Text</MudChip>
+                                        break;
+                                    case "url":
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Primary">URL</MudChip>
+                                        break;
+                                    case "image":
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success">Image</MudChip>
+                                        break;
+                                    default:
+                                        <MudChip T="string" Size="Size.Small">Unknown</MudChip>
+                                        break;
+                                }
                             </td>
                             <td>
-                                <MudChip T="string" Size="Size.Small" Color="GetStatusColor(request.Status)">
-                                    @request.Status
-                                </MudChip>
+                                @switch(request.Status)
+                                {
+                                    case "pending":
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">Pending</MudChip>
+                                        break;
+                                    case "analyzed":
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success">Analyzed</MudChip>
+                                        break;
+                                    case "failed":
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Error">Failed</MudChip>
+                                        break;
+                                    default:
+                                        <MudChip T="string" Size="Size.Small">@request.Status</MudChip>
+                                        break;
+                                }
                             </td>
-                            <td>@request.CreatedAt.ToString("g")</td>
+                            <td>@request.CreatedAt.ToString("MM/dd/yyyy HH:mm")</td>
                             <td>
-                                <MudButton Size="Size.Small" 
-                                           Variant="Variant.Text" 
-                                           Color="Color.Primary"
-                                           OnClick="@(() => LoadRequest(request))">
-                                    View
-                                </MudButton>
+                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" 
+                                               Size="Size.Small" 
+                                               OnClick="@(() => LoadRequest(request))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                               Size="Size.Small" 
+                                               Color="Color.Error"
+                                               OnClick="@(() => DeleteRequest(request))" />
                             </td>
                         </tr>
                     }
@@ -334,102 +528,97 @@
         }
         else
         {
-            <MudText Typo="Typo.body2">No requests yet. Create your first AI-powered product request above!</MudText>
+            <MudText Typo="Typo.body1">No requests yet. Create your first analysis above!</MudText>
         }
     </MudPaper>
 </MudContainer>
 
 @code {
-    private string inputType = InputTypes.Text;
+    private enum InputTypes { Text, URL, Image }
+    private InputTypes inputType = InputTypes.Text;
+    
     private string requestTitle = "";
     private string textInput = "";
     private string urlInput = "";
     private string additionalNotes = "";
-    private IBrowserFile? uploadedFile;
     private string uploadedFileName = "";
-    private int selectedBuyerId;
+    private byte[]? uploadedImageData;
     private FoodXBuyer? selectedBuyer;
+    
     private bool isProcessing = false;
     private string errorMessage = "";
     
     private ProductAnalysis? currentAnalysis;
-    private BuyerRequest? currentRequest;
-    
-    private List<FoodXBuyer> buyers = new();
     private List<BuyerRequest> recentRequests = new();
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadBuyers();
         await LoadRecentRequests();
-    }
-
-    private async Task LoadBuyers()
-    {
-        buyers = await DbContext.FoodXBuyers
-            .Where(b => b.Company != null)
-            .OrderBy(b => b.Company)
-            .ToListAsync();
-            
-        if (buyers.Any())
-        {
-            selectedBuyer = buyers.First();
-            selectedBuyerId = selectedBuyer.Id;
-        }
     }
 
     private async Task LoadRecentRequests()
     {
-        recentRequests = await DbContext.BuyerRequests
-            .Include(r => r.AnalysisResults)
-            .OrderByDescending(r => r.CreatedAt)
-            .Take(10)
-            .ToListAsync();
+        try
+        {
+            recentRequests = await DbContext.BuyerRequests
+                .OrderByDescending(r => r.CreatedAt)
+                .Take(10)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading recent requests");
+        }
     }
 
-    private async Task<IEnumerable<FoodXBuyer>> SearchBuyers(string searchText, CancellationToken cancellationToken = default)
+    private async Task<IEnumerable<FoodXBuyer>> SearchBuyers(string value, CancellationToken ct)
     {
-        // If search text is empty, return all buyers
-        if (string.IsNullOrWhiteSpace(searchText))
+        if (string.IsNullOrEmpty(value))
         {
-            return buyers;
+            return await DbContext.FoodXBuyers
+                .Take(10)
+                .ToListAsync(ct);
         }
 
-        // Filter buyers by company name containing the search text
-        return await Task.FromResult(buyers
-            .Where(b => b.Company != null && 
-                       b.Company.Contains(searchText, StringComparison.OrdinalIgnoreCase))
-            .ToList());
-    }
-
-    private void HandleFileSelected(IBrowserFile file)
-    {
-        uploadedFile = file;
-        uploadedFileName = file.Name;
+        return await DbContext.FoodXBuyers
+            .Where(b => b.Company != null && b.Company.Contains(value))
+            .Take(10)
+            .ToListAsync(ct);
     }
 
     private bool IsValidInput()
     {
-        if (string.IsNullOrWhiteSpace(requestTitle))
-            return false;
-            
-        if (selectedBuyer == null)
-            return false;
-            
         return inputType switch
         {
             InputTypes.Text => !string.IsNullOrWhiteSpace(textInput),
-            InputTypes.URL => !string.IsNullOrWhiteSpace(urlInput) && Uri.IsWellFormedUriString(urlInput, UriKind.Absolute),
-            InputTypes.Image => uploadedFile != null,
+            InputTypes.URL => !string.IsNullOrWhiteSpace(urlInput),
+            InputTypes.Image => uploadedImageData != null,
             _ => false
         };
+    }
+
+    private async Task HandleFileSelected(IBrowserFile file)
+    {
+        try
+        {
+            uploadedFileName = file.Name;
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB max
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            uploadedImageData = ms.ToArray();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error uploading file");
+            Snackbar.Add("Error uploading file", Severity.Error);
+        }
     }
 
     private async Task AnalyzeRequest()
     {
         if (!IsValidInput())
         {
-            Snackbar.Add("Please provide all required information", Severity.Warning);
+            Snackbar.Add("Please provide input for analysis", Severity.Warning);
             return;
         }
 
@@ -438,75 +627,66 @@
         
         try
         {
-            // Create the request in database
+            // Create the buyer request
             var request = new BuyerRequest
             {
-                BuyerId = selectedBuyer!.Id,
-                Title = requestTitle,
-                InputType = inputType,
-                Status = RequestStatus.Processing,
+                Title = string.IsNullOrWhiteSpace(requestTitle) ? "Untitled Request" : requestTitle,
+                InputType = inputType.ToString(),
+                InputContent = inputType switch
+                {
+                    InputTypes.Text => textInput,
+                    InputTypes.URL => urlInput,
+                    InputTypes.Image => Convert.ToBase64String(uploadedImageData!),
+                    _ => ""
+                },
                 Notes = additionalNotes,
+                BuyerId = selectedBuyer?.Id ?? 0,
+                Status = "Pending",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
 
-            // Set input content based on type
-            switch (inputType)
+            DbContext.BuyerRequests.Add(request);
+            await DbContext.SaveChangesAsync();
+
+            // Perform AI analysis
+            currentAnalysis = inputType switch
             {
-                case InputTypes.Text:
-                    request.InputContent = textInput;
-                    currentAnalysis = await AIAnalyzer.AnalyzeTextRequest(textInput);
-                    break;
-                    
-                case InputTypes.URL:
-                    request.InputContent = urlInput;
-                    currentAnalysis = await AIAnalyzer.AnalyzeUrlRequest(urlInput);
-                    break;
-                    
-                case InputTypes.Image:
-                    if (uploadedFile != null)
-                    {
-                        using var stream = uploadedFile.OpenReadStream();
-                        using var memoryStream = new MemoryStream();
-                        await stream.CopyToAsync(memoryStream);
-                        var imageData = memoryStream.ToArray();
-                        
-                        request.InputContent = $"Image: {uploadedFile.Name}";
-                        currentAnalysis = await AIAnalyzer.AnalyzeImageRequest(imageData);
-                    }
-                    break;
-            }
+                InputTypes.Text => await AIAnalyzer.AnalyzeTextRequest(textInput),
+                InputTypes.URL => await AIAnalyzer.AnalyzeUrlRequest(urlInput),
+                InputTypes.Image => await AIAnalyzer.AnalyzeImageRequest(uploadedImageData!),
+                _ => null
+            };
 
             if (currentAnalysis != null)
             {
-                request.Status = RequestStatus.Analyzed;
-                DbContext.BuyerRequests.Add(request);
-                await DbContext.SaveChangesAsync();
-
-                // Save analysis result
+                // Save AI analysis result
                 var analysisResult = new AIAnalysisResult
                 {
                     RequestId = request.Id,
-                    ConfidenceScore = currentAnalysis.ProductIdentification?.Confidence != null 
-                        ? (decimal)(currentAnalysis.ProductIdentification.Confidence * 100) 
-                        : 50,
-                    AIProvider = "OpenAI",
                     ProcessedAt = DateTime.UtcNow
                 };
                 analysisResult.SetAnalysisData(currentAnalysis);
                 
                 DbContext.AIAnalysisResults.Add(analysisResult);
+                
+                // Update request status
+                request.Status = "analyzed";
                 await DbContext.SaveChangesAsync();
-                
-                currentRequest = request;
-                
-                Snackbar.Add("AI analysis completed successfully!", Severity.Success);
+
+                Snackbar.Add("Analysis completed successfully!", Severity.Success);
                 await LoadRecentRequests();
+            }
+            else
+            {
+                request.Status = "failed";
+                await DbContext.SaveChangesAsync();
+                errorMessage = "Analysis failed. Please try again.";
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error analyzing request");
+            Logger.LogError(ex, "Error during analysis");
             errorMessage = "An error occurred during analysis. Please try again.";
             Snackbar.Add(errorMessage, Severity.Error);
         }
@@ -516,66 +696,61 @@
         }
     }
 
-    private async Task SaveAnalysis()
+    private void SaveAnalysis()
     {
-        if (currentRequest != null)
-        {
-            currentRequest.Status = RequestStatus.Approved;
-            currentRequest.UpdatedAt = DateTime.UtcNow;
-            
-            DbContext.BuyerRequests.Update(currentRequest);
-            await DbContext.SaveChangesAsync();
-            
-            Snackbar.Add("Analysis saved successfully!", Severity.Success);
-            await LoadRecentRequests();
-        }
+        if (currentAnalysis == null) return;
+        
+        // Already saved during analysis
+        Snackbar.Add("Analysis has been saved", Severity.Success);
     }
 
     private void ClearAnalysis()
     {
         currentAnalysis = null;
-        currentRequest = null;
         requestTitle = "";
         textInput = "";
         urlInput = "";
         additionalNotes = "";
-        uploadedFile = null;
         uploadedFileName = "";
+        uploadedImageData = null;
+        selectedBuyer = null;
         errorMessage = "";
     }
 
-    private Task LoadRequest(BuyerRequest request)
+    private async Task LoadRequest(BuyerRequest request)
     {
-        currentRequest = request;
-        requestTitle = request.Title;
-        inputType = request.InputType;
-        additionalNotes = request.Notes ?? "";
-        
-        if (request.AnalysisResults.Any())
+        try
         {
-            var latestAnalysis = request.AnalysisResults.OrderByDescending(a => a.ProcessedAt).First();
-            currentAnalysis = latestAnalysis.ParsedAnalysis;
+            var analysisResult = await DbContext.AIAnalysisResults
+                .FirstOrDefaultAsync(a => a.RequestId == request.Id);
+                
+            if (analysisResult != null)
+            {
+                currentAnalysis = analysisResult.ParsedAnalysis;
+                requestTitle = request.Title;
+                Snackbar.Add("Request loaded", Severity.Info);
+            }
         }
-        
-        StateHasChanged();
-        return Task.CompletedTask;
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading request");
+            Snackbar.Add("Error loading request", Severity.Error);
+        }
     }
 
-    private Color GetInputTypeColor(string type) => type switch
+    private async Task DeleteRequest(BuyerRequest request)
     {
-        InputTypes.Text => Color.Info,
-        InputTypes.URL => Color.Primary,
-        InputTypes.Image => Color.Secondary,
-        _ => Color.Default
-    };
-
-    private Color GetStatusColor(string status) => status switch
-    {
-        RequestStatus.Pending => Color.Default,
-        RequestStatus.Processing => Color.Warning,
-        RequestStatus.Analyzed => Color.Info,
-        RequestStatus.Approved => Color.Success,
-        RequestStatus.Failed => Color.Error,
-        _ => Color.Default
-    };
+        try
+        {
+            DbContext.BuyerRequests.Remove(request);
+            await DbContext.SaveChangesAsync();
+            await LoadRecentRequests();
+            Snackbar.Add("Request deleted", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting request");
+            Snackbar.Add("Error deleting request", Severity.Error);
+        }
+    }
 }

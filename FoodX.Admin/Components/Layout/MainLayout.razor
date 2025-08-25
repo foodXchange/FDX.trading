@@ -7,7 +7,7 @@
 <MudSnackbarProvider />
 <MudLayout>
     <MudAppBar Elevation="1">
-        <MudStaticNavDrawerToggle DrawerId="nav-drawer" Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" />
+        <MudStaticNavDrawerToggle DrawerId="nav-drawer" Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" aria-label="Toggle navigation menu" />
         <MudLink Href="/" Color="Color.Inherit" Underline="Underline.None" Class="d-flex align-center">
             <MudIcon Icon="@Icons.Material.Filled.Store" Class="mr-2" />
             <MudText Typo="Typo.h5" Class="ml-1">FoodX B2B Platform</MudText>
@@ -16,8 +16,8 @@
         <AuthorizeView>
             <Authorized>
                 <MudText Class="mr-4">@context.User.Identity?.Name</MudText>
-                <MudIconButton Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" Href="/Account/Manage" />
-                <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" Href="/Account/Logout" />
+                <MudIconButton Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" Href="/Account/Manage" aria-label="Manage account" />
+                <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" Href="/Account/Logout" aria-label="Sign out" />
             </Authorized>
             <NotAuthorized>
                 <MudButton Color="Color.Secondary" Variant="Variant.Filled" Href="/Account/MagicLink">Sign In</MudButton>

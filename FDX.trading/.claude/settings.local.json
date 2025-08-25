@@ -332,13 +332,37 @@
       "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../verify_import.py)",
       "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE ''%Buyer%'' OR TABLE_NAME LIKE ''%buyer%'' ORDER BY TABLE_NAME\")",
       "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../execute_sql.py ../create_ai_request_tables.sql)",
-      "Bash(az cognitiveservices account list:*)"
+      "Bash(az cognitiveservices account list:*)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" execute_sql.py add_missing_columns_to_foodxbuyers.sql)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../execute_sql.py add_missing_columns_to_foodxbuyers.sql)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../execute_sql.py ../add_missing_columns_to_foodxbuyers.sql)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT COUNT(*) as TotalBuyers FROM FoodXBuyers; SELECT TOP 10 Id, Company, Type, Region FROM FoodXBuyers WHERE Company IS NOT NULL ORDER BY Company\")",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" check_and_populate_buyers.py)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../check_and_populate_buyers.py)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE ''%Supplier%'' ORDER BY TABLE_NAME\")",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" -c \"import json; data = json.load(open(r''G:\\My Drive\\Business intelligence\\suppliers_ai_optimized.json'', encoding=''utf-8'')); print(f''Total suppliers: {len(data[\"\"suppliers\"\"])}''); print(f''Suppliers with products: {data[\"\"metadata\"\"][\"\"suppliers_with_products\"\"]}''); sample = data[''suppliers''][100]; print(f''\\nSample supplier: {sample[\"\"company\"\"][\"\"name\"\"]}''); print(f''Products count: {len(sample[\"\"products\"\"])}''); print(f''Categories: {sample[\"\"category\"\"]}'')\")",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" check_supplier_status.py)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../check_supplier_status.py)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../import_suppliers_ai_optimized.py)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../test_import_small.py)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../execute_sql.py create_supplier_products_table.sql)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../execute_sql.py ../create_supplier_products_table.sql)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../populate_supplier_products.py)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT COUNT(*) as TotalProducts, COUNT(DISTINCT SupplierName) as Suppliers FROM SupplierProducts\")",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../test_shufersal_sourcing.py)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT COUNT(*) as TotalSuppliers FROM FoodXSuppliers; SELECT COUNT(DISTINCT Country) as Countries FROM FoodXSuppliers WHERE Country IS NOT NULL; SELECT COUNT(DISTINCT ProductCategory) as Categories FROM FoodXSuppliers WHERE ProductCategory IS NOT NULL\")",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT STRING_AGG(COLUMN_NAME, '', '') FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ''FoodXSuppliers''\")",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT TOP 5 Id, SupplierName, Country, ProductCategory, Products FROM FoodXSuppliers WHERE Products IS NOT NULL AND Products != '''' ORDER BY Id\")",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT TOP 5 Id, SupplierName, Country, ProductCategory FROM FoodXSuppliers WHERE Products IS NOT NULL ORDER BY Id\")",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ''FoodXSuppliers'' AND COLUMN_NAME IN (''IsActive'', ''IsVerified'', ''ProductsFound'', ''BrandsFound'')\")",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ''FoodXSuppliers'' AND COLUMN_NAME IN (''EstablishedYear'', ''NumberOfEmployees'', ''YearFounded'', ''ExportPercentage'', ''DistanceToSeaPort'')\")"
     ],
     "deny": [],
     "ask": [],
     "additionalDirectories": [
       "C:\\Users\\fdxadmin\\source\\repos\\FDX.trading\\FoodX.Admin",
-      "C:\\Users\\fdxadmin\\source\\repos\\FDX.trading"
+      "C:\\Users\\fdxadmin\\source\\repos\\FDX.trading",
+      "G:\\My Drive\\Business intelligence"
     ]
   }
 }

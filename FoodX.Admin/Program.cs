@@ -74,7 +74,8 @@ builder.Services.AddScoped<FoodX.Core.Services.IEmbeddingService, FoodX.Core.Ser
 builder.Services.AddScoped<FoodX.Admin.Services.TestUserService>();
 
 // Add AI Request Analyzer Service
-builder.Services.AddHttpClient<FoodX.Admin.Services.IAIRequestAnalyzer, FoodX.Admin.Services.AIRequestAnalyzer>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<FoodX.Admin.Services.IAIRequestAnalyzer, FoodX.Admin.Services.AIRequestAnalyzer>();
 
 // Add Authentication
 builder.Services.AddCascadingAuthenticationState();
@@ -121,7 +122,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 // Log the connection string for debugging (remove sensitive parts)
 var passwordIndex = connectionString.IndexOf("Password=", StringComparison.OrdinalIgnoreCase);
 var debugConnStr = passwordIndex >= 0
-    ? string.Concat(connectionString.AsSpan(0, passwordIndex), "Password=***")
+    ? $"{connectionString[..passwordIndex]}Password=***"
     : connectionString;
 Console.WriteLine($"[DEBUG] Using connection string: {debugConnStr}");
 

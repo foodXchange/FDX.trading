@@ -31,6 +31,7 @@ namespace FoodX.Admin.Data
 
         // External data tables (imported from external sources)
         public DbSet<FoodXBuyer> FoodXBuyers { get; set; }
+        public DbSet<FoodXSupplier> FoodXSuppliers { get; set; }
 
         // AI Request System tables
         public DbSet<BuyerRequest> BuyerRequests { get; set; }

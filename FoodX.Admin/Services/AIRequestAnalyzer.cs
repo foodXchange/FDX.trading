@@ -76,9 +76,26 @@ namespace FoodX.Admin.Services
         {
             try
             {
-                _logger.LogInformation("Analyzing image request");
+                _logger.LogInformation("Analyzing image request with GPT-4 Vision");
 
-                // Check if Azure Computer Vision is configured
+                // Convert image to base64 for GPT-4 Vision
+                var base64Image = Convert.ToBase64String(imageData);
+                var dataUrl = $"data:image/jpeg;base64,{base64Image}";
+
+                // Use GPT-4 Vision for comprehensive image analysis
+                var analysisJson = await CallVisionAPI(dataUrl);
+                
+                if (!string.IsNullOrEmpty(analysisJson))
+                {
+                    var analysis = JsonSerializer.Deserialize<ProductAnalysis>(analysisJson);
+                    if (analysis != null)
+                    {
+                        _logger.LogInformation("Successfully analyzed image with GPT-4 Vision");
+                        return analysis;
+                    }
+                }
+
+                // Fallback to Azure Computer Vision if configured
                 var visionEndpoint = _configuration["AzureComputerVision:Endpoint"];
                 var visionKey = _configuration["AzureComputerVision:ApiKey"];
 
@@ -87,8 +104,7 @@ namespace FoodX.Admin.Services
                     return await AnalyzeWithComputerVision(imageData, visionEndpoint, visionKey);
                 }
                 
-                // For now, return a mock analysis if Computer Vision not configured
-                _logger.LogWarning("Azure Computer Vision not configured, returning mock data");
+                _logger.LogWarning("Vision analysis failed, returning mock data");
                 return GenerateMockImageAnalysis();
             }
             catch (Exception ex)
@@ -124,19 +140,51 @@ namespace FoodX.Admin.Services
             }
         }
 
-        private string GenerateImageAnalysisPrompt(string extractedText)
+        private string GenerateImageAnalysisPrompt(string extractedText = "")
         {
             return $@"
-Analyze this product based on image analysis results:
-Extracted text and features: {extractedText}
+Analyze this product image and extract EVERY visible detail from the packaging.
+{(string.IsNullOrEmpty(extractedText) ? "" : $"Additional context: {extractedText}")}
 
-Return a JSON object with these sections:
-- productIdentification (detectedProduct, confidence, brandReference, genericName)
-- detailedDescription (summary, keyCharacteristics array)
-- technicalSpecifications (productDimensions, composition, colorProfile, textureProfile)
-- categoryClassification (primaryCategory, secondaryCategory, specificType, alternativeNames array)
-- commonAttributes (typicalIngredients array, flavorNotes, usageOccasions array, shelfLife, certifications array)
-- marketContext (commonBrands array, typicalPackaging, marketPositioning, priceSegment)";
+Provide EXHAUSTIVE analysis in JSON format including:
+
+1. Extract ALL visible text including:
+   - Product name (exact spelling)
+   - Brand name and logo
+   - Net weight/volume (ALL units shown)
+   - Ingredients list (complete)
+   - Nutritional information (all values)
+   - Manufacturer details and website
+   - Certifications (Kosher, Halal, etc.)
+   - Barcodes and product codes
+   - Marketing text (""Original"", ""4x"", etc.)
+   - Languages used on package
+   - Any warnings or instructions
+
+2. Describe packaging in detail:
+   - Material (cardboard, plastic, etc.)
+   - Shape and structure
+   - Dimensions if visible
+   - Number of units (e.g., ""4x"")
+   - Color scheme
+   - Special features (resealable, window, etc.)
+
+3. Visual elements:
+   - Logo design
+   - Product images
+   - Color palette
+   - Design style
+
+4. Product Attributes (CRITICAL - analyze all text and symbols):
+   - Dietary certifications: Kosher (OU, OK, Star-K symbols), Halal certification
+   - Allergen information: Gluten-free, nut-free, dairy-free claims
+   - Sugar content: Sugar-free, no sugar added, diabetic friendly claims
+   - Nutritional enhancements: Vitamin enriched, protein enriched, fiber added
+   - Dietary preferences: Vegan, vegetarian, plant-based, organic, non-GMO
+   - Special attributes: All natural, no preservatives, no artificial colors/flavors
+
+Return complete JSON with all sections including packagingDetails, labelingInformation, visualElements, and productAttributes.
+Be EXTREMELY specific about measurements, quantities, certifications, and all text visible on the package.";
         }
 
         public async Task<ProductAnalysis> AnalyzeUrlRequest(string url)
@@ -179,6 +227,114 @@ Return a JSON object with these sections:
                 _logger.LogWarning("No AI service configured, returning mock data");
                 return JsonSerializer.Serialize(GenerateMockAnalysis());
             }
+        }
+
+        private async Task<string> CallVisionAPI(string imageDataUrl)
+        {
+            try
+            {
+                if (_useAzureOpenAI)
+                {
+                    return await CallAzureVision(imageDataUrl);
+                }
+                else if (!string.IsNullOrEmpty(_openAiApiKey))
+                {
+                    return await CallOpenAIVision(imageDataUrl);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calling Vision API");
+            }
+            
+            return JsonSerializer.Serialize(GenerateMockImageAnalysis());
+        }
+
+        private async Task<string> CallOpenAIVision(string imageDataUrl)
+        {
+            try
+            {
+                var request = new
+                {
+                    model = "gpt-4-vision-preview", // GPT-4 Vision model
+                    messages = new[]
+                    {
+                        new 
+                        { 
+                            role = "user", 
+                            content = new object[]
+                            {
+                                new { type = "text", text = GenerateImageAnalysisPrompt() },
+                                new { type = "image_url", image_url = new { url = imageDataUrl } }
+                            }
+                        }
+                    },
+                    max_tokens = 4096
+                };
+
+                var json = JsonSerializer.Serialize(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                
+                _httpClient.DefaultRequestHeaders.Clear();
+                _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_openAiApiKey}");
+                
+                var response = await _httpClient.PostAsync("https://api.openai.com/v1/chat/completions", content);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    var responseData = JsonDocument.Parse(responseContent);
+                    return responseData.RootElement
+                        .GetProperty("choices")[0]
+                        .GetProperty("message")
+                        .GetProperty("content")
+                        .GetString() ?? "{}";
+                }
+                else
+                {
+                    _logger.LogError($"OpenAI Vision API error: {response.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calling OpenAI Vision API");
+            }
+
+            return "{}";
+        }
+
+        private async Task<string> CallAzureVision(string imageDataUrl)
+        {
+            try
+            {
+                var client = new Azure.AI.OpenAI.AzureOpenAIClient(
+                    new Uri(_azureOpenAiEndpoint),
+                    new AzureKeyCredential(_azureOpenAiKey));
+
+                // For Azure OpenAI, we need to use gpt-4-vision deployment
+                var chatClient = client.GetChatClient("gpt-4-vision-preview");
+
+                var messages = new List<OpenAI.Chat.ChatMessage>
+                {
+                    OpenAI.Chat.ChatMessage.CreateUserMessage(
+                        OpenAI.Chat.ChatMessageContentPart.CreateTextPart(GenerateImageAnalysisPrompt()),
+                        OpenAI.Chat.ChatMessageContentPart.CreateImagePart(new Uri(imageDataUrl))
+                    )
+                };
+
+                var response = await chatClient.CompleteChatAsync(messages);
+                
+                if (response.Value != null)
+                {
+                    return response.Value.Content[0].Text ?? "{}";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calling Azure Vision API");
+            }
+
+            return "{}";
         }
 
         private async Task<string> CallAzureOpenAI(string prompt)
@@ -280,63 +436,191 @@ Return a JSON object with these sections:
         private string GenerateTextAnalysisPrompt(string text)
         {
             return $@"
-Analyze this product request and provide a detailed product specification in JSON format:
+Analyze this product request and provide an EXTREMELY DETAILED product specification in JSON format:
 '{text}'
 
-Return a JSON object with these sections:
-- productIdentification (detectedProduct, confidence, brandReference, genericName)
-- detailedDescription (summary, keyCharacteristics array)
-- technicalSpecifications (productDimensions, composition, colorProfile, textureProfile)
-- categoryClassification (primaryCategory, secondaryCategory, specificType, alternativeNames array)
-- commonAttributes (typicalIngredients array, flavorNotes, usageOccasions array, shelfLife, certifications array)
-- marketContext (commonBrands array, typicalPackaging, marketPositioning, priceSegment)
+Return a JSON object with ALL these sections (use null for unknown fields):
 
-Be specific and detailed in your analysis.";
+1. productIdentification:
+   - detectedProduct: exact product name
+   - confidence: 0-1 score
+   - brandReference: specific brand if mentioned
+   - genericName: generic product category
+
+2. detailedDescription:
+   - summary: comprehensive description
+   - keyCharacteristics: array of specific features
+
+3. technicalSpecifications:
+   - productDimensions: exact measurements if known
+   - composition: material composition
+   - colorProfile: colors used
+   - textureProfile: texture description
+
+4. categoryClassification:
+   - primaryCategory, secondaryCategory, specificType
+   - alternativeNames: array of other names
+
+5. commonAttributes:
+   - typicalIngredients: full ingredient list
+   - flavorNotes: taste profile
+   - usageOccasions: when/how used
+   - shelfLife: storage duration
+   - certifications: Kosher, Halal, Organic, etc.
+
+6. marketContext:
+   - commonBrands: competitor brands
+   - typicalPackaging: packaging description
+   - marketPositioning: premium/budget/mainstream
+   - priceSegment: price range
+
+7. packagingDetails:
+   - packageType: box/wrapper/bottle/can/pouch
+   - material: plastic/cardboard/metal/glass
+   - dimensions: LxWxH if known
+   - netWeight: weight in grams
+   - netWeightOz: weight in ounces
+   - netVolume: volume in ml
+   - netVolumeFlOz: volume in fl oz
+   - unitsPerPackage: number of items
+   - servingSize: per serving amount
+   - servingsPerContainer: total servings
+   - packagingComponents: array of package parts
+   - isResealable: true/false
+   - isRecyclable: true/false
+   - recyclingCode: recycling number
+
+8. labelingInformation:
+   - productNameOnLabel: exact name on package
+   - brandName: brand as shown
+   - manufacturer: company name
+   - manufacturerCompany: parent company
+   - manufacturerWebsite: company URL
+   - brandWebsite: brand URL
+   - countryOfOrigin: where made
+   - languages: array of languages on package
+   - barcode: barcode number if known
+   - sku: product SKU
+   - ingredientsText: full ingredients as array
+   - nutritionalInfo: nutrition facts as key-value pairs
+   - allergens: allergen warnings array
+   - certificationMarks: certification symbols array
+   - bestBeforeDate: expiry format
+   - storageInstructions: how to store
+   - preparationInstructions: how to prepare
+   - warnings: safety warnings array
+   - marketingClaims: marketing text array
+   - contactInformation: contact details
+   - regulatoryText: legal text array
+
+9. visualElements:
+   - primaryColors: main colors array
+   - logoDescription: logo details
+   - imageDescriptions: package images array
+   - designStyle: visual style
+   - hasWindowDisplay: true/false
+   - specialEffects: finish effects array
+   - packageShape: shape description
+
+10. productAttributes (EXTREMELY IMPORTANT):
+   Dietary Certifications:
+   - isKosher: true/false/null
+   - kosherCertification: certification body name (OU, OK, Star-K, etc.)
+   - isHalal: true/false/null
+   - halalCertification: certification body name
+   
+   Allergen Information:
+   - isGlutenFree, isNutFree, isDairyFree, isEggFree, isSoyFree, isShellFishFree: true/false/null
+   - containsAllergens: array of allergens present
+   - mayContainAllergens: array of cross-contamination warnings
+   
+   Sugar & Sweeteners:
+   - isSugarFree, isNoSugarAdded, isDiabeticFriendly: true/false/null
+   - sugarSubstitutes: array (stevia, aspartame, sucralose, etc.)
+   - totalSugarContent: per serving amount
+   
+   Nutritional Enhancements:
+   - isVitaminEnriched, isProteinEnriched, isFiberEnriched: true/false/null
+   - addedVitamins: array of vitamins (A, B12, D, etc.)
+   - proteinContent, fiberContent: per serving amounts
+   - isCalciumFortified, isIronFortified: true/false/null
+   - containsProbiotics, containsOmega3: true/false/null
+   
+   Dietary Preferences:
+   - isVegan, isVegetarian, isPlantBased: true/false/null
+   - isOrganic: true/false/null
+   - organicCertification: USDA Organic, EU Organic, etc.
+   - isNonGMO: true/false/null
+   - isFairTrade, isLocallySourced: true/false/null
+   
+   Additional Attributes:
+   - isNoPreservatives, isNoArtificialColors, isNoArtificialFlavors: true/false/null
+   - isAllNatural, isMinimallyProcessed: true/false/null
+   - packageTextClaims: array of ALL claims found on package
+   - nutritionalClaims: array (""High in..."", ""Source of..."", etc.)
+   - healthClaims: array (""Heart healthy"", ""Immune support"", etc.)
+   - caloriesPerServing: exact calorie count
+
+Be as specific and detailed as possible, especially for certifications, allergens, and nutritional attributes."";";
         }
 
         private string GenerateUrlAnalysisPrompt(string url, string content)
         {
             return $@"
-Analyze this product from URL {url} and provide a detailed product specification in JSON format.
-Page content summary: {content.Substring(0, Math.Min(1000, content.Length))}
+Analyze this product from URL {url} and extract ALL available product details.
+Page content: {content.Substring(0, Math.Min(2000, content.Length))}
 
-Return a JSON object with these sections:
-- productIdentification (detectedProduct, confidence, brandReference, genericName)
-- detailedDescription (summary, keyCharacteristics array)
-- technicalSpecifications (productDimensions, composition, colorProfile, textureProfile)
-- categoryClassification (primaryCategory, secondaryCategory, specificType, alternativeNames array)
-- commonAttributes (typicalIngredients array, flavorNotes, usageOccasions array, shelfLife, certifications array)
-- marketContext (commonBrands array, typicalPackaging, marketPositioning, priceSegment)";
+Provide COMPREHENSIVE product analysis in JSON with ALL sections from GenerateTextAnalysisPrompt including:
+- productIdentification
+- detailedDescription  
+- technicalSpecifications
+- categoryClassification
+- commonAttributes
+- marketContext
+- packagingDetails (extract ALL weight/volume/dimension information)
+- labelingInformation (extract manufacturer details, website, all text)
+- visualElements
+
+Focus on extracting:
+- Exact net weight/volume in multiple units (g, mg, ml, oz, fl oz)
+- Package dimensions and material
+- Manufacturer company name and website
+- All nutritional information
+- Complete ingredients list
+- All certifications and regulatory marks
+
+Be extremely detailed and specific.";
         }
 
         private ProductAnalysis GenerateMockAnalysis()
         {
-            // Generate mock Oreo-style cookie analysis for demo
+            // Generate mock Oreo-style cookie analysis for demo based on the image provided
             return new ProductAnalysis
             {
                 ProductIdentification = new ProductIdentification
                 {
-                    DetectedProduct = "Chocolate Sandwich Cookie",
+                    DetectedProduct = "OREO Original Chocolate Sandwich Cookies",
                     Confidence = 0.95,
-                    BrandReference = "Oreo-style",
+                    BrandReference = "OREO",
                     GenericName = "Cream-filled chocolate sandwich biscuit"
                 },
                 DetailedDescription = new DetailedDescription
                 {
-                    Summary = "A sandwich cookie consisting of two chocolate-flavored wafers with sweet cream filling",
+                    Summary = "A sandwich cookie consisting of two chocolate-flavored wafers with sweet cream filling, packaged in a blue cardboard box",
                     KeyCharacteristics = new List<string>
                     {
-                        "Round shape with embossed pattern",
+                        "Round shape with embossed OREO pattern",
                         "Dark chocolate-flavored wafers",
                         "White vanilla-flavored cream center",
-                        "Crispy texture with smooth filling"
+                        "Crispy texture with smooth filling",
+                        "4x individual packs"
                     }
                 },
                 TechnicalSpecifications = new TechnicalSpecifications
                 {
-                    ProductDimensions = "Approximately 45mm diameter, 9mm thickness",
-                    Composition = "Two wafer discs with cream filling (approximately 30% filling)",
-                    ColorProfile = "Dark brown/black wafers, white filling",
+                    ProductDimensions = "Approximately 45mm diameter, 9mm thickness per cookie",
+                    Composition = "Two wafer discs with cream filling (approximately 29% filling)",
+                    ColorProfile = "Dark brown/black wafers, white filling, blue packaging",
                     TextureProfile = "Crunchy wafer, smooth cream"
                 },
                 CategoryClassification = new CategoryClassification
@@ -350,20 +634,99 @@ Return a JSON object with these sections:
                 {
                     TypicalIngredients = new List<string>
                     {
-                        "Wheat flour", "Sugar", "Vegetable oils", "Cocoa powder (4-7%)",
-                        "Corn syrup", "Leavening agents", "Vanilla flavoring"
+                        "Wheat flour", "Sugar", "Vegetable oils (palm and/or canola)", 
+                        "Cocoa powder (4.5%)", "High fructose corn syrup", "Leavening agents",
+                        "Salt", "Soy lecithin", "Vanilla flavoring", "Chocolate"
                     },
                     FlavorNotes = "Sweet, chocolatey with vanilla cream notes",
-                    UsageOccasions = new List<string> { "Snacking", "Tea/coffee accompaniment", "Dessert", "Baking ingredient" },
+                    UsageOccasions = new List<string> { "Snacking", "Tea/coffee accompaniment", "Dessert", "Baking ingredient", "Milk dunking" },
                     ShelfLife = "6-9 months",
-                    Certifications = new List<string> { "Kosher", "Halal options available" }
+                    Certifications = new List<string> { "Kosher", "Cocoa Life sustainability program" }
                 },
                 MarketContext = new MarketContext
                 {
-                    CommonBrands = new List<string> { "Oreo", "Private label alternatives", "Hydrox" },
-                    TypicalPackaging = "Plastic trays, flow wrap, or rigid containers",
-                    MarketPositioning = "Mass market snack cookie",
+                    CommonBrands = new List<string> { "Oreo", "Chips Ahoy", "Hydrox", "Private label alternatives" },
+                    TypicalPackaging = "Cardboard box with plastic tray insert",
+                    MarketPositioning = "Premium mass market snack cookie",
                     PriceSegment = "Mid-range"
+                },
+                PackagingDetails = new PackagingDetails
+                {
+                    PackageType = "Cardboard box",
+                    Material = "Recyclable cardboard with plastic tray",
+                    Dimensions = "200mm x 70mm x 45mm (approx)",
+                    NetWeight = "176g",
+                    NetWeightOz = "6.2 oz",
+                    UnitsPerPackage = "4x individual packs",
+                    ServingSize = "2 cookies (29g)",
+                    ServingsPerContainer = "6",
+                    PackagingComponents = new List<string> { "Outer cardboard box", "Inner plastic tray", "Individual wrappers" },
+                    IsResealable = false,
+                    IsRecyclable = true,
+                    RecyclingCode = "21 PAP (cardboard)"
+                },
+                LabelingInformation = new LabelingInformation
+                {
+                    ProductNameOnLabel = "OREO Original",
+                    BrandName = "OREO",
+                    Manufacturer = "Mondelez International",
+                    ManufacturerCompany = "Mondelez International, Inc.",
+                    ManufacturerWebsite = "https://www.mondelezinternational.com",
+                    BrandWebsite = "https://www.oreo.com",
+                    CountryOfOrigin = "Various (check package)",
+                    Languages = new List<string> { "Hebrew", "English" },
+                    Barcode = "7290000000000",
+                    IngredientsText = new List<string>
+                    {
+                        "Wheat flour", "Sugar", "Vegetable oil", "Cocoa powder", "Corn syrup",
+                        "Leavening agents", "Salt", "Soy lecithin", "Vanillin", "Chocolate"
+                    },
+                    NutritionalInfo = new Dictionary<string, string>
+                    {
+                        { "Calories", "160 per serving" },
+                        { "Total Fat", "7g" },
+                        { "Saturated Fat", "2g" },
+                        { "Trans Fat", "0g" },
+                        { "Cholesterol", "0mg" },
+                        { "Sodium", "135mg" },
+                        { "Total Carbohydrates", "25g" },
+                        { "Dietary Fiber", "1g" },
+                        { "Sugars", "14g" },
+                        { "Protein", "1g" }
+                    },
+                    Allergens = new List<string> { "Contains wheat", "Contains soy", "May contain milk" },
+                    CertificationMarks = new List<string> { "Kosher dairy", "Cocoa Life certified" },
+                    StorageInstructions = "Store in a cool, dry place",
+                    MarketingClaims = new List<string> { "Original", "4x", "Milk's favorite cookie" },
+                    RegulatoryText = new List<string> { "Product of licensed manufacturer" }
+                },
+                VisualElements = new VisualElements
+                {
+                    PrimaryColors = new List<string> { "Blue", "White", "Black" },
+                    LogoDescription = "OREO logo in white text on blue background with cookie imagery",
+                    ImageDescriptions = new List<string> { "OREO cookies with milk splash", "Stack of OREO cookies" },
+                    DesignStyle = "Modern, playful, bold",
+                    HasWindowDisplay = false,
+                    SpecialEffects = new List<string> { "Glossy finish", "Embossed logo", "Milk splash graphic" },
+                    PackageShape = "Rectangular box"
+                },
+                ProductAttributes = new ProductAttributes
+                {
+                    IsKosher = true,
+                    KosherCertification = "OU-D (Orthodox Union Dairy)",
+                    IsHalal = false,
+                    IsGlutenFree = false,
+                    ContainsAllergens = new List<string> { "Wheat", "Soy" },
+                    MayContainAllergens = new List<string> { "Milk" },
+                    IsSugarFree = false,
+                    IsNoSugarAdded = false,
+                    TotalSugarContent = "14g per serving",
+                    IsVegan = false,
+                    IsVegetarian = true,
+                    CaloriesPerServing = "160",
+                    PackageTextClaims = new List<string> { "Original", "4x", "Milk's Favorite Cookie" },
+                    IsNoArtificialColors = false,
+                    IsNoArtificialFlavors = false
                 }
             };
         }

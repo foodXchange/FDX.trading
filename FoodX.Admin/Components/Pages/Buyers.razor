@@ -282,9 +282,10 @@
         await DialogService.ShowAsync<ViewBuyerCompanyDialog>($"Company Details: {company.Name}", parameters, options);
     }
 
-    private async Task EditCompany(Company company)
+    private Task EditCompany(Company company)
     {
         // TODO: Implement edit functionality
         Snackbar.Add("Edit functionality coming soon", Severity.Info);
+        return Task.CompletedTask;
     }
 }

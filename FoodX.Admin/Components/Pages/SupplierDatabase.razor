@@ -1,0 +1,366 @@
+@page "/supplier-database"
+@using FoodX.Admin.Data
+@using FoodX.Admin.Models
+@using Microsoft.EntityFrameworkCore
+@inject FoodXDbContext DbContext
+@inject ISnackbar Snackbar
+@rendermode InteractiveServer
+
+<PageTitle>Supplier Database</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h3" Class="mb-2">Global Supplier Database</MudText>
+            <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+                Browse and search @totalSuppliers.ToString("N0") imported suppliers with product information
+            </MudText>
+        </MudItem>
+    </MudGrid>
+
+    <MudPaper Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="searchTerm" 
+                              Label="Search suppliers, products, or categories" 
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              @onkeyup="@(async (e) => { if (e.Key == "Enter") await SearchSuppliers(); })"
+                              Immediate="true" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudSelect @bind-Value="selectedCountry" Label="Country" Variant="Variant.Outlined" Dense="true">
+                    <MudSelectItem Value="@("")">All Countries</MudSelectItem>
+                    @foreach (var country in topCountries)
+                    {
+                        <MudSelectItem Value="@country">@country</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudSelect @bind-Value="selectedCategory" Label="Category" Variant="Variant.Outlined" Dense="true">
+                    <MudSelectItem Value="@("")">All Categories</MudSelectItem>
+                    @foreach (var category in topCategories)
+                    {
+                        <MudSelectItem Value="@category">@category</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudCheckBox @bind-Value="showOnlyWithProducts" Label="Has Products" Color="Color.Primary" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           FullWidth="true"
+                           OnClick="SearchSuppliers"
+                           StartIcon="@Icons.Material.Filled.FilterList">
+                    Search
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+
+        <MudGrid Class="mt-3">
+            <MudItem xs="12" md="3">
+                <MudCheckBox @bind-Value="filterKosher" Label="Kosher Products" Color="Color.Success" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudCheckBox @bind-Value="filterHalal" Label="Halal Products" Color="Color.Success" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudCheckBox @bind-Value="filterOrganic" Label="Organic Products" Color="Color.Success" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudCheckBox @bind-Value="filterGlutenFree" Label="Gluten-Free Products" Color="Color.Success" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (suppliers.Any())
+    {
+        <MudPaper Class="mb-3 pa-3">
+            <MudText Typo="Typo.body2">
+                Found <strong>@suppliers.Count</strong> suppliers 
+                @if (!string.IsNullOrEmpty(searchTerm))
+                {
+                    <text>matching "@searchTerm"</text>
+                }
+            </MudText>
+        </MudPaper>
+
+        <MudGrid>
+            @foreach (var supplier in suppliers)
+            {
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudCard Class="h-100">
+                        <MudCardHeader Class="pb-2">
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6" Class="text-truncate" Style="font-size: 0.95rem;">
+                                    @supplier.SupplierName
+                                </MudText>
+                                @if (!string.IsNullOrEmpty(supplier.Country))
+                                {
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" /> @supplier.Country
+                                    </MudText>
+                                }
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent Class="pt-2 pb-2">
+                            @if (!string.IsNullOrEmpty(supplier.ProductCategory))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Primary" Class="mb-2">
+                                    <strong>Category:</strong> @supplier.ProductCategory
+                                </MudText>
+                            }
+                            
+                            @if (!string.IsNullOrEmpty(supplier.Products))
+                            {
+                                var products = supplier.Products.Split(';').Take(3).ToList();
+                                <MudText Typo="Typo.caption" Class="mb-1"><strong>Products:</strong></MudText>
+                                @foreach (var product in products)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Class="pa-1">
+                                        @(product.Length > 30 ? product.Substring(0, 30) + "..." : product)
+                                    </MudChip>
+                                }
+                                @if (supplier.Products.Split(';').Length > 3)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        +@(supplier.Products.Split(';').Length - 3) more products
+                                    </MudText>
+                                }
+                            }
+
+                            @if (!string.IsNullOrEmpty(supplier.CompanyEmail))
+                            {
+                                <MudText Typo="Typo.caption" Class="mt-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" /> 
+                                    @supplier.CompanyEmail
+                                </MudText>
+                            }
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Text" 
+                                       Color="Color.Primary" 
+                                       Size="Size.Small"
+                                       OnClick="@(() => ViewSupplierDetails(supplier))">
+                                View Details
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" 
+                                       Color="Color.Success" 
+                                       Size="Size.Small"
+                                       OnClick="@(() => CreateBrief(supplier))">
+                                Create Brief
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+
+        @if (hasMore)
+        {
+            <MudPaper Class="mt-4 pa-3 text-center">
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Primary"
+                           OnClick="LoadMore">
+                    Load More Suppliers
+                </MudButton>
+            </MudPaper>
+        }
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info">
+            @if (string.IsNullOrEmpty(searchTerm) && string.IsNullOrEmpty(selectedCountry) && string.IsNullOrEmpty(selectedCategory))
+            {
+                <text>Click "Search" to browse suppliers or enter search criteria to find specific suppliers.</text>
+            }
+            else
+            {
+                <text>No suppliers found matching your criteria. Try adjusting your search filters.</text>
+            }
+        </MudAlert>
+    }
+</MudContainer>
+
+@code {
+    private List<FoodXSupplier> suppliers = new();
+    private bool isLoading = false;
+    private string searchTerm = "";
+    private string selectedCountry = "";
+    private string selectedCategory = "";
+    private bool showOnlyWithProducts = false;
+    private bool filterKosher = false;
+    private bool filterHalal = false;
+    private bool filterOrganic = false;
+    private bool filterGlutenFree = false;
+    private int totalSuppliers = 0;
+    private int currentPage = 0;
+    private int pageSize = 24;
+    private bool hasMore = false;
+    private List<string> topCountries = new();
+    private List<string> topCategories = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStatistics();
+        // Load initial suppliers automatically
+        await LoadSuppliers();
+    }
+
+    private async Task LoadStatistics()
+    {
+        try
+        {
+            // Get total count
+            totalSuppliers = await DbContext.FoodXSuppliers.CountAsync();
+
+            // Get top countries
+            topCountries = await DbContext.FoodXSuppliers
+                .Where(s => !string.IsNullOrEmpty(s.Country))
+                .GroupBy(s => s.Country!)
+                .OrderByDescending(g => g.Count())
+                .Take(20)
+                .Select(g => g.Key)
+                .ToListAsync();
+
+            // Get top categories
+            topCategories = await DbContext.FoodXSuppliers
+                .Where(s => !string.IsNullOrEmpty(s.ProductCategory))
+                .Select(s => s.ProductCategory!)
+                .Distinct()
+                .OrderBy(c => c)
+                .Take(30)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading statistics: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SearchSuppliers()
+    {
+        currentPage = 0;
+        suppliers.Clear();
+        await LoadSuppliers();
+    }
+
+    private async Task LoadMore()
+    {
+        currentPage++;
+        await LoadSuppliers(append: true);
+    }
+
+    private async Task LoadSuppliers(bool append = false)
+    {
+        isLoading = true;
+        try
+        {
+            var query = DbContext.FoodXSuppliers.AsQueryable();
+
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.ToLower();
+                query = query.Where(s => 
+                    s.SupplierName.ToLower().Contains(term) ||
+                    (s.ProductCategory != null && s.ProductCategory.ToLower().Contains(term)) ||
+                    (s.Products != null && s.Products.ToLower().Contains(term)) ||
+                    (s.Description != null && s.Description.ToLower().Contains(term)));
+            }
+
+            // Apply country filter
+            if (!string.IsNullOrEmpty(selectedCountry))
+            {
+                query = query.Where(s => s.Country == selectedCountry);
+            }
+
+            // Apply category filter
+            if (!string.IsNullOrEmpty(selectedCategory))
+            {
+                query = query.Where(s => s.ProductCategory == selectedCategory);
+            }
+
+            // Apply products filter
+            if (showOnlyWithProducts)
+            {
+                query = query.Where(s => s.Products != null && s.Products != "");
+            }
+
+            // Apply certification filters (if we have SupplierProducts table joined)
+            if (filterKosher || filterHalal || filterOrganic || filterGlutenFree)
+            {
+                // For now, search in product details text
+                if (filterKosher)
+                {
+                    query = query.Where(s => s.Country == "Israel" || 
+                        (s.Products != null && s.Products.ToLower().Contains("kosher")) ||
+                        (s.KosherCertification != null && s.KosherCertification != ""));
+                }
+                if (filterHalal)
+                {
+                    query = query.Where(s => (s.Products != null && s.Products.ToLower().Contains("halal")) ||
+                        (s.Certifications != null && s.Certifications.ToLower().Contains("halal")));
+                }
+                if (filterOrganic)
+                {
+                    query = query.Where(s => (s.Products != null && s.Products.ToLower().Contains("organic")) ||
+                        (s.Certifications != null && s.Certifications.ToLower().Contains("organic")));
+                }
+                if (filterGlutenFree)
+                {
+                    query = query.Where(s => s.Products != null && 
+                        (s.Products.ToLower().Contains("gluten-free") || s.Products.ToLower().Contains("gluten free")));
+                }
+            }
+
+            // Get total count for pagination
+            var totalCount = await query.CountAsync();
+            hasMore = (currentPage + 1) * pageSize < totalCount;
+
+            // Apply pagination and get results
+            var newSuppliers = await query
+                .OrderBy(s => s.SupplierName)
+                .Skip(currentPage * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            if (append)
+            {
+                suppliers.AddRange(newSuppliers);
+            }
+            else
+            {
+                suppliers = newSuppliers;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading suppliers: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ViewSupplierDetails(FoodXSupplier supplier)
+    {
+        // TODO: Implement supplier details view dialog
+        Snackbar.Add($"View details for {supplier.SupplierName}", Severity.Info);
+    }
+
+    private void CreateBrief(FoodXSupplier supplier)
+    {
+        // TODO: Implement brief creation for supplier
+        Snackbar.Add($"Create brief for {supplier.SupplierName}", Severity.Info);
+    }
+}
