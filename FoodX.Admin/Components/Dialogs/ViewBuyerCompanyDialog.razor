@@ -238,12 +238,9 @@
 
     private async Task CopyEmails()
     {
-        var emails = new List<string>();
-        
-        if (!string.IsNullOrEmpty(Company?.ProcurementEmail))
-            emails.Add(Company.ProcurementEmail);
-        if (!string.IsNullOrEmpty(Company?.ContactEmail))
-            emails.Add(Company.ContactEmail);
+        var emails = new[] { Company?.ProcurementEmail, Company?.ContactEmail }
+            .Where(email => !string.IsNullOrEmpty(email))
+            .ToList();
             
         if (emails.Any())
         {

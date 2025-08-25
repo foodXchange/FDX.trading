@@ -70,12 +70,11 @@ builder.Services.AddServerSideBlazor()
 
 // Add Vector Search Services
 builder.Services.AddScoped<FoodX.Core.Services.IVectorSearchService, FoodX.Core.Services.VectorSearchService>();
-builder.Services.AddHttpClient<FoodX.Core.Services.IEmbeddingService, FoodX.Core.Services.AzureOpenAIEmbeddingService>();
+builder.Services.AddScoped<FoodX.Core.Services.IEmbeddingService, FoodX.Core.Services.AzureOpenAIEmbeddingService>();
 builder.Services.AddScoped<FoodX.Admin.Services.TestUserService>();
 
 // Add AI Request Analyzer Service
 builder.Services.AddHttpClient<FoodX.Admin.Services.IAIRequestAnalyzer, FoodX.Admin.Services.AIRequestAnalyzer>();
-builder.Services.AddScoped<FoodX.Admin.Services.IAIRequestAnalyzer, FoodX.Admin.Services.AIRequestAnalyzer>();
 
 // Add Authentication
 builder.Services.AddCascadingAuthenticationState();

@@ -35,7 +35,7 @@ def get_connection():
         'SERVER=fdx-sql-prod.database.windows.net;'
         'DATABASE=fdxdb;'
         'UID=foodxapp;'
-        'PWD=FoodX@2024!Secure#Trading;'
+        'PWD=FoodX2303;'
         'Encrypt=yes;'
         'TrustServerCertificate=no;'
         'Connection Timeout=30;'

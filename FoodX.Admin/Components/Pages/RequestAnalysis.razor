@@ -64,11 +64,12 @@
                 }
                 else if (inputType == InputTypes.Image)
                 {
-                    <MudFileUpload T="IBrowserFile" FilesChanged="HandleFileSelected" Accept="image/*">
+                    <MudFileUpload T="IBrowserFile" FilesChanged="HandleFileSelected" Accept="image/*" aria-label="Upload image file" Title="Upload image file">
                         <ActivatorContent>
                             <MudButton Variant="Variant.Filled"
                                        Color="Color.Primary"
-                                       StartIcon="@Icons.Material.Filled.CloudUpload">
+                                       StartIcon="@Icons.Material.Filled.CloudUpload"
+                                       aria-label="Upload Image">
                                 Upload Image
                             </MudButton>
                         </ActivatorContent>
@@ -82,15 +83,21 @@
                 }
 
                 <!-- Buyer Selection -->
-                <MudSelect @bind-Value="selectedBuyerId" 
-                           Label="Select Buyer Company" 
-                           Variant="Variant.Outlined"
-                           Class="mb-3">
-                    @foreach (var buyer in buyers)
-                    {
-                        <MudSelectItem Value="@buyer.Id">@buyer.Company</MudSelectItem>
-                    }
-                </MudSelect>
+                <MudAutocomplete T="FoodXBuyer"
+                                 @bind-Value="selectedBuyer"
+                                 Label="Select Buyer Company"
+                                 Variant="Variant.Outlined"
+                                 SearchFunc="SearchBuyers"
+                                 ToStringFunc="@(b => b?.Company ?? string.Empty)"
+                                 ShowProgressIndicator="true"
+                                 MinCharacters="0"
+                                 CoerceText="false"
+                                 CoerceValue="false"
+                                 ResetValueOnEmptyText="true"
+                                 Clearable="true"
+                                 ClearIcon="@Icons.Material.Filled.Clear"
+                                 AdornmentAriaLabel="Clear selection"
+                                 Class="mb-3" />
 
                 <!-- Additional Notes -->
                 <MudTextField @bind-Value="additionalNotes"
@@ -341,6 +348,7 @@
     private IBrowserFile? uploadedFile;
     private string uploadedFileName = "";
     private int selectedBuyerId;
+    private FoodXBuyer? selectedBuyer;
     private bool isProcessing = false;
     private string errorMessage = "";
     
@@ -361,12 +369,12 @@
         buyers = await DbContext.FoodXBuyers
             .Where(b => b.Company != null)
             .OrderBy(b => b.Company)
-            .Take(50)
             .ToListAsync();
             
         if (buyers.Any())
         {
-            selectedBuyerId = buyers.First().Id;
+            selectedBuyer = buyers.First();
+            selectedBuyerId = selectedBuyer.Id;
         }
     }
 
@@ -379,6 +387,21 @@
             .ToListAsync();
     }
 
+    private async Task<IEnumerable<FoodXBuyer>> SearchBuyers(string searchText, CancellationToken cancellationToken = default)
+    {
+        // If search text is empty, return all buyers
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            return buyers;
+        }
+
+        // Filter buyers by company name containing the search text
+        return await Task.FromResult(buyers
+            .Where(b => b.Company != null && 
+                       b.Company.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+            .ToList());
+    }
+
     private void HandleFileSelected(IBrowserFile file)
     {
         uploadedFile = file;
@@ -388,6 +411,9 @@
     private bool IsValidInput()
     {
         if (string.IsNullOrWhiteSpace(requestTitle))
+            return false;
+            
+        if (selectedBuyer == null)
             return false;
             
         return inputType switch
@@ -415,7 +441,7 @@
             // Create the request in database
             var request = new BuyerRequest
             {
-                BuyerId = selectedBuyerId,
+                BuyerId = selectedBuyer!.Id,
                 Title = requestTitle,
                 InputType = inputType,
                 Status = RequestStatus.Processing,
@@ -518,7 +544,7 @@
         errorMessage = "";
     }
 
-    private async Task LoadRequest(BuyerRequest request)
+    private Task LoadRequest(BuyerRequest request)
     {
         currentRequest = request;
         requestTitle = request.Title;
@@ -532,6 +558,7 @@
         }
         
         StateHasChanged();
+        return Task.CompletedTask;
     }
 
     private Color GetInputTypeColor(string type) => type switch

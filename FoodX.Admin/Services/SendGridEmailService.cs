@@ -16,26 +16,30 @@ namespace FoodX.Admin.Services
         private readonly IConfiguration _configuration;
         private readonly ILogger<SendGridEmailService> _logger;
 
-        public SendGridEmailService(IConfiguration configuration, ILogger<SendGridEmailService> logger)
+        public SendGridEmailService(ISendGridClient? sendGridClient, IConfiguration configuration, ILogger<SendGridEmailService> logger)
         {
+            _sendGridClient = sendGridClient;
             _configuration = configuration;
             _logger = logger;
 
-            // Try to get API key from Key Vault first, then fall back to configuration
-            var apiKey = _configuration["SendGridApiKey"] ?? _configuration["SendGrid:ApiKey"];
-
-            // Log the configuration attempt
-            _logger.LogInformation($"Attempting to configure SendGrid. API Key found: {!string.IsNullOrEmpty(apiKey)}");
-
-            if (string.IsNullOrEmpty(apiKey))
+            if (_sendGridClient != null)
             {
-                _logger.LogWarning("SendGrid API key not configured. Emails will be logged only.");
-                _sendGridClient = null;
+                _logger.LogInformation("SendGrid client injected successfully");
             }
             else
             {
-                _logger.LogInformation($"SendGrid API key configured successfully. Key starts with: {apiKey[..Math.Min(10, apiKey.Length)]}");
-                _sendGridClient = new SendGridClient(apiKey);
+                // Fallback: Try to get API key from configuration if client not injected
+                var apiKey = _configuration["SendGridApiKey"] ?? _configuration["SendGrid:ApiKey"];
+                
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    _logger.LogInformation($"SendGrid API key found in configuration. Key starts with: {apiKey[..Math.Min(10, apiKey.Length)]}");
+                    _sendGridClient = new SendGridClient(apiKey);
+                }
+                else
+                {
+                    _logger.LogWarning("SendGrid API key not configured. Emails will be logged only.");
+                }
             }
         }
 
@@ -264,8 +268,8 @@ FoodX Trading Platform
                     _logger.LogInformation($"To: {toEmail}");
                     _logger.LogInformation($"Subject: {subject}");
 
-                    // Extract and log magic link if present
-                    var linkMatch = System.Text.RegularExpressions.Regex.Match(htmlContent, @"href='([^']+)'");
+                    // Extract and log magic link if present - updated regex to handle both single and double quotes
+                    var linkMatch = System.Text.RegularExpressions.Regex.Match(htmlContent, @"href=['""]([^'""]+)['""]");
                     if (linkMatch.Success)
                     {
                         _logger.LogInformation($"Magic Link: {linkMatch.Groups[1].Value}");

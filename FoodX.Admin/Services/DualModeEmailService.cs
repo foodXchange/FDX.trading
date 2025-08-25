@@ -18,13 +18,11 @@ namespace FoodX.Admin.Services
         private readonly bool _useSmtp;
         private readonly bool _useApi;
 
-        public DualModeEmailService(IConfiguration configuration, ILogger<DualModeEmailService> logger)
+        public DualModeEmailService(ISendGridClient? sendGridClient, IConfiguration configuration, ILogger<DualModeEmailService> logger)
         {
             _configuration = configuration;
             _logger = logger;
-
-            // Get API key from Key Vault or configuration
-            _apiKey = _configuration["SendGridApiKey"] ?? _configuration["SendGrid:ApiKey"];
+            _sendGridClient = sendGridClient;
 
             // Check which modes are enabled
             _useApi = _configuration.GetValue<bool>("SendGrid:UseApi", true);
@@ -32,22 +30,33 @@ namespace FoodX.Admin.Services
 
             _logger.LogInformation($"Email Service Configuration: API={_useApi}, SMTP={_useSmtp}");
 
-            if (!string.IsNullOrEmpty(_apiKey) && _useApi)
+            if (_sendGridClient != null)
             {
-                // Create SendGrid client with EU data residency (Poland is in EU)
-                var options = new SendGridClientOptions
+                _logger.LogInformation("SendGrid client injected via dependency injection");
+                _apiKey = _configuration["SendGridApiKey"] ?? _configuration["SendGrid:ApiKey"];
+            }
+            else
+            {
+                // Fallback: Get API key from Key Vault or configuration
+                _apiKey = _configuration["SendGridApiKey"] ?? _configuration["SendGrid:ApiKey"];
+
+                if (!string.IsNullOrEmpty(_apiKey) && _useApi)
                 {
-                    ApiKey = _apiKey,
-                    Host = "https://api.sendgrid.com", // Default host
-                    Version = "v3"
-                };
+                    // Create SendGrid client with EU data residency (Poland is in EU)
+                    var options = new SendGridClientOptions
+                    {
+                        ApiKey = _apiKey,
+                        Host = "https://api.sendgrid.com", // Default host
+                        Version = "v3"
+                    };
 
-                // Use global endpoint (EU endpoint requires special account configuration)
-                // If you have EU data residency configured in SendGrid, uncomment the line below:
-                // options.Host = "https://api.eu.sendgrid.com";
-                _logger.LogInformation("SendGrid API client initialized with global endpoint");
+                    // Use global endpoint (EU endpoint requires special account configuration)
+                    // If you have EU data residency configured in SendGrid, uncomment the line below:
+                    // options.Host = "https://api.eu.sendgrid.com";
+                    _logger.LogInformation("SendGrid API client initialized with global endpoint");
 
-                _sendGridClient = new SendGridClient(options);
+                    _sendGridClient = new SendGridClient(options);
+                }
             }
         }
 
@@ -116,11 +125,15 @@ namespace FoodX.Admin.Services
         {
             try
             {
+                _logger.LogInformation($"Attempting to send email via SendGrid API to {toEmail}");
+                
                 var from = new EmailAddress(
                     _configuration["SendGrid:FromEmail"] ?? "noreply@fdx.trading",
                     _configuration["SendGrid:FromName"] ?? "FoodX Trading"
                 );
                 var to = new EmailAddress(toEmail);
+
+                _logger.LogInformation($"From: {from.Email} ({from.Name}), To: {to.Email}");
 
                 var msg = MailHelper.CreateSingleEmail(
                     from,
@@ -139,6 +152,7 @@ namespace FoodX.Admin.Services
                     ClickTracking = new ClickTracking { Enable = false, EnableText = false }
                 };
 
+                _logger.LogInformation("Sending email via SendGrid API...");
                 var response = await _sendGridClient!.SendEmailAsync(msg);
 
                 if (response.StatusCode == HttpStatusCode.Accepted || response.StatusCode == HttpStatusCode.OK)

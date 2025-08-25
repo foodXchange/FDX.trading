@@ -5,28 +5,49 @@
 @using FoodX.Admin.Components.Dialogs
 @inject FoodXDbContext DbContext
 @inject IDialogService DialogService
+@inject ISnackbar Snackbar
 @rendermode InteractiveServer
 
-<PageTitle>Buyers</PageTitle>
+<PageTitle>Buyer Companies</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
-    <MudText Typo="Typo.h3" Class="mb-4">Buyers Management</MudText>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h3" Class="mb-4">Buyer Companies</MudText>
+    <MudText Typo="Typo.body1" Class="mb-4">Total: @totalBuyers buyers</MudText>
     
     <MudPaper Class="pa-4 mb-4">
         <MudGrid>
-            <MudItem xs="12" md="9">
+            <MudItem xs="12" md="4">
                 <MudTextField @bind-Value="searchTerm" Label="Search Buyers" 
                               Variant="Variant.Outlined" 
                               Adornment="Adornment.Start" 
                               AdornmentIcon="@Icons.Material.Filled.Search"
-                              Immediate="true" />
+                              Immediate="true"
+                              OnKeyUp="@(async (e) => { if (e.Key == "Enter") await SearchBuyers(); })" />
             </MudItem>
             <MudItem xs="12" md="3">
+                <MudSelect @bind-Value="selectedCategory" Label="Category" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("")">All Categories</MudSelectItem>
+                    @foreach (var category in categories)
+                    {
+                        <MudSelectItem Value="@category">@category</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect @bind-Value="selectedCountry" Label="Country/Region" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("")">All Countries</MudSelectItem>
+                    @foreach (var country in countries)
+                    {
+                        <MudSelectItem Value="@country">@country</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="2">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" 
-                           StartIcon="@Icons.Material.Filled.PersonAdd" 
+                           StartIcon="@Icons.Material.Filled.Search" 
                            FullWidth="true"
-                           OnClick="OpenAddBuyerDialog">
-                    Add Buyer
+                           OnClick="SearchBuyers">
+                    Search
                 </MudButton>
             </MudItem>
         </MudGrid>
@@ -36,72 +57,152 @@
     {
         <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
     }
-    else if (buyers.Any())
+    else if (buyerCompanies.Any())
     {
-        <MudGrid>
-            @foreach (var buyer in buyers)
-            {
-                <MudItem xs="12" sm="6" md="4">
-                    <MudCard>
-                        <MudCardHeader>
-                            <CardHeaderAvatar>
-                                <MudAvatar Color="Color.Info">
-                                    @buyer.User.FirstName.Substring(0, 1)@buyer.User.LastName.Substring(0, 1)
-                                </MudAvatar>
-                            </CardHeaderAvatar>
-                            <CardHeaderContent>
-                                <MudText Typo="Typo.h6">@buyer.User.FullName</MudText>
-                                <MudText Typo="Typo.body2">@buyer.Department</MudText>
-                            </CardHeaderContent>
-                            <CardHeaderActions>
-                                <MudIconButton Icon="@Icons.Material.Filled.MoreVert" />
-                            </CardHeaderActions>
-                        </MudCardHeader>
-                        <MudCardContent>
-                            <MudText Typo="Typo.body2">
-                                <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" /> @buyer.User.Email
-                            </MudText>
-                            <MudText Typo="Typo.body2" Class="mt-2">
-                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" /> 
-                                @(buyer.Company?.Name ?? "No Company")
-                            </MudText>
-                            <MudText Typo="Typo.body2" Class="mt-2">
-                                <MudIcon Icon="@Icons.Material.Filled.DateRange" Size="Size.Small" /> 
-                                Joined: @buyer.CreatedAt.ToString("MMM dd, yyyy")
-                            </MudText>
-                            <div class="mt-3">
-                                <MudChip T="string" Color="@(buyer.User.IsActive ? Color.Success : Color.Error)" 
-                                         Size="Size.Small">
-                                    @(buyer.User.IsActive ? "Active" : "Inactive")
-                                </MudChip>
-                                <MudChip T="string" Color="Color.Info" Size="Size.Small">
-                                    Buyer
-                                </MudChip>
-                            </div>
-                        </MudCardContent>
-                        <MudCardActions>
-                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">View Profile</MudButton>
-                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">Edit</MudButton>
-                        </MudCardActions>
-                    </MudCard>
-                </MudItem>
-            }
-        </MudGrid>
+        <MudDataGrid T="Company" Items="@buyerCompanies" SortMode="SortMode.Multiple" 
+                     Filterable="true" QuickFilter="@_quickFilter"
+                     Hideable="true" RowsPerPage="25">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Buyer Companies (@buyerCompanies.Count())</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="_searchString" Placeholder="Quick search..." 
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <Columns>
+                <PropertyColumn Property="x => x.Name" Title="Company Name" />
+                <PropertyColumn Property="x => x.BuyerCategory" Title="Category">
+                    <CellTemplate>
+                        @if (!string.IsNullOrEmpty(context.Item.BuyerCategory))
+                        {
+                            <MudChip T="string" Color="Color.Info" Size="Size.Small">
+                                @context.Item.BuyerCategory
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="text-muted">Not specified</MudText>
+                        }
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.Country" Title="Country/Region">
+                    <CellTemplate>
+                        @(context.Item.Country ?? "Not specified")
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.MainEmail" Title="Email">
+                    <CellTemplate>
+                        @if (!string.IsNullOrEmpty(context.Item.MainEmail))
+                        {
+                            <MudLink Href="@($"mailto:{context.Item.MainEmail}")">@context.Item.MainEmail</MudLink>
+                        }
+                        else
+                        {
+                            <span class="text-muted">No email</span>
+                        }
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.Website" Title="Website">
+                    <CellTemplate>
+                        @if (!string.IsNullOrEmpty(context.Item.Website))
+                        {
+                            <MudLink Href="@context.Item.Website" Target="_blank">View</MudLink>
+                        }
+                        else
+                        {
+                            <span class="text-muted">-</span>
+                        }
+                    </CellTemplate>
+                </PropertyColumn>
+                <TemplateColumn Title="Actions" Sortable="false">
+                    <CellTemplate>
+                        <MudStack Row>
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" 
+                                           Size="Size.Small" OnClick="@(() => ViewCompany(context.Item))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" 
+                                           Size="Size.Small" OnClick="@(() => EditCompany(context.Item))" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="Company" />
+            </PagerContent>
+        </MudDataGrid>
     }
     else
     {
-        <MudAlert Severity="Severity.Info">No buyers found. Click "Add Buyer" to register new buyers.</MudAlert>
+        <MudAlert Severity="Severity.Info">
+            No buyer companies found matching your criteria. 
+            @if (string.IsNullOrEmpty(searchTerm) && string.IsNullOrEmpty(selectedCategory) && string.IsNullOrEmpty(selectedCountry))
+            {
+                <span>There are @totalBuyers buyer companies in the database.</span>
+            }
+        </MudAlert>
     }
 </MudContainer>
 
 @code {
-    private List<Buyer> buyers = new();
+    private List<Company> buyerCompanies = new();
+    private List<string?> categories = new();
+    private List<string?> countries = new();
     private bool isLoading = true;
     private string searchTerm = "";
+    private string selectedCategory = "";
+    private string selectedCountry = "";
+    private int totalBuyers = 0;
+    private string _searchString = "";
+
+    private Func<Company, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (x.Name?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        if (x.BuyerCategory?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        if (x.Country?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        if (x.MainEmail?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        return false;
+    };
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadFilterOptions();
         await LoadBuyers();
+    }
+
+    private async Task LoadFilterOptions()
+    {
+        try
+        {
+            // Get unique categories
+            categories = await DbContext.Companies
+                .Where(c => c.CompanyType == "Buyer" && c.BuyerCategory != null)
+                .Select(c => c.BuyerCategory)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToListAsync();
+
+            // Get unique countries
+            countries = await DbContext.Companies
+                .Where(c => c.CompanyType == "Buyer" && c.Country != null)
+                .Select(c => c.Country)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading filter options: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task LoadBuyers()
@@ -109,60 +210,81 @@
         isLoading = true;
         try
         {
-            var query = DbContext.Buyers
-                .Include(b => b.User)
-                .Include(b => b.Company)
+            // Get total count
+            totalBuyers = await DbContext.Companies.CountAsync(c => c.CompanyType == "Buyer");
+
+            var query = DbContext.Companies
+                .Where(c => c.CompanyType == "Buyer")
                 .AsQueryable();
             
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                query = query.Where(b => 
-                    b.User.FirstName.Contains(searchTerm) || 
-                    b.User.LastName.Contains(searchTerm) ||
-                    b.User.Email.Contains(searchTerm) ||
-                    (b.Department != null && b.Department.Contains(searchTerm)));
+                query = query.Where(c => 
+                    c.Name.Contains(searchTerm) || 
+                    (c.MainEmail != null && c.MainEmail.Contains(searchTerm)) ||
+                    (c.BuyerCategory != null && c.BuyerCategory.Contains(searchTerm)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(selectedCategory))
+            {
+                query = query.Where(c => c.BuyerCategory == selectedCategory);
+            }
+
+            if (!string.IsNullOrWhiteSpace(selectedCountry))
+            {
+                query = query.Where(c => c.Country == selectedCountry);
             }
             
-            buyers = await query.OrderBy(b => b.User.FirstName).ToListAsync();
+            buyerCompanies = await query.OrderBy(c => c.Name).ToListAsync();
+            
+            Snackbar.Add($"Loaded {buyerCompanies.Count} buyer companies", Severity.Success);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Log error
-            buyers = new List<Buyer>();
+            Snackbar.Add($"Error loading buyers: {ex.Message}", Severity.Error);
+            buyerCompanies = new List<Company>();
         }
         finally
         {
             isLoading = false;
         }
     }
-    
-    private async Task OpenAddBuyerDialog()
-    {
-        var parameters = new DialogParameters
-        {
-            { nameof(AddBuyerDialog.OnBuyerAdded), EventCallback.Factory.Create<Buyer>(this, OnBuyerAdded) },
-            { nameof(AddBuyerDialog.OnCancel), EventCallback.Factory.Create(this, OnDialogCancel) }
-        };
-        
-        var options = new DialogOptions 
-        { 
-            CloseButton = true,
-            MaxWidth = MaxWidth.Small,
-            FullWidth = true,
-            CloseOnEscapeKey = true
-        };
-        
-        var dialog = await DialogService.ShowAsync<AddBuyerDialog>("Add New Buyer", parameters, options);
-        await dialog.Result;
-    }
-    
-    private async Task OnBuyerAdded(Buyer buyer)
+
+    private async Task SearchBuyers()
     {
         await LoadBuyers();
     }
-    
-    private void OnDialogCancel()
+
+    private async Task ViewCompany(Company company)
     {
-        // Dialog cancelled
+        var parameters = new DialogParameters
+        {
+            { "Buyer", new FoodXBuyer 
+                {
+                    Id = company.Id,
+                    Company = company.Name,
+                    Type = company.BuyerCategory,
+                    Region = company.Country,
+                    Website = company.Website,
+                    ProcurementEmail = company.MainEmail,
+                    Address = company.Address
+                } 
+            }
+        };
+
+        var options = new DialogOptions 
+        { 
+            CloseButton = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        await DialogService.ShowAsync<ViewBuyerCompanyDialog>($"Company Details: {company.Name}", parameters, options);
+    }
+
+    private async Task EditCompany(Company company)
+    {
+        // TODO: Implement edit functionality
+        Snackbar.Add("Edit functionality coming soon", Severity.Info);
     }
 }

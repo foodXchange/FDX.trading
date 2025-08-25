@@ -26,7 +26,7 @@ namespace FoodX.Core.Services
     {
         private readonly ILogger<AzureOpenAIEmbeddingService> _logger;
         private readonly IConfiguration _configuration;
-        private readonly EmbeddingClient _embeddingClient;
+        private readonly EmbeddingClient? _embeddingClient;
         private readonly string _deploymentName;
         private readonly int _dimensions;
 
@@ -43,9 +43,10 @@ namespace FoodX.Core.Services
             _deploymentName = configuration["AzureOpenAI:EmbeddingDeployment"] ?? "text-embedding-ada-002";
             _dimensions = int.TryParse(configuration["AzureOpenAI:Dimensions"], out var dims) ? dims : 1536;
 
-            if (string.IsNullOrEmpty(endpoint))
+            if (string.IsNullOrEmpty(endpoint) || endpoint.Contains("your-openai-resource"))
             {
-                throw new ArgumentException("AzureOpenAI:Endpoint is not configured");
+                _logger.LogWarning("AzureOpenAI:Endpoint is not configured. Embedding service will return null.");
+                return; // Don't initialize the client if not configured
             }
 
             // Initialize Azure OpenAI client
@@ -73,6 +74,12 @@ namespace FoodX.Core.Services
         {
             try
             {
+                if (_embeddingClient == null)
+                {
+                    _logger.LogWarning("Embedding client not initialized. Azure OpenAI not configured.");
+                    return null;
+                }
+
                 if (string.IsNullOrWhiteSpace(text))
                 {
                     _logger.LogWarning("Attempted to get embedding for empty text");
@@ -108,6 +115,12 @@ namespace FoodX.Core.Services
         public async Task<List<float[]>> GetEmbeddingsAsync(List<string> texts)
         {
             var embeddings = new List<float[]>();
+
+            if (_embeddingClient == null)
+            {
+                _logger.LogWarning("Embedding client not initialized. Azure OpenAI not configured.");
+                return embeddings;
+            }
 
             try
             {
