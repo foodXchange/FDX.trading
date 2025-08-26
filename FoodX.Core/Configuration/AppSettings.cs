@@ -47,7 +47,7 @@ namespace FoodX.Core.Configuration
         public string StorageConnectionString { get; set; } = string.Empty;
     }
 
-    public class AzureOpenAISettings  
+    public class AzureOpenAISettings
     {
         public string Endpoint { get; set; } = string.Empty;
         public string ApiKey { get; set; } = string.Empty;
@@ -88,7 +88,7 @@ namespace FoodX.Core.Configuration
         public string BuyerPortal { get; set; } = "http://localhost:5000";
         public string SupplierPortal { get; set; } = "http://localhost:5001";
         public string Marketplace { get; set; } = "http://localhost:5002";
-        
+
         // Production URLs
         public PortalProductionUrls Production { get; set; } = new();
     }

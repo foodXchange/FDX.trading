@@ -48,9 +48,9 @@ namespace FoodX.Admin.Models
 
         public void SetAnalysisData(ProductAnalysis analysis)
         {
-            AnalysisData = JsonSerializer.Serialize(analysis, new JsonSerializerOptions 
-            { 
-                WriteIndented = true 
+            AnalysisData = JsonSerializer.Serialize(analysis, new JsonSerializerOptions
+            {
+                WriteIndented = true
             });
         }
     }
@@ -179,7 +179,7 @@ namespace FoodX.Admin.Models
         public string? KosherCertification { get; set; } // OU, OK, Star-K, etc.
         public bool? IsHalal { get; set; }
         public string? HalalCertification { get; set; } // certification body name
-        
+
         // Allergen Information
         public bool? IsGlutenFree { get; set; }
         public bool? IsNutFree { get; set; }
@@ -189,14 +189,14 @@ namespace FoodX.Admin.Models
         public bool? IsShellFishFree { get; set; }
         public List<string> ContainsAllergens { get; set; } = new();
         public List<string> MayContainAllergens { get; set; } = new(); // cross-contamination warnings
-        
+
         // Sugar & Sweeteners
         public bool? IsSugarFree { get; set; }
         public bool? IsNoSugarAdded { get; set; }
         public bool? IsDiabeticFriendly { get; set; }
         public List<string> SugarSubstitutes { get; set; } = new(); // stevia, aspartame, sucralose, etc.
         public string? TotalSugarContent { get; set; } // per serving
-        
+
         // Nutritional Enhancements
         public bool? IsVitaminEnriched { get; set; }
         public List<string> AddedVitamins { get; set; } = new(); // Vitamin A, B12, D, etc.
@@ -209,7 +209,7 @@ namespace FoodX.Admin.Models
         public List<string> AddedMinerals { get; set; } = new();
         public bool? ContainsProbiotics { get; set; }
         public bool? ContainsOmega3 { get; set; }
-        
+
         // Dietary Preferences
         public bool? IsVegan { get; set; }
         public bool? IsVegetarian { get; set; }
@@ -221,7 +221,7 @@ namespace FoodX.Admin.Models
         public bool? IsLowSodium { get; set; }
         public bool? IsHighProtein { get; set; }
         public bool? IsWholeFoods { get; set; }
-        
+
         // Production & Quality
         public bool? IsOrganic { get; set; }
         public string? OrganicCertification { get; set; } // USDA Organic, EU Organic, etc.
@@ -234,14 +234,14 @@ namespace FoodX.Admin.Models
         public bool? IsCageFree { get; set; }
         public bool? IsWildCaught { get; set; }
         public bool? IsSustainablySourced { get; set; }
-        
+
         // Special Dietary Needs
         public bool? IsBabyFood { get; set; }
         public string? AgeRecommendation { get; set; } // 6+ months, toddler, etc.
         public bool? IsSeniorFriendly { get; set; }
         public bool? IsHospitalGrade { get; set; }
         public bool? IsMedicalFood { get; set; }
-        
+
         // Additional Attributes
         public bool? IsNoPreservatives { get; set; }
         public bool? IsNoArtificialColors { get; set; }
@@ -253,7 +253,7 @@ namespace FoodX.Admin.Models
         public bool? IsReadyToEat { get; set; }
         public bool? RequiresCooking { get; set; }
         public bool? IsMicrowaveable { get; set; }
-        
+
         // Package Text Analysis
         public List<string> PackageTextClaims { get; set; } = new(); // all text claims found on package
         public List<string> NutritionalClaims { get; set; } = new(); // "High in...", "Source of...", etc.

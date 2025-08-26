@@ -1,0 +1,125 @@
+@using FoodX.Admin.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IPortalContextService PortalContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<MudNavMenu>
+    <!-- Primary Actions - Always visible -->
+    <MudNavLink Href="/" Icon="@Icons.Material.Filled.Dashboard" Match="NavLinkMatch.All">
+        Dashboard
+    </MudNavLink>
+
+    @if (PortalContext.CurrentMode == PortalMode.Buyer || PortalContext.CurrentMode == PortalMode.Admin)
+    {
+        <!-- Procurement Section -->
+        <MudNavGroup Title="Procurement" Icon="@Icons.Material.Filled.ShoppingCart" Expanded="false">
+            <MudNavLink Href="/portal/buyer/rfqs" Icon="@Icons.Material.Filled.RequestQuote">
+                RFQs
+            </MudNavLink>
+            <MudNavLink Href="/portal/buyer/quotes" Icon="@Icons.Material.Filled.Receipt">
+                Quotes
+            </MudNavLink>
+            <MudNavLink Href="/portal/buyer/orders" Icon="@Icons.Material.Filled.ShoppingBag">
+                Orders
+            </MudNavLink>
+        </MudNavGroup>
+    }
+
+    @if (PortalContext.CurrentMode == PortalMode.Supplier || PortalContext.CurrentMode == PortalMode.Admin)
+    {
+        <!-- Supply Section -->
+        <MudNavGroup Title="Supply" Icon="@Icons.Material.Filled.LocalShipping" Expanded="false">
+            <MudNavLink Href="/portal/supplier/products" Icon="@Icons.Material.Filled.Inventory">
+                Products
+            </MudNavLink>
+            <MudNavLink Href="/portal/supplier/rfqs" Icon="@Icons.Material.Filled.RequestQuote">
+                RFQ Requests
+            </MudNavLink>
+            <MudNavLink Href="/portal/supplier/orders" Icon="@Icons.Material.Filled.ShoppingBag">
+                Orders
+            </MudNavLink>
+        </MudNavGroup>
+    }
+
+    <!-- Browse/Search - All users -->
+    <MudNavGroup Title="Browse" Icon="@Icons.Material.Filled.Search" Expanded="false">
+        @if (PortalContext.CurrentMode == PortalMode.Buyer || PortalContext.CurrentMode == PortalMode.Admin)
+        {
+            <MudNavLink Href="/suppliers" Icon="@Icons.Material.Filled.Store">
+                Suppliers
+            </MudNavLink>
+        }
+        @if (PortalContext.CurrentMode == PortalMode.Supplier || PortalContext.CurrentMode == PortalMode.Admin)
+        {
+            <MudNavLink Href="/buyers" Icon="@Icons.Material.Filled.Business">
+                Buyers
+            </MudNavLink>
+        }
+        <MudNavLink Href="/products" Icon="@Icons.Material.Filled.Category">
+            Products
+        </MudNavLink>
+        <MudNavLink Href="/portal/buyer/ai-search" Icon="@Icons.Material.Filled.Psychology">
+            AI Search
+        </MudNavLink>
+    </MudNavGroup>
+
+    <!-- Analytics - Based on role -->
+    <MudNavLink Href="/analytics" Icon="@Icons.Material.Filled.Analytics">
+        Analytics
+    </MudNavLink>
+
+    <!-- Admin Section - Only for Admin/SuperAdmin -->
+    <AuthorizeView Roles="Admin,SuperAdmin">
+        <MudDivider Class="my-2" />
+        <MudNavGroup Title="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
+            <MudNavLink Href="/users" Icon="@Icons.Material.Filled.People">
+                Users
+            </MudNavLink>
+            <MudNavLink Href="/companies" Icon="@Icons.Material.Filled.Business">
+                Companies
+            </MudNavLink>
+            <MudNavLink Href="/settings" Icon="@Icons.Material.Filled.Settings">
+                Settings
+            </MudNavLink>
+        </MudNavGroup>
+    </AuthorizeView>
+
+    <!-- SuperAdmin Section -->
+    <AuthorizeView Roles="SuperAdmin">
+        <MudNavGroup Title="SuperAdmin" Icon="@Icons.Material.Filled.Security" Expanded="false">
+            <MudNavLink Href="/superadmin/dashboard" Icon="@Icons.Material.Filled.Dashboard">
+                System Overview
+            </MudNavLink>
+            <MudNavLink Href="/superadmin/impersonate" Icon="@Icons.Material.Filled.PersonSearch">
+                Impersonate User
+            </MudNavLink>
+        </MudNavGroup>
+    </AuthorizeView>
+
+    <!-- Help & Support - Bottom -->
+    <div style="position: absolute; bottom: 0; width: 100%;">
+        <MudDivider Class="my-2" />
+        <MudNavLink Href="/help" Icon="@Icons.Material.Filled.Help">
+            Help & Support
+        </MudNavLink>
+    </div>
+</MudNavMenu>
+
+@code {
+    protected override Task OnInitializedAsync()
+    {
+        // Subscribe to portal mode changes
+        PortalContext.PortalModeChanged += OnPortalModeChanged;
+        return Task.CompletedTask;
+    }
+
+    private void OnPortalModeChanged(object? sender, PortalMode mode)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        PortalContext.PortalModeChanged -= OnPortalModeChanged;
+    }
+}

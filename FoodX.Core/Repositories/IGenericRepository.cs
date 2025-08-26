@@ -19,11 +19,11 @@ namespace FoodX.Core.Repositories
         Task<TEntity?> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> predicate);
         Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate);
         Task<int> CountAsync(Expression<Func<TEntity, bool>>? predicate = null);
-        
+
         // Queryable for complex queries
         IQueryable<TEntity> Query();
         IQueryable<TEntity> QueryNoTracking();
-        
+
         // Write operations
         Task<TEntity> AddAsync(TEntity entity);
         Task AddRangeAsync(IEnumerable<TEntity> entities);
@@ -31,15 +31,15 @@ namespace FoodX.Core.Repositories
         void UpdateRange(IEnumerable<TEntity> entities);
         void Remove(TEntity entity);
         void RemoveRange(IEnumerable<TEntity> entities);
-        
+
         // Pagination
         Task<(IEnumerable<TEntity> Items, int TotalCount)> GetPagedAsync(
-            int pageNumber, 
+            int pageNumber,
             int pageSize,
             Expression<Func<TEntity, bool>>? filter = null,
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
             string includeProperties = "");
-        
+
         // Include related entities
         Task<IEnumerable<TEntity>> GetWithIncludeAsync(
             Expression<Func<TEntity, bool>>? filter = null,

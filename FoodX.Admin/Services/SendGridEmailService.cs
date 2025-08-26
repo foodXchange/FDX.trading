@@ -30,7 +30,7 @@ namespace FoodX.Admin.Services
             {
                 // Fallback: Try to get API key from configuration if client not injected
                 var apiKey = _configuration["SendGridApiKey"] ?? _configuration["SendGrid:ApiKey"];
-                
+
                 if (!string.IsNullOrEmpty(apiKey))
                 {
                     _logger.LogInformation($"SendGrid API key found in configuration. Key starts with: {apiKey[..Math.Min(10, apiKey.Length)]}");

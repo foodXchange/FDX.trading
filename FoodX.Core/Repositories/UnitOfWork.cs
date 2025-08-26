@@ -17,7 +17,7 @@ namespace FoodX.Core.Repositories
         private readonly FoodXBusinessContext _context;
         private IDbContextTransaction? _transaction;
         private bool _disposed;
-        
+
         // Repository instances
         private IProductRepository? _products;
         private IGenericRepository<Company>? _companies;
@@ -32,7 +32,7 @@ namespace FoodX.Core.Repositories
         private IGenericRepository<Exhibition>? _exhibitions;
         private IGenericRepository<Exhibitor>? _exhibitors;
         private IGenericRepository<Project>? _projects;
-        
+
         // Dictionary to store generic repositories
         private readonly Dictionary<Type, object> _repositories = new();
 
@@ -64,12 +64,12 @@ namespace FoodX.Core.Repositories
         public IGenericRepository<TEntity> Repository<TEntity>() where TEntity : class
         {
             var type = typeof(TEntity);
-            
+
             if (!_repositories.ContainsKey(type))
             {
                 _repositories[type] = new GenericRepository<TEntity>(_context);
             }
-            
+
             return (IGenericRepository<TEntity>)_repositories[type];
         }
 
@@ -126,7 +126,7 @@ namespace FoodX.Core.Repositories
             {
                 throw new InvalidOperationException("A transaction is already in progress.");
             }
-            
+
             _transaction = await _context.Database.BeginTransactionAsync();
         }
 
@@ -136,7 +136,7 @@ namespace FoodX.Core.Repositories
             {
                 throw new InvalidOperationException("No transaction is in progress.");
             }
-            
+
             try
             {
                 await SaveChangesAsync();
@@ -160,7 +160,7 @@ namespace FoodX.Core.Repositories
             {
                 throw new InvalidOperationException("No transaction is in progress.");
             }
-            
+
             try
             {
                 await _transaction.RollbackAsync();
@@ -185,7 +185,7 @@ namespace FoodX.Core.Repositories
                     _transaction?.Dispose();
                     _context.Dispose();
                 }
-                
+
                 _disposed = true;
             }
         }

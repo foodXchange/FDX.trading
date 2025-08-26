@@ -1,0 +1,230 @@
+@page "/portal/buyer/suppliers"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "SuperAdmin,Admin,Buyer")]
+@rendermode InteractiveServer
+
+<PageTitle>Suppliers - FoodX Buyer Portal</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h4" GutterBottom="true">
+                <MudIcon Icon="@Icons.Material.Filled.Store" Class="mr-2" />
+                Browse Suppliers
+            </MudText>
+        </MudItem>
+
+        <!-- Filter Section -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudGrid>
+                    <MudItem xs="12" md="3">
+                        <MudTextField @bind-Value="_searchQuery" 
+                                    Label="Search Suppliers" 
+                                    Adornment="Adornment.End" 
+                                    AdornmentIcon="@Icons.Material.Filled.Search" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect @bind-Value="_selectedCategory" Label="Category">
+                            <MudSelectItem Value="@string.Empty">All Categories</MudSelectItem>
+                            <MudSelectItem Value="@("Produce")">Fresh Produce</MudSelectItem>
+                            <MudSelectItem Value="@("Dairy")">Dairy Products</MudSelectItem>
+                            <MudSelectItem Value="@("Meat")">Meat & Poultry</MudSelectItem>
+                            <MudSelectItem Value="@("Seafood")">Seafood</MudSelectItem>
+                            <MudSelectItem Value="@("Bakery")">Bakery</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect @bind-Value="_selectedLocation" Label="Location">
+                            <MudSelectItem Value="@string.Empty">All Locations</MudSelectItem>
+                            <MudSelectItem Value="@("Italy")">Italy</MudSelectItem>
+                            <MudSelectItem Value="@("Spain")">Spain</MudSelectItem>
+                            <MudSelectItem Value="@("France")">France</MudSelectItem>
+                            <MudSelectItem Value="@("Netherlands")">Netherlands</MudSelectItem>
+                            <MudSelectItem Value="@("Germany")">Germany</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect @bind-Value="_selectedRating" Label="Minimum Rating">
+                            <MudSelectItem Value="@(0)">Any Rating</MudSelectItem>
+                            <MudSelectItem Value="@(3)">3+ Stars</MudSelectItem>
+                            <MudSelectItem Value="4">4+ Stars</MudSelectItem>
+                            <MudSelectItem Value="5">5 Stars</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Suppliers Grid -->
+        <MudItem xs="12">
+            <MudGrid>
+                @foreach (var supplier in GetFilteredSuppliers())
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCard Class="h-100">
+                            <MudCardMedia Image="@supplier.ImageUrl" Height="150" />
+                            <MudCardContent>
+                                <div class="d-flex justify-space-between align-center mb-2">
+                                    <MudText Typo="Typo.h6">@supplier.Name</MudText>
+                                    <MudRating ReadOnly="true" SelectedValue="@supplier.Rating" MaxValue="5" Size="Size.Small" />
+                                </div>
+                                <MudText Typo="Typo.body2" Class="mb-2">@supplier.Description</MudText>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Class="mb-2">@supplier.Category</MudChip>
+                                <MudText Typo="Typo.caption" Class="mb-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" />
+                                    @supplier.Location
+                                </MudText>
+                                <MudText Typo="Typo.caption">
+                                    <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Size="Size.Small" />
+                                    @supplier.DeliveryOptions
+                                </MudText>
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">
+                                    View Profile
+                                </MudButton>
+                                <MudButton Variant="Variant.Text" Color="Color.Success" Size="Size.Small">
+                                    Send RFQ
+                                </MudButton>
+                                <MudSpacer />
+                                <MudIconButton Icon="@Icons.Material.Filled.Favorite" 
+                                             Color="@(supplier.IsFavorite ? Color.Error : Color.Default)" 
+                                             Size="Size.Small" />
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudItem>
+
+        <!-- Load More -->
+        <MudItem xs="12" Class="d-flex justify-center mt-4">
+            <MudButton Variant="Variant.Text" Color="Color.Primary">
+                Load More Suppliers
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<SupplierItem> _suppliers = new();
+    private string _searchQuery = "";
+    private string _selectedCategory = "";
+    private string _selectedLocation = "";
+    private int _selectedRating = 0;
+    
+    protected override void OnInitialized()
+    {
+        // Mock data
+        _suppliers = new List<SupplierItem>
+        {
+            new SupplierItem 
+            { 
+                Name = "Italian Farms Co.", 
+                Description = "Premium organic produce from Tuscany region", 
+                Category = "Produce", 
+                Location = "Italy", 
+                Rating = 5, 
+                DeliveryOptions = "Same day, Next day",
+                ImageUrl = "https://via.placeholder.com/300x150?text=Italian+Farms",
+                IsFavorite = true
+            },
+            new SupplierItem 
+            { 
+                Name = "Dutch Dairy Excellence", 
+                Description = "Fresh dairy products and artisan cheeses", 
+                Category = "Dairy", 
+                Location = "Netherlands", 
+                Rating = 4, 
+                DeliveryOptions = "Standard, Express",
+                ImageUrl = "https://via.placeholder.com/300x150?text=Dutch+Dairy",
+                IsFavorite = false
+            },
+            new SupplierItem 
+            { 
+                Name = "Spanish Olive Groves", 
+                Description = "Extra virgin olive oils and Mediterranean specialties", 
+                Category = "Produce", 
+                Location = "Spain", 
+                Rating = 5, 
+                DeliveryOptions = "Standard",
+                ImageUrl = "https://via.placeholder.com/300x150?text=Spanish+Olives",
+                IsFavorite = false
+            },
+            new SupplierItem 
+            { 
+                Name = "French Bakery Artisans", 
+                Description = "Traditional French breads and pastries", 
+                Category = "Bakery", 
+                Location = "France", 
+                Rating = 4, 
+                DeliveryOptions = "Early morning, Standard",
+                ImageUrl = "https://via.placeholder.com/300x150?text=French+Bakery",
+                IsFavorite = true
+            },
+            new SupplierItem 
+            { 
+                Name = "Atlantic Seafood Co.", 
+                Description = "Fresh and frozen seafood from Atlantic waters", 
+                Category = "Seafood", 
+                Location = "Spain", 
+                Rating = 4, 
+                DeliveryOptions = "Refrigerated, Express",
+                ImageUrl = "https://via.placeholder.com/300x150?text=Atlantic+Seafood",
+                IsFavorite = false
+            },
+            new SupplierItem 
+            { 
+                Name = "German Meat Masters", 
+                Description = "Premium meats and sausages", 
+                Category = "Meat", 
+                Location = "Germany", 
+                Rating = 5, 
+                DeliveryOptions = "Refrigerated, Same day",
+                ImageUrl = "https://via.placeholder.com/300x150?text=German+Meat",
+                IsFavorite = false
+            }
+        };
+    }
+    
+    private IEnumerable<SupplierItem> GetFilteredSuppliers()
+    {
+        var filtered = _suppliers.AsEnumerable();
+        
+        if (!string.IsNullOrEmpty(_searchQuery))
+        {
+            filtered = filtered.Where(s => s.Name.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                                         s.Description.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase));
+        }
+        
+        if (!string.IsNullOrEmpty(_selectedCategory))
+        {
+            filtered = filtered.Where(s => s.Category == _selectedCategory);
+        }
+        
+        if (!string.IsNullOrEmpty(_selectedLocation))
+        {
+            filtered = filtered.Where(s => s.Location == _selectedLocation);
+        }
+        
+        if (_selectedRating > 0)
+        {
+            filtered = filtered.Where(s => s.Rating >= _selectedRating);
+        }
+        
+        return filtered;
+    }
+    
+    private class SupplierItem
+    {
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Category { get; set; } = "";
+        public string Location { get; set; } = "";
+        public int Rating { get; set; }
+        public string DeliveryOptions { get; set; } = "";
+        public string ImageUrl { get; set; } = "";
+        public bool IsFavorite { get; set; }
+    }
+}

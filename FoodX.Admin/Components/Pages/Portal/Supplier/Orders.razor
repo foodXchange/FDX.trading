@@ -1,0 +1,554 @@
+@page "/portal/supplier/orders"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "SuperAdmin,Admin,Supplier")]
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@rendermode InteractiveServer
+
+<PageTitle>Orders - FoodX Supplier Portal</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h4" GutterBottom="true">
+                <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" />
+                Order Management
+            </MudText>
+        </MudItem>
+
+        <!-- Quick Stats -->
+        <MudItem xs="12" sm="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.caption">Total Orders</MudText>
+                    <MudText Typo="Typo.h4">47</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        
+        <MudItem xs="12" sm="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.caption">In Progress</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Warning">15</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        
+        <MudItem xs="12" sm="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.caption">Delivered</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Success">28</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        
+        <MudItem xs="12" sm="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.caption">This Month Revenue</MudText>
+                    <MudText Typo="Typo.h4">€127,850</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Filters and Search -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <div class="d-flex justify-space-between align-center mb-4">
+                    <div class="d-flex align-center">
+                        <MudTextField @bind-Value="searchString" 
+                                    Placeholder="Search orders..." 
+                                    Adornment="Adornment.Start" 
+                                    AdornmentIcon="@Icons.Material.Filled.Search" 
+                                    IconSize="Size.Medium" 
+                                    Class="mr-4" />
+                        <MudSelect @bind-Value="selectedStatus" Placeholder="All Status" Class="mr-2">
+                            <MudSelectItem Value="@("All")">All Status</MudSelectItem>
+                            <MudSelectItem Value="@("New")">New</MudSelectItem>
+                            <MudSelectItem Value="@("Confirmed")">Confirmed</MudSelectItem>
+                            <MudSelectItem Value="@("Preparing")">Preparing</MudSelectItem>
+                            <MudSelectItem Value="@("Ready")">Ready</MudSelectItem>
+                            <MudSelectItem Value="@("Shipped")">Shipped</MudSelectItem>
+                            <MudSelectItem Value="@("Delivered")">Delivered</MudSelectItem>
+                            <MudSelectItem Value="@("Cancelled")">Cancelled</MudSelectItem>
+                        </MudSelect>
+                        <MudSelect @bind-Value="selectedPriority" Placeholder="All Priority" Class="mr-2">
+                            <MudSelectItem Value="@("All")">All Priority</MudSelectItem>
+                            <MudSelectItem Value="@("High")">High</MudSelectItem>
+                            <MudSelectItem Value="@("Medium")">Medium</MudSelectItem>
+                            <MudSelectItem Value="@("Low")">Low</MudSelectItem>
+                        </MudSelect>
+                        <MudDateRangePicker @bind-DateRange="dateRange" Label="Date Range" />
+                    </div>
+                    <div>
+                        <MudButton Variant="Variant.Text" 
+                                   Color="Color.Primary" 
+                                   StartIcon="@Icons.Material.Filled.Refresh"
+                                   OnClick="RefreshOrders">
+                            Refresh
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" 
+                                   Color="Color.Secondary" 
+                                   StartIcon="@Icons.Material.Filled.FileDownload"
+                                   OnClick="ExportOrders"
+                                   Class="ml-2">
+                            Export
+                        </MudButton>
+                    </div>
+                </div>
+                
+                <MudTable Items="@filteredOrders" Hover="true" Dense="true" Filter="new Func<OrderItem,bool>(FilterFunc)">
+                    <HeaderContent>
+                        <MudTh><MudTableSortLabel SortBy="new Func<OrderItem, object>(x=>x.OrderNumber)">Order #</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<OrderItem, object>(x=>x.BuyerCompany)">Buyer</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<OrderItem, object>(x=>x.ProductName)">Product</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<OrderItem, object>(x=>x.Quantity)">Quantity</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<OrderItem, object>(x=>x.TotalAmount)">Total</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<OrderItem, object>(x=>x.OrderDate)">Order Date</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<OrderItem, object>(x=>x.DeliveryDate)">Delivery Date</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<OrderItem, object>(x=>x.Status)">Status</MudTableSortLabel></MudTh>
+                        <MudTh>Priority</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>
+                            <MudText Typo="Typo.body2" Color="Color.Primary">@context.OrderNumber</MudText>
+                        </MudTd>
+                        <MudTd>
+                            <div>
+                                <MudText Typo="Typo.body2">@context.BuyerCompany</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.ContactPerson</MudText>
+                            </div>
+                        </MudTd>
+                        <MudTd>
+                            <div>
+                                <MudText Typo="Typo.body2">@context.ProductName</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">SKU: @context.ProductSku</MudText>
+                            </div>
+                        </MudTd>
+                        <MudTd>@context.Quantity @context.Unit</MudTd>
+                        <MudTd>
+                            <MudText Typo="Typo.body2" Color="Color.Success">
+                                <strong>€@context.TotalAmount.ToString("N2")</strong>
+                            </MudText>
+                        </MudTd>
+                        <MudTd>@context.OrderDate.ToString("MMM dd")</MudTd>
+                        <MudTd>
+                            <MudText Color="@(context.DeliveryDate < DateTime.Now && context.Status != "Delivered" ? Color.Error : Color.Default)">
+                                @context.DeliveryDate.ToString("MMM dd")
+                            </MudText>
+                            @if (context.DeliveryDate < DateTime.Now && context.Status != "Delivered")
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Color="Color.Error" />
+                            }
+                        </MudTd>
+                        <MudTd>
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                                @context.Status
+                            </MudChip>
+                        </MudTd>
+                        <MudTd>
+                            <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(context.Priority)">
+                                @context.Priority
+                            </MudChip>
+                        </MudTd>
+                        <MudTd>
+                            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                                <MudMenuItem OnClick="() => ViewOrder(context)">
+                                    <MudIcon Icon="@Icons.Material.Filled.Visibility" Class="mr-2" />
+                                    View Details
+                                </MudMenuItem>
+                                @if (context.Status == "New")
+                                {
+                                    <MudMenuItem OnClick="() => ConfirmOrder(context)">
+                                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
+                                        Confirm Order
+                                    </MudMenuItem>
+                                }
+                                @if (context.Status == "Confirmed" || context.Status == "Preparing")
+                                {
+                                    <MudMenuItem OnClick="() => UpdateStatus(context)">
+                                        <MudIcon Icon="@Icons.Material.Filled.Update" Class="mr-2" />
+                                        Update Status
+                                    </MudMenuItem>
+                                }
+                                @if (context.Status == "Ready")
+                                {
+                                    <MudMenuItem OnClick="() => MarkAsShipped(context)">
+                                        <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Class="mr-2" />
+                                        Mark as Shipped
+                                    </MudMenuItem>
+                                }
+                                @if (context.Status == "Shipped")
+                                {
+                                    <MudMenuItem OnClick="() => MarkAsDelivered(context)">
+                                        <MudIcon Icon="@Icons.Material.Filled.Done" Class="mr-2" />
+                                        Mark as Delivered
+                                    </MudMenuItem>
+                                    <MudMenuItem OnClick="() => TrackShipment(context)">
+                                        <MudIcon Icon="@Icons.Material.Filled.GpsFixed" Class="mr-2" />
+                                        Track Shipment
+                                    </MudMenuItem>
+                                }
+                                <MudMenuItem OnClick="() => GenerateInvoice(context)">
+                                    <MudIcon Icon="@Icons.Material.Filled.Receipt" Class="mr-2" />
+                                    Generate Invoice
+                                </MudMenuItem>
+                                <MudMenuItem OnClick="() => ContactBuyer(context)">
+                                    <MudIcon Icon="@Icons.Material.Filled.Email" Class="mr-2" />
+                                    Contact Buyer
+                                </MudMenuItem>
+                            </MudMenu>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Order Pipeline -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.h6" Class="mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-2" />
+                    Order Pipeline
+                </MudText>
+                
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudPaper Class="pa-3 text-center" Elevation="0" Style="background-color: var(--mud-palette-primary-lighten);">
+                            <MudText Typo="Typo.h5" Color="Color.Primary">@_orders.Count(o => o.Status == "New")</MudText>
+                            <MudText Typo="Typo.caption">New</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudPaper Class="pa-3 text-center" Elevation="0" Style="background-color: var(--mud-palette-info-lighten);">
+                            <MudText Typo="Typo.h5" Color="Color.Info">@_orders.Count(o => o.Status == "Confirmed")</MudText>
+                            <MudText Typo="Typo.caption">Confirmed</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudPaper Class="pa-3 text-center" Elevation="0" Style="background-color: var(--mud-palette-warning-lighten);">
+                            <MudText Typo="Typo.h5" Color="Color.Warning">@_orders.Count(o => o.Status == "Preparing")</MudText>
+                            <MudText Typo="Typo.caption">Preparing</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudPaper Class="pa-3 text-center" Elevation="0" Style="background-color: var(--mud-palette-secondary-lighten);">
+                            <MudText Typo="Typo.h5" Color="Color.Secondary">@_orders.Count(o => o.Status == "Ready")</MudText>
+                            <MudText Typo="Typo.caption">Ready</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudPaper Class="pa-3 text-center" Elevation="0" Style="background-color: var(--mud-palette-tertiary-lighten);">
+                            <MudText Typo="Typo.h5" Color="Color.Tertiary">@_orders.Count(o => o.Status == "Shipped")</MudText>
+                            <MudText Typo="Typo.caption">Shipped</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudPaper Class="pa-3 text-center" Elevation="0" Style="background-color: var(--mud-palette-success-lighten);">
+                            <MudText Typo="Typo.h5" Color="Color.Success">@_orders.Count(o => o.Status == "Delivered")</MudText>
+                            <MudText Typo="Typo.caption">Delivered</MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+<!-- Order Details Dialog -->
+<MudDialog @bind-Visible="showOrderDialog" Options="new DialogOptions() { MaxWidth = MaxWidth.Large, FullWidth = true }">
+    <DialogContent>
+        @if (selectedOrder != null)
+        {
+            <MudText Typo="Typo.h5" Class="mb-4">Order Details - @selectedOrder.OrderNumber</MudText>
+            
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudText Typo="Typo.h6" Class="mb-2">Order Information</MudText>
+                        <MudText><strong>Order #:</strong> @selectedOrder.OrderNumber</MudText>
+                        <MudText><strong>Order Date:</strong> @selectedOrder.OrderDate.ToString("MMM dd, yyyy HH:mm")</MudText>
+                        <MudText><strong>Delivery Date:</strong> @selectedOrder.DeliveryDate.ToString("MMM dd, yyyy")</MudText>
+                        <MudText><strong>Status:</strong> @selectedOrder.Status</MudText>
+                        <MudText><strong>Priority:</strong> @selectedOrder.Priority</MudText>
+                    </MudPaper>
+                </MudItem>
+                
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudText Typo="Typo.h6" Class="mb-2">Buyer Information</MudText>
+                        <MudText><strong>Company:</strong> @selectedOrder.BuyerCompany</MudText>
+                        <MudText><strong>Contact:</strong> @selectedOrder.ContactPerson</MudText>
+                        <MudText><strong>Email:</strong> @selectedOrder.Email</MudText>
+                        <MudText><strong>Phone:</strong> @selectedOrder.Phone</MudText>
+                    </MudPaper>
+                </MudItem>
+                
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudText Typo="Typo.h6" Class="mb-2">Product Details</MudText>
+                        <MudText><strong>Product:</strong> @selectedOrder.ProductName</MudText>
+                        <MudText><strong>SKU:</strong> @selectedOrder.ProductSku</MudText>
+                        <MudText><strong>Quantity:</strong> @selectedOrder.Quantity @selectedOrder.Unit</MudText>
+                        <MudText><strong>Unit Price:</strong> €@selectedOrder.UnitPrice.ToString("N2")</MudText>
+                        <MudText><strong>Total Amount:</strong> €@selectedOrder.TotalAmount.ToString("N2")</MudText>
+                    </MudPaper>
+                </MudItem>
+                
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudText Typo="Typo.h6" Class="mb-2">Delivery Information</MudText>
+                        <MudText><strong>Address:</strong> @selectedOrder.DeliveryAddress</MudText>
+                        <MudText><strong>City:</strong> @selectedOrder.DeliveryCity</MudText>
+                        <MudText><strong>Postal Code:</strong> @selectedOrder.DeliveryPostalCode</MudText>
+                        @if (!string.IsNullOrEmpty(selectedOrder.TrackingNumber))
+                        {
+                            <MudText><strong>Tracking #:</strong> @selectedOrder.TrackingNumber</MudText>
+                        }
+                    </MudPaper>
+                </MudItem>
+                
+                @if (!string.IsNullOrEmpty(selectedOrder.Notes))
+                {
+                    <MudItem xs="12">
+                        <MudPaper Class="pa-4" Elevation="1">
+                            <MudText Typo="Typo.h6" Class="mb-2">Special Instructions</MudText>
+                            <MudText>@selectedOrder.Notes</MudText>
+                        </MudPaper>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => showOrderDialog = false">Close</MudButton>
+        @if (selectedOrder?.Status == "New")
+        {
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => ConfirmOrder(selectedOrder)">
+                Confirm Order
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private string searchString = "";
+    private string selectedStatus = "All";
+    private string selectedPriority = "All";
+    private DateRange? dateRange = null;
+    private List<OrderItem> _orders = new();
+    private bool showOrderDialog = false;
+    private OrderItem? selectedOrder = null;
+    
+    private IEnumerable<OrderItem> filteredOrders
+    {
+        get
+        {
+            var filtered = _orders.AsEnumerable();
+            
+            if (selectedStatus != "All")
+                filtered = filtered.Where(o => o.Status == selectedStatus);
+                
+            if (selectedPriority != "All")
+                filtered = filtered.Where(o => o.Priority == selectedPriority);
+                
+            if (dateRange?.Start != null && dateRange?.End != null)
+                filtered = filtered.Where(o => o.OrderDate >= dateRange.Start && o.OrderDate <= dateRange.End);
+                
+            return filtered;
+        }
+    }
+    
+    protected override void OnInitialized()
+    {
+        LoadOrders();
+    }
+    
+    private void LoadOrders()
+    {
+        // Mock order data
+        _orders = new List<OrderItem>
+        {
+            new OrderItem 
+            { 
+                Id = 1, OrderNumber = "ORD-2024-001", BuyerCompany = "Metro Restaurant Group", ContactPerson = "John Smith",
+                Email = "j.smith@metro.com", Phone = "+32 2 123 4567", ProductName = "Organic Whole Milk", ProductSku = "MILK-ORG-001",
+                Quantity = 100, Unit = "Liters", UnitPrice = 1.80m, TotalAmount = 180.00m, 
+                OrderDate = DateTime.Now.AddDays(-2), DeliveryDate = DateTime.Now.AddDays(1), Status = "Preparing", Priority = "High",
+                DeliveryAddress = "Rue de la Loi 123", DeliveryCity = "Brussels", DeliveryPostalCode = "1000",
+                Notes = "Please deliver early morning before 9 AM"
+            },
+            new OrderItem 
+            { 
+                Id = 2, OrderNumber = "ORD-2024-002", BuyerCompany = "Fresh Market Belgium", ContactPerson = "Marie Dubois",
+                Email = "m.dubois@freshmarket.be", Phone = "+32 2 234 5678", ProductName = "Fresh Tomatoes", ProductSku = "VEG-TOM-003",
+                Quantity = 50, Unit = "Kg", UnitPrice = 3.20m, TotalAmount = 160.00m, 
+                OrderDate = DateTime.Now.AddDays(-1), DeliveryDate = DateTime.Now.AddDays(2), Status = "Confirmed", Priority = "Medium",
+                DeliveryAddress = "Avenue Louise 456", DeliveryCity = "Brussels", DeliveryPostalCode = "1050",
+                Notes = ""
+            },
+            new OrderItem 
+            { 
+                Id = 3, OrderNumber = "ORD-2024-003", BuyerCompany = "Hotel Brussels Premium", ContactPerson = "Pierre Laurent",
+                Email = "p.laurent@hotelbru.com", Phone = "+32 2 345 6789", ProductName = "Premium Beef Tenderloin", ProductSku = "BEEF-GF-007",
+                Quantity = 20, Unit = "Kg", UnitPrice = 45.00m, TotalAmount = 900.00m, 
+                OrderDate = DateTime.Now.AddHours(-6), DeliveryDate = DateTime.Now.AddDays(3), Status = "New", Priority = "High",
+                DeliveryAddress = "Place Eugène Flagey 18", DeliveryCity = "Brussels", DeliveryPostalCode = "1050",
+                Notes = "Premium grade required for VIP event"
+            },
+            new OrderItem 
+            { 
+                Id = 4, OrderNumber = "ORD-2024-004", BuyerCompany = "Café Chain Plus", ContactPerson = "Anna Van Der Berg",
+                Email = "a.vandenberg@cafeplus.be", Phone = "+32 2 456 7890", ProductName = "Arabica Coffee Beans", ProductSku = "COF-ARB-005",
+                Quantity = 25, Unit = "Kg", UnitPrice = 18.50m, TotalAmount = 462.50m, 
+                OrderDate = DateTime.Now.AddDays(-5), DeliveryDate = DateTime.Now.AddDays(-1), Status = "Shipped", Priority = "Medium",
+                DeliveryAddress = "Chaussée de Waterloo 789", DeliveryCity = "Brussels", DeliveryPostalCode = "1180",
+                TrackingNumber = "TRK-2024-004-XYZ", Notes = "Fragile - handle with care"
+            },
+            new OrderItem 
+            { 
+                Id = 5, OrderNumber = "ORD-2024-005", BuyerCompany = "Bakery Delights", ContactPerson = "Sophie Martinez",
+                Email = "s.martinez@bakerydelights.be", Phone = "+32 2 567 8901", ProductName = "Premium Flour", ProductSku = "FLR-PRE-006",
+                Quantity = 200, Unit = "Kg", UnitPrice = 0.85m, TotalAmount = 170.00m, 
+                OrderDate = DateTime.Now.AddDays(-7), DeliveryDate = DateTime.Now.AddDays(-3), Status = "Delivered", Priority = "Low",
+                DeliveryAddress = "Rue Neuve 321", DeliveryCity = "Brussels", DeliveryPostalCode = "1000",
+                TrackingNumber = "TRK-2024-005-ABC", Notes = "Store in dry place"
+            },
+        };
+    }
+    
+    private bool FilterFunc(OrderItem element) => FilterFunc(element, searchString);
+
+    private bool FilterFunc(OrderItem element, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (element.OrderNumber.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.BuyerCompany.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.ProductName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.ProductSku.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+    
+    private Color GetStatusColor(string status) => status switch
+    {
+        "New" => Color.Info,
+        "Confirmed" => Color.Primary,
+        "Preparing" => Color.Warning,
+        "Ready" => Color.Secondary,
+        "Shipped" => Color.Tertiary,
+        "Delivered" => Color.Success,
+        "Cancelled" => Color.Error,
+        _ => Color.Default
+    };
+    
+    private Color GetPriorityColor(string priority) => priority switch
+    {
+        "High" => Color.Error,
+        "Medium" => Color.Warning,
+        "Low" => Color.Info,
+        _ => Color.Default
+    };
+    
+    private void RefreshOrders()
+    {
+        LoadOrders();
+        Snackbar.Add("Orders refreshed");
+    }
+    
+    private void ViewOrder(OrderItem order)
+    {
+        selectedOrder = order;
+        showOrderDialog = true;
+    }
+    
+    private async Task ConfirmOrder(OrderItem order)
+    {
+        await Task.Delay(500);
+        order.Status = "Confirmed";
+        showOrderDialog = false;
+        Snackbar.Add($"Order {order.OrderNumber} confirmed!");
+    }
+    
+    private async Task UpdateStatus(OrderItem order)
+    {
+        await Task.Delay(500);
+        if (order.Status == "Confirmed")
+            order.Status = "Preparing";
+        else if (order.Status == "Preparing")
+            order.Status = "Ready";
+        
+        Snackbar.Add($"Order {order.OrderNumber} status updated to {order.Status}");
+    }
+    
+    private async Task MarkAsShipped(OrderItem order)
+    {
+        await Task.Delay(500);
+        order.Status = "Shipped";
+        order.TrackingNumber = $"TRK-{DateTime.Now.Year}-{order.Id:000}-{Guid.NewGuid().ToString()[..3].ToUpper()}";
+        Snackbar.Add($"Order {order.OrderNumber} marked as shipped. Tracking: {order.TrackingNumber}");
+    }
+    
+    private async Task MarkAsDelivered(OrderItem order)
+    {
+        await Task.Delay(500);
+        order.Status = "Delivered";
+        Snackbar.Add($"Order {order.OrderNumber} marked as delivered!");
+    }
+    
+    private void TrackShipment(OrderItem order)
+    {
+        Snackbar.Add($"Opening tracking for {order.TrackingNumber}...");
+    }
+    
+    private async Task GenerateInvoice(OrderItem order)
+    {
+        Snackbar.Add($"Generating invoice for {order.OrderNumber}...");
+        await Task.Delay(2000);
+        Snackbar.Add("Invoice generated and sent to buyer!");
+    }
+    
+    private void ContactBuyer(OrderItem order)
+    {
+        Navigation.NavigateTo($"mailto:{order.Email}?subject=Regarding Order {order.OrderNumber}");
+    }
+    
+    private async Task ExportOrders()
+    {
+        Snackbar.Add("Exporting orders to Excel...");
+        await Task.Delay(2000);
+        Snackbar.Add("Export completed successfully!");
+    }
+    
+    private class OrderItem
+    {
+        public int Id { get; set; }
+        public string OrderNumber { get; set; } = "";
+        public string BuyerCompany { get; set; } = "";
+        public string ContactPerson { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public string ProductName { get; set; } = "";
+        public string ProductSku { get; set; } = "";
+        public int Quantity { get; set; }
+        public string Unit { get; set; } = "";
+        public decimal UnitPrice { get; set; }
+        public decimal TotalAmount { get; set; }
+        public DateTime OrderDate { get; set; }
+        public DateTime DeliveryDate { get; set; }
+        public string Status { get; set; } = "";
+        public string Priority { get; set; } = "";
+        public string DeliveryAddress { get; set; } = "";
+        public string DeliveryCity { get; set; } = "";
+        public string DeliveryPostalCode { get; set; } = "";
+        public string TrackingNumber { get; set; } = "";
+        public string Notes { get; set; } = "";
+    }
+}

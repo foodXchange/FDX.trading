@@ -94,7 +94,7 @@ namespace FoodX.Core.Services
                 }
 
                 var response = await _embeddingClient.GenerateEmbeddingAsync(text);
-                
+
                 if (response.Value != null)
                 {
                     var embedding = response.Value.ToFloats().ToArray();
@@ -126,25 +126,25 @@ namespace FoodX.Core.Services
             {
                 // Process in batches (Azure OpenAI supports batch requests)
                 const int batchSize = 16;
-                
+
                 for (int i = 0; i < texts.Count; i += batchSize)
                 {
                     var batch = texts.Skip(i).Take(batchSize).ToList();
-                    
+
                     // Truncate texts if needed
-                    var processedBatch = batch.Select(t => 
+                    var processedBatch = batch.Select(t =>
                         t?.Length > 30000 ? t.Substring(0, 30000) : t ?? string.Empty
                     ).ToList();
 
                     var response = await _embeddingClient.GenerateEmbeddingsAsync(processedBatch);
-                    
+
                     foreach (var item in response.Value)
                     {
                         embeddings.Add(item.ToFloats().ToArray());
                     }
 
                     _logger.LogInformation($"Processed batch {i / batchSize + 1}, generated {response.Value.Count} embeddings");
-                    
+
                     // Add delay to respect rate limits
                     if (i + batchSize < texts.Count)
                     {
@@ -174,7 +174,7 @@ namespace FoodX.Core.Services
                 // 3. Store in vector store
 
                 await Task.CompletedTask;
-                
+
                 _logger.LogInformation("Completed batch update of product embeddings");
                 return true;
             }
@@ -193,9 +193,9 @@ namespace FoodX.Core.Services
 
                 // This would typically fetch companies from database and update embeddings
                 // For now, returning true as a placeholder
-                
+
                 await Task.CompletedTask;
-                
+
                 _logger.LogInformation("Completed batch update of company embeddings");
                 return true;
             }
@@ -225,7 +225,7 @@ namespace FoodX.Core.Services
             _apiKey = configuration["OpenAI:ApiKey"] ?? throw new ArgumentException("OpenAI:ApiKey not configured");
             _model = configuration["OpenAI:EmbeddingModel"] ?? "text-embedding-ada-002";
 
-            _httpClient.DefaultRequestHeaders.Authorization = 
+            _httpClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", _apiKey);
         }
 
@@ -243,12 +243,12 @@ namespace FoodX.Core.Services
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 var response = await _httpClient.PostAsync("https://api.openai.com/v1/embeddings", content);
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     var responseJson = await response.Content.ReadAsStringAsync();
                     var result = JsonSerializer.Deserialize<OpenAIEmbeddingResponse>(responseJson);
-                    
+
                     if (result?.data?.Count > 0)
                     {
                         return result.data[0].embedding;

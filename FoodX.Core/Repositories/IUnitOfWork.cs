@@ -24,7 +24,7 @@ namespace FoodX.Core.Repositories
         IGenericRepository<Exhibition> Exhibitions { get; }
         IGenericRepository<Exhibitor> Exhibitors { get; }
         IGenericRepository<Project> Projects { get; }
-        
+
         // Transaction methods
         Task<int> SaveChangesAsync();
         int SaveChanges();
@@ -32,7 +32,7 @@ namespace FoodX.Core.Repositories
         Task BeginTransactionAsync();
         Task CommitTransactionAsync();
         Task RollbackTransactionAsync();
-        
+
         // Generic repository access
         IGenericRepository<TEntity> Repository<TEntity>() where TEntity : class;
     }

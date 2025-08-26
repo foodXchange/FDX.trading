@@ -22,13 +22,13 @@ namespace FoodX.Core.Models.Entities
         public bool IsVerified { get; set; }
         public DateTime? VerifiedAt { get; set; }
         public string? VerifiedBy { get; set; }
-        
+
         // Navigation properties
         public virtual ICollection<Product> Products { get; set; } = new List<Product>();
         public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
         public virtual ICollection<Quote> Quotes { get; set; } = new List<Quote>();
     }
-    
+
     public enum CompanyType
     {
         Supplier = 1,

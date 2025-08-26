@@ -10,13 +10,13 @@ namespace FoodX.Core.Data
     /// </summary>
     public class FoodXBusinessContext : BaseDbContext
     {
-        public FoodXBusinessContext(DbContextOptions<FoodXBusinessContext> options) 
+        public FoodXBusinessContext(DbContextOptions<FoodXBusinessContext> options)
             : base(options)
         {
         }
 
         #region Core Entities (Shared across all portals)
-        
+
         public DbSet<Company> Companies { get; set; } = null!;
         public DbSet<User> Users { get; set; } = null!;
         public DbSet<Product> Products { get; set; } = null!;
@@ -28,7 +28,7 @@ namespace FoodX.Core.Data
         #endregion
 
         #region Trading Entities
-        
+
         public DbSet<Order> Orders { get; set; } = null!;
         public DbSet<OrderItem> OrderItems { get; set; } = null!;
         public DbSet<Quote> Quotes { get; set; } = null!;
@@ -40,7 +40,7 @@ namespace FoodX.Core.Data
         #endregion
 
         #region Workflow Entities
-        
+
         public DbSet<Project> Projects { get; set; } = null!;
         public DbSet<ProjectStage> ProjectStages { get; set; } = null!;
         public DbSet<ProjectActivity> ProjectActivities { get; set; } = null!;
@@ -56,13 +56,13 @@ namespace FoodX.Core.Data
         protected override void ApplyEntityConfigurations(ModelBuilder modelBuilder)
         {
             // Apply configurations with schema organization
-            
+
             // Core schema entities
             ConfigureCoreEntities(modelBuilder);
-            
+
             // Trading schema entities
             ConfigureTradingEntities(modelBuilder);
-            
+
             // Workflow entities
             ConfigureWorkflowEntities(modelBuilder);
         }
@@ -92,7 +92,7 @@ namespace FoodX.Core.Data
                 entity.Property(e => e.FirstName).HasMaxLength(100);
                 entity.Property(e => e.LastName).HasMaxLength(100);
                 entity.Property(e => e.PhoneNumber).HasMaxLength(20);
-                
+
                 entity.HasOne(e => e.Company)
                     .WithMany()
                     .HasForeignKey(e => e.CompanyId)
@@ -112,7 +112,7 @@ namespace FoodX.Core.Data
                 entity.Property(e => e.Category).HasMaxLength(100);
                 entity.Property(e => e.Price).HasPrecision(18, 2);
                 entity.Property(e => e.Description).HasMaxLength(2000);
-                
+
                 // Relationships
                 entity.HasOne(e => e.Supplier)
                     .WithMany(s => s.Products)
@@ -138,7 +138,7 @@ namespace FoodX.Core.Data
                 entity.Property(e => e.SupplierName).HasMaxLength(500);
                 entity.Property(e => e.Country).HasMaxLength(100);
                 entity.Property(e => e.ProductCategory).HasMaxLength(500);
-                
+
                 // Navigation property for products
                 entity.HasMany(s => s.Products)
                     .WithOne(p => p.Supplier)
@@ -154,7 +154,7 @@ namespace FoodX.Core.Data
                 entity.Property(e => e.City).HasMaxLength(200);
                 entity.Property(e => e.Venue).HasMaxLength(500);
                 entity.Property(e => e.Description).HasMaxLength(2000);
-                
+
                 entity.HasMany(e => e.Exhibitors)
                     .WithOne(ex => ex.Exhibition)
                     .HasForeignKey(ex => ex.ExhibitionId);
@@ -169,7 +169,7 @@ namespace FoodX.Core.Data
                 entity.Property(e => e.Contact).HasMaxLength(500);
                 entity.Property(e => e.Email).HasMaxLength(256);
                 entity.Property(e => e.Phone).HasMaxLength(50);
-                
+
                 entity.HasOne(e => e.Exhibition)
                     .WithMany(ex => ex.Exhibitors)
                     .HasForeignKey(e => e.ExhibitionId);
@@ -189,18 +189,18 @@ namespace FoodX.Core.Data
                 entity.Property(e => e.OrderNumber).HasMaxLength(50).IsRequired();
                 entity.Property(e => e.Status).HasMaxLength(50);
                 entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
-                
+
                 // Relationships
                 entity.HasOne(o => o.Buyer)
                     .WithMany()
                     .HasForeignKey(o => o.BuyerId)
                     .OnDelete(DeleteBehavior.Restrict);
-                    
+
                 entity.HasOne(o => o.Supplier)
                     .WithMany()
                     .HasForeignKey(o => o.SupplierId)
                     .OnDelete(DeleteBehavior.Restrict);
-                    
+
                 entity.HasMany(o => o.OrderItems)
                     .WithOne(oi => oi.Order)
                     .HasForeignKey(oi => oi.OrderId);
@@ -214,11 +214,11 @@ namespace FoodX.Core.Data
                 entity.Property(e => e.Quantity).HasPrecision(18, 2);
                 entity.Property(e => e.UnitPrice).HasPrecision(18, 2);
                 entity.Property(e => e.TotalPrice).HasPrecision(18, 2);
-                
+
                 entity.HasOne(oi => oi.Order)
                     .WithMany(o => o.OrderItems)
                     .HasForeignKey(oi => oi.OrderId);
-                    
+
                 entity.HasOne(oi => oi.Product)
                     .WithMany()
                     .HasForeignKey(oi => oi.ProductId)
@@ -235,7 +235,7 @@ namespace FoodX.Core.Data
                 entity.Property(e => e.QuoteNumber).HasMaxLength(50).IsRequired();
                 entity.Property(e => e.Status).HasMaxLength(50);
                 entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
-                
+
                 entity.HasMany(q => q.Items)
                     .WithOne(qi => qi.Quote)
                     .HasForeignKey(qi => qi.QuoteId);
@@ -262,7 +262,7 @@ namespace FoodX.Core.Data
                 entity.Property(e => e.Title).HasMaxLength(200);
                 entity.Property(e => e.Description).HasMaxLength(2000);
                 entity.Property(e => e.Status).HasMaxLength(50);
-                
+
                 entity.HasMany(r => r.Items)
                     .WithOne(ri => ri.RFQ)
                     .HasForeignKey(ri => ri.RFQId);
@@ -293,15 +293,15 @@ namespace FoodX.Core.Data
                 entity.Property(e => e.ProjectName).HasMaxLength(200).IsRequired();
                 entity.Property(e => e.Description).HasMaxLength(2000);
                 entity.Property(e => e.Status).HasMaxLength(50);
-                
+
                 entity.HasMany(p => p.Stages)
                     .WithOne(ps => ps.Project)
                     .HasForeignKey(ps => ps.ProjectId);
-                    
+
                 entity.HasMany(p => p.Activities)
                     .WithOne(pa => pa.Project)
                     .HasForeignKey(pa => pa.ProjectId);
-                    
+
                 entity.HasMany(p => p.TeamMembers)
                     .WithOne(tm => tm.Project)
                     .HasForeignKey(tm => tm.ProjectId);
@@ -325,7 +325,7 @@ namespace FoodX.Core.Data
                 entity.Property(e => e.TemplateName).HasMaxLength(200).IsRequired();
                 entity.Property(e => e.Description).HasMaxLength(2000);
                 entity.Property(e => e.TemplateType).HasMaxLength(100);
-                
+
                 entity.HasMany(wt => wt.Stages)
                     .WithOne(ws => ws.Template)
                     .HasForeignKey(ws => ws.TemplateId);

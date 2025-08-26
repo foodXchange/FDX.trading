@@ -58,7 +58,7 @@ namespace FoodX.Core.Repositories
         {
             if (predicate == null)
                 return await _dbSet.CountAsync();
-            
+
             return await _dbSet.CountAsync(predicate);
         }
 

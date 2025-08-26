@@ -1,0 +1,369 @@
+@page "/superadmin/dashboard"
+@using FoodX.Admin.Data
+@using FoodX.Admin.Models
+@using FoodX.Admin.Services
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject FoodXDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject IPortalContextService PortalContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize(Roles = "SuperAdmin")]
+@rendermode InteractiveServer
+
+<PageTitle>SuperAdmin Dashboard - FoodX</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h3" GutterBottom="true">
+                <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" Class="mr-2" Style="vertical-align: middle;" />
+                SuperAdmin Dashboard
+            </MudText>
+            <MudText Typo="Typo.body1" Class="mb-4">Complete platform overview and control center</MudText>
+        </MudItem>
+
+        <!-- Platform Overview Cards -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="cursor-pointer" @onclick="@(() => SwitchToPortal(PortalMode.Admin))">
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Color="Color.Primary" Style="font-size: 3rem;" />
+                    <MudText Typo="Typo.h4" Class="mt-2">@_totalUsers</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Total Users</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Success">
+                        @_activeUsersToday active today
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="cursor-pointer" @onclick="@(() => SwitchToPortal(PortalMode.Supplier))">
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Color="Color.Success" Style="font-size: 3rem;" />
+                    <MudText Typo="Typo.h4" Class="mt-2">@_totalSuppliers</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Active Suppliers</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Success">
+                        @_totalProducts products listed
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="cursor-pointer" @onclick="@(() => SwitchToPortal(PortalMode.Buyer))">
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Color="Color.Info" Style="font-size: 3rem;" />
+                    <MudText Typo="Typo.h4" Class="mt-2">@_totalBuyers</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Active Buyers</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Info">
+                        @_activeRfqs open RFQs
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="cursor-pointer" @onclick="@(() => SwitchToPortal(PortalMode.Marketplace))">
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.Store" Color="Color.Secondary" Style="font-size: 3rem;" />
+                    <MudText Typo="Typo.h4" Class="mt-2">€@_totalTransactionValue.ToString("N0")</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Transaction Volume</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Success">
+                        +@_growthRate% this month
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Real-time Activity Feed -->
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-2" />
+                    Platform Activity Feed
+                </MudText>
+                <MudTimeline>
+                    <MudTimelineItem Color="Color.Success" Size="Size.Small">
+                        <ItemContent>
+                            <MudText Typo="Typo.body2"><strong>New Supplier Registered:</strong> ABC Foods Ltd (Poland)</MudText>
+                            <MudText Typo="Typo.caption">2 minutes ago</MudText>
+                        </ItemContent>
+                    </MudTimelineItem>
+                    <MudTimelineItem Color="Color.Info" Size="Size.Small">
+                        <ItemContent>
+                            <MudText Typo="Typo.body2"><strong>RFQ Created:</strong> Carrefour requests 500kg organic tomatoes</MudText>
+                            <MudText Typo="Typo.caption">5 minutes ago</MudText>
+                        </ItemContent>
+                    </MudTimelineItem>
+                    <MudTimelineItem Color="Color.Warning" Size="Size.Small">
+                        <ItemContent>
+                            <MudText Typo="Typo.body2"><strong>Quote Submitted:</strong> €45,000 for dairy products order</MudText>
+                            <MudText Typo="Typo.caption">12 minutes ago</MudText>
+                        </ItemContent>
+                    </MudTimelineItem>
+                    <MudTimelineItem Color="Color.Primary" Size="Size.Small">
+                        <ItemContent>
+                            <MudText Typo="Typo.body2"><strong>Order Completed:</strong> Metro AG order #FX-2024-1842 delivered</MudText>
+                            <MudText Typo="Typo.caption">18 minutes ago</MudText>
+                        </ItemContent>
+                    </MudTimelineItem>
+                    <MudTimelineItem Color="Color.Success" Size="Size.Small">
+                        <ItemContent>
+                            <MudText Typo="Typo.body2"><strong>Product Listed:</strong> 50 new products added by Italian suppliers</MudText>
+                            <MudText Typo="Typo.caption">25 minutes ago</MudText>
+                        </ItemContent>
+                    </MudTimelineItem>
+                </MudTimeline>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Quick Actions Panel -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Speed" Class="mr-2" />
+                    Quick Actions
+                </MudText>
+                
+                <MudStack Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                               StartIcon="@Icons.Material.Filled.PersonSearch" FullWidth="true"
+                               Href="/superadmin/impersonate">
+                        Impersonate User
+                    </MudButton>
+                    
+                    <MudButton Variant="Variant.Outlined" Color="Color.Success" 
+                               StartIcon="@Icons.Material.Filled.PersonAdd" FullWidth="true"
+                               OnClick="@(() => NavigationManager.NavigateTo("/users"))">
+                        Create User
+                    </MudButton>
+                    
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" 
+                               StartIcon="@Icons.Material.Filled.Business" FullWidth="true"
+                               OnClick="@(() => NavigationManager.NavigateTo("/companies"))">
+                        Manage Companies
+                    </MudButton>
+                    
+                    <MudButton Variant="Variant.Outlined" Color="Color.Warning" 
+                               StartIcon="@Icons.Material.Filled.Analytics" FullWidth="true"
+                               Href="/superadmin/analytics">
+                        View Analytics
+                    </MudButton>
+                    
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" 
+                               StartIcon="@Icons.Material.Filled.History" FullWidth="true"
+                               Href="/superadmin/audit-log">
+                        Audit Log
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+
+            <MudPaper Class="pa-4 mt-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.MonitorHeart" Class="mr-2" />
+                    System Health
+                </MudText>
+                
+                <MudList T="string" Dense="true">
+                    <MudListItem T="string">
+                        <div class="d-flex align-center justify-space-between">
+                            <MudText>Database</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">Healthy</MudChip>
+                        </div>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <div class="d-flex align-center justify-space-between">
+                            <MudText>API Services</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">Online</MudChip>
+                        </div>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <div class="d-flex align-center justify-space-between">
+                            <MudText>Email Service</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">Active</MudChip>
+                        </div>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <div class="d-flex align-center justify-space-between">
+                            <MudText>AI Services</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">Limited</MudChip>
+                        </div>
+                    </MudListItem>
+                </MudList>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Portal Statistics -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.BarChart" Class="mr-2" />
+                    Portal Statistics
+                </MudText>
+                
+                <MudGrid>
+                    <MudItem xs="12" md="3">
+                        <MudCard>
+                            <MudCardContent>
+                                <MudText Typo="Typo.h6" Color="Color.Primary">Admin Portal</MudText>
+                                <MudDivider Class="my-2" />
+                                <MudSimpleTable Dense="true">
+                                    <tbody>
+                                        <tr>
+                                            <td>Active Sessions</td>
+                                            <td class="text-right"><strong>12</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Daily Logins</td>
+                                            <td class="text-right"><strong>45</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td>API Calls</td>
+                                            <td class="text-right"><strong>1,234</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </MudSimpleTable>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="3">
+                        <MudCard>
+                            <MudCardContent>
+                                <MudText Typo="Typo.h6" Color="Color.Success">Supplier Portal</MudText>
+                                <MudDivider Class="my-2" />
+                                <MudSimpleTable Dense="true">
+                                    <tbody>
+                                        <tr>
+                                            <td>Active Sessions</td>
+                                            <td class="text-right"><strong>234</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Products Added</td>
+                                            <td class="text-right"><strong>89</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Quotes Sent</td>
+                                            <td class="text-right"><strong>156</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </MudSimpleTable>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="3">
+                        <MudCard>
+                            <MudCardContent>
+                                <MudText Typo="Typo.h6" Color="Color.Info">Buyer Portal</MudText>
+                                <MudDivider Class="my-2" />
+                                <MudSimpleTable Dense="true">
+                                    <tbody>
+                                        <tr>
+                                            <td>Active Sessions</td>
+                                            <td class="text-right"><strong>178</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td>RFQs Created</td>
+                                            <td class="text-right"><strong>34</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Orders Placed</td>
+                                            <td class="text-right"><strong>67</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </MudSimpleTable>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="3">
+                        <MudCard>
+                            <MudCardContent>
+                                <MudText Typo="Typo.h6" Color="Color.Secondary">Marketplace</MudText>
+                                <MudDivider Class="my-2" />
+                                <MudSimpleTable Dense="true">
+                                    <tbody>
+                                        <tr>
+                                            <td>Page Views</td>
+                                            <td class="text-right"><strong>5,678</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Unique Visitors</td>
+                                            <td class="text-right"><strong>1,234</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Inquiries</td>
+                                            <td class="text-right"><strong>89</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </MudSimpleTable>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private int _totalUsers = 0;
+    private int _activeUsersToday = 0;
+    private int _totalSuppliers = 0;
+    private int _totalBuyers = 0;
+    private int _totalProducts = 0;
+    private int _activeRfqs = 0;
+    private decimal _totalTransactionValue = 0;
+    private int _growthRate = 24;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        try
+        {
+            // Load user statistics
+            _totalUsers = await DbContext.Users.CountAsync();
+            _activeUsersToday = await DbContext.Users
+                .Where(u => u.LastLoginAt != null && u.LastLoginAt.Value.Date == DateTime.Today)
+                .CountAsync();
+
+            // Load supplier statistics
+            _totalSuppliers = await DbContext.FoodXSuppliers.CountAsync();
+            _totalProducts = await DbContext.Products.CountAsync();
+
+            // Load buyer statistics
+            _totalBuyers = await DbContext.FoodXBuyers.CountAsync();
+            
+            // Calculate transaction value (mock data for now)
+            _totalTransactionValue = 2847650;
+            _activeRfqs = 42;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+        }
+    }
+
+    private void SwitchToPortal(PortalMode mode)
+    {
+        PortalContext.SetPortalMode(mode);
+        
+        // Navigate to appropriate dashboard
+        var url = mode switch
+        {
+            PortalMode.Supplier => "/portal/supplier/dashboard",
+            PortalMode.Buyer => "/portal/buyer/dashboard",
+            PortalMode.Marketplace => "/portal/marketplace/dashboard",
+            _ => "/"
+        };
+        
+        NavigationManager.NavigateTo(url);
+    }
+}

@@ -1,0 +1,383 @@
+@page "/portal/buyer/dashboard"
+@using FoodX.Admin.Data
+@using FoodX.Admin.Models
+@using FoodX.Admin.Services
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject FoodXDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject IPortalContextService PortalContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+@inject IDashboardDataService DashboardDataService
+@attribute [Authorize(Roles = "SuperAdmin,Admin,Buyer")]
+@rendermode InteractiveServer
+
+<PageTitle>Buyer Dashboard - FoodX</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    @if (PortalContext.IsImpersonating)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            <MudText>
+                <strong>Impersonating:</strong> @PortalContext.ImpersonatedUser?.Identity?.Name
+                - Viewing buyer portal as this user would see it
+            </MudText>
+        </MudAlert>
+    }
+    
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h4" GutterBottom="true">
+                <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Class="mr-2" />
+                Buyer Dashboard
+            </MudText>
+            <MudText Typo="Typo.body1" Class="mb-4">
+                Welcome back, @GetBuyerName()! Here's your procurement overview.
+            </MudText>
+        </MudItem>
+
+        <!-- Key Metrics -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="8">
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Active RFQs</MudText>
+                            <MudText Typo="Typo.h4">@_activeRfqs</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Info">
+                                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" /> @_rfqsExpiringSoon expiring soon
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="4" Class="d-flex align-center justify-end">
+                            <MudIcon Icon="@Icons.Material.Filled.RequestQuote" Size="Size.Large" Color="Color.Info" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="8">
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Pending Quotes</MudText>
+                            <MudText Typo="Typo.h4">@_pendingQuotes</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Warning">
+                                <MudIcon Icon="@Icons.Material.Filled.NewReleases" Size="Size.Small" /> @_newQuotes new today
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="4" Class="d-flex align-center justify-end">
+                            <MudIcon Icon="@Icons.Material.Filled.Receipt" Size="Size.Large" Color="Color.Warning" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="8">
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Active Orders</MudText>
+                            <MudText Typo="Typo.h4">@_activeOrders</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Success">
+                                <MudIcon Icon="@Icons.Material.Filled.Euro" Size="Size.Small" /> €@_totalOrderValue.ToString("N0")
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="4" Class="d-flex align-center justify-end">
+                            <MudIcon Icon="@Icons.Material.Filled.ShoppingBag" Size="Size.Large" Color="Color.Success" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="8">
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Cost Savings</MudText>
+                            <MudText Typo="Typo.h4">€@_costSavings.ToString("N0")</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Success">
+                                <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Size="Size.Small" /> @_savingsPercentage% this month
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="4" Class="d-flex align-center justify-end">
+                            <MudIcon Icon="@Icons.Material.Filled.Savings" Size="Size.Large" Color="Color.Primary" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Quick Actions -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Quick Actions</MudText>
+                
+                <MudStack Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                               StartIcon="@Icons.Material.Filled.AddShoppingCart" FullWidth="true"
+                               OnClick="@(() => NavigateTo("/portal/buyer/rfq/create"))">
+                        Create New RFQ
+                    </MudButton>
+                    
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" 
+                               StartIcon="@Icons.Material.Filled.Search" FullWidth="true"
+                               OnClick="@(() => NavigateTo("/portal/buyer/suppliers"))">
+                        Browse Suppliers
+                    </MudButton>
+                    
+                    <MudButton Variant="Variant.Outlined" Color="Color.Warning" 
+                               StartIcon="@Icons.Material.Filled.Receipt" FullWidth="true"
+                               OnClick="@(() => NavigateTo("/portal/buyer/quotes"))">
+                        Review Quotes
+                    </MudButton>
+                    
+                    <MudButton Variant="Variant.Outlined" Color="Color.Success" 
+                               StartIcon="@Icons.Material.Filled.Psychology" FullWidth="true"
+                               OnClick="@(() => NavigateTo("/portal/buyer/ai-search"))">
+                        AI Product Search
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Recent Quotes -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Recent Quotes Received</MudText>
+                
+                <MudList T="string" Dense="true">
+                    @foreach (var quote in _recentQuotes)
+                    {
+                        <MudListItem T="string">
+                            <MudGrid>
+                                <MudItem xs="8">
+                                    <MudText Typo="Typo.body2">@quote.ProductName</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                                        @quote.SupplierName • €@quote.Price.ToString("N0")
+                                    </MudText>
+                                </MudItem>
+                                <MudItem xs="4" Class="text-right">
+                                    @if (quote.IsNew)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">New</MudChip>
+                                    }
+                                </MudItem>
+                            </MudGrid>
+                        </MudListItem>
+                    }
+                </MudList>
+                
+                <MudButton Variant="Variant.Text" Color="Color.Primary" FullWidth="true" 
+                           EndIcon="@Icons.Material.Filled.ArrowForward" Class="mt-2"
+                           OnClick="@(() => NavigateTo("/portal/buyer/quotes"))">
+                    View All Quotes
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Supplier Performance -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Top Suppliers</MudText>
+                
+                <MudList T="string" Dense="true">
+                    @foreach (var supplier in _topSuppliers)
+                    {
+                        <MudListItem T="string">
+                            <MudGrid>
+                                <MudItem xs="8">
+                                    <MudText Typo="Typo.body2">@supplier.Name</MudText>
+                                    <MudRating ReadOnly="true" SelectedValue="@supplier.Rating" Size="Size.Small" />
+                                </MudItem>
+                                <MudItem xs="4" Class="text-right">
+                                    <MudText Typo="Typo.caption" Color="Color.Success">
+                                        @supplier.OrderCount orders
+                                    </MudText>
+                                </MudItem>
+                            </MudGrid>
+                        </MudListItem>
+                    }
+                </MudList>
+                
+                <MudButton Variant="Variant.Text" Color="Color.Primary" FullWidth="true" 
+                           EndIcon="@Icons.Material.Filled.ArrowForward" Class="mt-2"
+                           OnClick="@(() => NavigateTo("/portal/buyer/vendors/approved"))">
+                    Manage Suppliers
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Procurement Insights -->
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Procurement Insights</MudText>
+                
+                <MudGrid>
+                    <MudItem xs="12" md="4">
+                        <MudCard Elevation="0">
+                            <MudCardContent>
+                                <MudText Typo="Typo.caption" Color="Color.Tertiary">Monthly Spend</MudText>
+                                <MudText Typo="Typo.h5">€@_monthlySpend.ToString("N0")</MudText>
+                                <MudProgressLinear Value="75" Color="Color.Primary" Class="mt-2" />
+                                <MudText Typo="Typo.caption">75% of budget used</MudText>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="4">
+                        <MudCard Elevation="0">
+                            <MudCardContent>
+                                <MudText Typo="Typo.caption" Color="Color.Tertiary">Avg. Lead Time</MudText>
+                                <MudText Typo="Typo.h5">@_avgLeadTime days</MudText>
+                                <MudProgressLinear Value="60" Color="Color.Success" Class="mt-2" />
+                                <MudText Typo="Typo.caption">20% improvement</MudText>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="4">
+                        <MudCard Elevation="0">
+                            <MudCardContent>
+                                <MudText Typo="Typo.caption" Color="Color.Tertiary">Supplier Performance</MudText>
+                                <MudText Typo="Typo.h5">@_supplierPerformance%</MudText>
+                                <MudProgressLinear Value="@_supplierPerformance" Color="Color.Success" Class="mt-2" />
+                                <MudText Typo="Typo.caption">Above target</MudText>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Urgent Actions -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Class="mr-2" />
+                    Urgent Actions
+                </MudText>
+                
+                <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">
+                    3 RFQs expiring in 24 hours
+                </MudAlert>
+                
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                    5 quotes awaiting review
+                </MudAlert>
+                
+                <MudAlert Severity="Severity.Normal" Dense="true" Class="mb-2">
+                    2 orders pending approval
+                </MudAlert>
+                
+                <MudAlert Severity="Severity.Success" Dense="true">
+                    Contract renewal due next week
+                </MudAlert>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private int _activeRfqs = 0;
+    private int _rfqsExpiringSoon = 3;
+    private int _pendingQuotes = 0;
+    private int _newQuotes = 5;
+    private int _activeOrders = 0;
+    private decimal _totalOrderValue = 0;
+    private decimal _costSavings = 34200;
+    private int _savingsPercentage = 12;
+    private decimal _monthlySpend = 456000;
+    private int _avgLeadTime = 4;
+    private int _supplierPerformance = 92;
+    
+    private List<QuoteItem> _recentQuotes = new();
+    private List<SupplierItem> _topSuppliers = new();
+    private string _buyerName = "Buyer";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBuyerData();
+        LoadMockData();
+    }
+
+    private async Task LoadBuyerData()
+    {
+        try
+        {
+            // Get current user (or impersonated user)
+            var user = PortalContext.IsImpersonating 
+                ? PortalContext.ImpersonatedUser 
+                : (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var userEmail = user.Identity.Name ?? string.Empty;
+                
+                // Use optimized dashboard service
+                var dashboardData = await DashboardDataService.GetBuyerDashboardDataAsync(userEmail);
+                
+                _buyerName = dashboardData.CompanyName;
+                _activeRfqs = dashboardData.ActiveRfqs;
+                _pendingQuotes = dashboardData.PendingQuotes;
+                _activeOrders = dashboardData.ActiveOrders;
+                _totalOrderValue = dashboardData.TotalOrderValue;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading buyer data: {ex.Message}");
+        }
+    }
+
+    private void LoadMockData()
+    {
+        _recentQuotes = new List<QuoteItem>
+        {
+            new QuoteItem { ProductName = "Organic Olive Oil", SupplierName = "Italian Farms Ltd", Price = 4500, IsNew = true },
+            new QuoteItem { ProductName = "Premium Coffee Beans", SupplierName = "Colombian Export Co", Price = 8900, IsNew = true },
+            new QuoteItem { ProductName = "Fresh Dairy Products", SupplierName = "Dutch Dairy Group", Price = 12300, IsNew = false },
+            new QuoteItem { ProductName = "Frozen Vegetables", SupplierName = "Polish Agro", Price = 3200, IsNew = false }
+        };
+
+        _topSuppliers = new List<SupplierItem>
+        {
+            new SupplierItem { Name = "Italian Farms Ltd", Rating = 5, OrderCount = 47 },
+            new SupplierItem { Name = "Dutch Dairy Group", Rating = 4, OrderCount = 38 },
+            new SupplierItem { Name = "Spanish Produce Co", Rating = 5, OrderCount = 29 },
+            new SupplierItem { Name = "German Bakery Supplies", Rating = 4, OrderCount = 22 }
+        };
+    }
+
+    private string GetBuyerName()
+    {
+        return _buyerName;
+    }
+
+    private void NavigateTo(string url)
+    {
+        NavigationManager.NavigateTo(url);
+    }
+
+    private class QuoteItem
+    {
+        public string ProductName { get; set; } = "";
+        public string SupplierName { get; set; } = "";
+        public decimal Price { get; set; }
+        public bool IsNew { get; set; }
+    }
+
+    private class SupplierItem
+    {
+        public string Name { get; set; } = "";
+        public int Rating { get; set; }
+        public int OrderCount { get; set; }
+    }
+}

@@ -1,30 +1,44 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">FoodX.Supplier</a>
-    </div>
-</div>
+@using MudBlazor
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-    </nav>
-</div>
-
+<MudNavMenu>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+    
+    <AuthorizeView>
+        <Authorized>
+            <MudNavGroup Title="Company" Icon="@Icons.Material.Filled.Business" Expanded="false">
+                <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.AccountBox">Company Profile</MudNavLink>
+                <MudNavLink Href="/certifications" Icon="@Icons.Material.Filled.VerifiedUser">Certifications</MudNavLink>
+                <MudNavLink Href="/contacts" Icon="@Icons.Material.Filled.ContactPhone">Contacts</MudNavLink>
+                <MudNavLink Href="/documents" Icon="@Icons.Material.Filled.Description">Documents</MudNavLink>
+            </MudNavGroup>
+            
+            <MudNavGroup Title="Products" Icon="@Icons.Material.Filled.Inventory" Expanded="false">
+                <MudNavLink Href="/products" Icon="@Icons.Material.Filled.List">Product Catalog</MudNavLink>
+                <MudNavLink Href="/products/add" Icon="@Icons.Material.Filled.Add">Add Product</MudNavLink>
+                <MudNavLink Href="/products/import" Icon="@Icons.Material.Filled.Upload">Import Products</MudNavLink>
+                <MudNavLink Href="/products/categories" Icon="@Icons.Material.Filled.Category">Categories</MudNavLink>
+            </MudNavGroup>
+            
+            <MudNavGroup Title="Business" Icon="@Icons.Material.Filled.BusinessCenter" Expanded="false">
+                <MudNavLink Href="/rfqs" Icon="@Icons.Material.Filled.RequestQuote">RFQ Requests</MudNavLink>
+                <MudNavLink Href="/quotes" Icon="@Icons.Material.Filled.Receipt">My Quotes</MudNavLink>
+                <MudNavLink Href="/orders" Icon="@Icons.Material.Filled.ShoppingCart">Orders</MudNavLink>
+                <MudNavLink Href="/buyers" Icon="@Icons.Material.Filled.People">Buyers</MudNavLink>
+            </MudNavGroup>
+            
+            <MudNavGroup Title="Analytics" Icon="@Icons.Material.Filled.Analytics" Expanded="false">
+                <MudNavLink Href="/analytics/sales" Icon="@Icons.Material.Filled.TrendingUp">Sales Report</MudNavLink>
+                <MudNavLink Href="/analytics/products" Icon="@Icons.Material.Filled.BarChart">Product Performance</MudNavLink>
+                <MudNavLink Href="/analytics/buyers" Icon="@Icons.Material.Filled.PieChart">Buyer Analysis</MudNavLink>
+            </MudNavGroup>
+            
+            <MudNavLink Href="/messages" Icon="@Icons.Material.Filled.Message">Messages</MudNavLink>
+            <MudNavLink Href="/settings" Icon="@Icons.Material.Filled.Settings">Settings</MudNavLink>
+        </Authorized>
+        <NotAuthorized>
+            <MudNavLink Href="/login" Icon="@Icons.Material.Filled.Login">Login</MudNavLink>
+            <MudNavLink Href="/register" Icon="@Icons.Material.Filled.PersonAdd">Register</MudNavLink>
+            <MudNavLink Href="/about" Icon="@Icons.Material.Filled.Info">About</MudNavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+</MudNavMenu>

@@ -126,7 +126,7 @@ namespace FoodX.Admin.Services
             try
             {
                 _logger.LogInformation($"Attempting to send email via SendGrid API to {toEmail}");
-                
+
                 var from = new EmailAddress(
                     _configuration["SendGrid:FromEmail"] ?? "noreply@fdx.trading",
                     _configuration["SendGrid:FromName"] ?? "FoodX Trading"

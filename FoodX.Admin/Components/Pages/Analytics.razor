@@ -1,0 +1,182 @@
+@page "/analytics"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>Analytics - FoodX</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h3" GutterBottom="true">
+                <MudIcon Icon="@Icons.Material.Filled.Analytics" Class="mr-2" />
+                Analytics Dashboard
+            </MudText>
+        </MudItem>
+
+        <!-- Key Metrics -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Total Revenue</MudText>
+                    <MudText Typo="Typo.h4">€2.4M</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Success">
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> +12% this month
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Active Users</MudText>
+                    <MudText Typo="Typo.h4">1,247</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Success">
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> +8% this week
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Total Transactions</MudText>
+                    <MudText Typo="Typo.h4">8,456</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Warning">
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingFlat" Size="Size.Small" /> Same as last month
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Avg Order Value</MudText>
+                    <MudText Typo="Typo.h4">€284</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Error">
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Size="Size.Small" /> -3% this month
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Charts Section -->
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Revenue Trend</MudText>
+                <div style="height: 300px; background: linear-gradient(to right, #f0f0f0, #e0e0e0); display: flex; align-items: center; justify-content: center;">
+                    <MudText Color="Color.Tertiary">Chart placeholder - Integration pending</MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Top Categories</MudText>
+                <MudList T="string">
+                    <MudListItem T="string">
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText>Fresh Produce</MudText>
+                            <MudChip T="string" Size="Size.Small">32%</MudChip>
+                        </div>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText>Dairy Products</MudText>
+                            <MudChip T="string" Size="Size.Small">28%</MudChip>
+                        </div>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText>Meat & Poultry</MudText>
+                            <MudChip T="string" Size="Size.Small">21%</MudChip>
+                        </div>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText>Beverages</MudText>
+                            <MudChip T="string" Size="Size.Small">11%</MudChip>
+                        </div>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText>Other</MudText>
+                            <MudChip T="string" Size="Size.Small">8%</MudChip>
+                        </div>
+                    </MudListItem>
+                </MudList>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Performance Metrics -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Platform Performance</MudText>
+                <MudSimpleTable>
+                    <tbody>
+                        <tr>
+                            <td>Page Load Time</td>
+                            <td><MudChip T="string" Size="Size.Small" Color="Color.Success">1.4s</MudChip></td>
+                        </tr>
+                        <tr>
+                            <td>API Response Time</td>
+                            <td><MudChip T="string" Size="Size.Small" Color="Color.Success">142ms</MudChip></td>
+                        </tr>
+                        <tr>
+                            <td>Database Queries/min</td>
+                            <td><MudChip T="string" Size="Size.Small" Color="Color.Warning">1,847</MudChip></td>
+                        </tr>
+                        <tr>
+                            <td>Active Sessions</td>
+                            <td><MudChip T="string" Size="Size.Small" Color="Color.Info">324</MudChip></td>
+                        </tr>
+                        <tr>
+                            <td>Error Rate</td>
+                            <td><MudChip T="string" Size="Size.Small" Color="Color.Success">0.02%</MudChip></td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+
+        <!-- User Activity -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">User Activity</MudText>
+                <MudSimpleTable>
+                    <tbody>
+                        <tr>
+                            <td>New Registrations Today</td>
+                            <td><strong>47</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Active Buyers</td>
+                            <td><strong>523</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Active Suppliers</td>
+                            <td><strong>724</strong></td>
+                        </tr>
+                        <tr>
+                            <td>RFQs Created Today</td>
+                            <td><strong>18</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Quotes Submitted Today</td>
+                            <td><strong>92</strong></td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    // Future: Integrate with real analytics data
+    // Add chart libraries (Chart.js, ApexCharts, etc.)
+    // Connect to Application Insights or similar
+}

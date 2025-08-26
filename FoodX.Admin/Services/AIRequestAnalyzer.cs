@@ -36,15 +36,15 @@ namespace FoodX.Admin.Services
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
             _embeddingService = embeddingService;
-            
+
             // Check for Azure OpenAI configuration first
             _azureOpenAiEndpoint = configuration["AzureOpenAI:Endpoint"] ?? "";
             _azureOpenAiKey = configuration["AzureOpenAI:ApiKey"] ?? "";
             _useAzureOpenAI = !string.IsNullOrEmpty(_azureOpenAiEndpoint) && !string.IsNullOrEmpty(_azureOpenAiKey);
-            
+
             // Fall back to OpenAI if Azure OpenAI not configured
             _openAiApiKey = configuration["OpenAI:ApiKey"] ?? "";
-            
+
             _logger.LogInformation($"AI Request Analyzer initialized with {(_useAzureOpenAI ? "Azure OpenAI" : "OpenAI API")}");
         }
 
@@ -56,13 +56,13 @@ namespace FoodX.Admin.Services
 
                 // Create the prompt for OpenAI
                 var prompt = GenerateTextAnalysisPrompt(text);
-                
+
                 // Call OpenAI API
                 var analysisJson = await CallOpenAIApi(prompt);
-                
+
                 // Parse the response
                 var analysis = JsonSerializer.Deserialize<ProductAnalysis>(analysisJson) ?? new ProductAnalysis();
-                
+
                 return analysis;
             }
             catch (Exception ex)
@@ -84,7 +84,7 @@ namespace FoodX.Admin.Services
 
                 // Use GPT-4 Vision for comprehensive image analysis
                 var analysisJson = await CallVisionAPI(dataUrl);
-                
+
                 if (!string.IsNullOrEmpty(analysisJson))
                 {
                     var analysis = JsonSerializer.Deserialize<ProductAnalysis>(analysisJson);
@@ -103,7 +103,7 @@ namespace FoodX.Admin.Services
                 {
                     return await AnalyzeWithComputerVision(imageData, visionEndpoint, visionKey);
                 }
-                
+
                 _logger.LogWarning("Vision analysis failed, returning mock data");
                 return GenerateMockImageAnalysis();
             }
@@ -120,17 +120,17 @@ namespace FoodX.Admin.Services
             {
                 // For Computer Vision, we'd need the Azure.CognitiveServices.Vision.ComputerVision package
                 // For now, we'll use the image data with OpenAI if available
-                
+
                 // Convert image to base64 for potential use with OpenAI Vision
                 var base64Image = Convert.ToBase64String(imageData);
-                
+
                 // Generate a description based on image
                 var extractedText = "Product image analysis pending Computer Vision setup";
-                
+
                 // Use the extracted text to generate analysis
                 var prompt = GenerateImageAnalysisPrompt(extractedText);
                 var analysisJson = await CallOpenAIApi(prompt);
-                
+
                 return JsonSerializer.Deserialize<ProductAnalysis>(analysisJson) ?? GenerateMockImageAnalysis();
             }
             catch (Exception ex)
@@ -195,13 +195,13 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
 
                 // Fetch content from URL
                 var content = await FetchUrlContent(url);
-                
+
                 // Analyze the content
                 var prompt = GenerateUrlAnalysisPrompt(url, content);
                 var analysisJson = await CallOpenAIApi(prompt);
-                
+
                 var analysis = JsonSerializer.Deserialize<ProductAnalysis>(analysisJson) ?? new ProductAnalysis();
-                
+
                 return analysis;
             }
             catch (Exception ex)
@@ -246,7 +246,7 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
             {
                 _logger.LogError(ex, "Error calling Vision API");
             }
-            
+
             return JsonSerializer.Serialize(GenerateMockImageAnalysis());
         }
 
@@ -259,9 +259,9 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
                     model = "gpt-4-vision-preview", // GPT-4 Vision model
                     messages = new[]
                     {
-                        new 
-                        { 
-                            role = "user", 
+                        new
+                        {
+                            role = "user",
                             content = new object[]
                             {
                                 new { type = "text", text = GenerateImageAnalysisPrompt() },
@@ -274,12 +274,12 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
 
                 var json = JsonSerializer.Serialize(request);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                
+
                 _httpClient.DefaultRequestHeaders.Clear();
                 _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_openAiApiKey}");
-                
+
                 var response = await _httpClient.PostAsync("https://api.openai.com/v1/chat/completions", content);
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
@@ -323,7 +323,7 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
                 };
 
                 var response = await chatClient.CompleteChatAsync(messages);
-                
+
                 if (response.Value != null)
                 {
                     return response.Value.Content[0].Text ?? "{}";
@@ -354,7 +354,7 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
                 };
 
                 var response = await chatClient.CompleteChatAsync(messages);
-                
+
                 if (response.Value != null)
                 {
                     return response.Value.Content[0].Text ?? JsonSerializer.Serialize(GenerateMockAnalysis());
@@ -386,12 +386,12 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
 
                 var json = JsonSerializer.Serialize(request);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                
+
                 _httpClient.DefaultRequestHeaders.Clear();
                 _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_openAiApiKey}");
-                
+
                 var response = await _httpClient.PostAsync("https://api.openai.com/v1/chat/completions", content);
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
@@ -429,7 +429,7 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
             {
                 _logger.LogError(ex, "Error fetching URL content");
             }
-            
+
             return string.Empty;
         }
 
@@ -634,7 +634,7 @@ Be extremely detailed and specific.";
                 {
                     TypicalIngredients = new List<string>
                     {
-                        "Wheat flour", "Sugar", "Vegetable oils (palm and/or canola)", 
+                        "Wheat flour", "Sugar", "Vegetable oils (palm and/or canola)",
                         "Cocoa powder (4.5%)", "High fructose corn syrup", "Leavening agents",
                         "Salt", "Soy lecithin", "Vanilla flavoring", "Chocolate"
                     },

@@ -30,7 +30,7 @@ namespace FoodX.Core.Services
             ILogger<VectorSearchService> logger,
             IEmbeddingService embeddingService)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection") 
+            _connectionString = configuration.GetConnectionString("DefaultConnection")
                 ?? throw new ArgumentNullException("DefaultConnection string not found");
             _logger = logger;
             _embeddingService = embeddingService;
@@ -41,23 +41,23 @@ namespace FoodX.Core.Services
             try
             {
                 var vectorJson = JsonSerializer.Serialize(vector);
-                
+
                 using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
-                
+
                 using var command = new SqlCommand("sp_InsertVector", connection)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
-                
+
                 command.Parameters.AddWithValue("@EntityType", entityType);
                 command.Parameters.AddWithValue("@EntityId", entityId);
                 command.Parameters.AddWithValue("@VectorType", vectorType);
                 command.Parameters.AddWithValue("@VectorData", vectorJson);
                 command.Parameters.AddWithValue("@Dimensions", vector.Length);
-                
+
                 await command.ExecuteNonQueryAsync();
-                
+
                 _logger.LogInformation($"Stored vector for {entityType} {entityId} ({vectorType})");
                 return true;
             }
@@ -69,76 +69,76 @@ namespace FoodX.Core.Services
         }
 
         public async Task<List<VectorSearchResult>> SearchAsync(
-            string entityType, 
-            string vectorType, 
-            float[] searchVector, 
-            int topN = 10, 
+            string entityType,
+            string vectorType,
+            float[] searchVector,
+            int topN = 10,
             float minSimilarity = 0.5f)
         {
             var results = new List<VectorSearchResult>();
-            
+
             try
             {
                 var vectorJson = JsonSerializer.Serialize(searchVector);
-                
+
                 using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
-                
+
                 using var command = new SqlCommand("sp_VectorSearch", connection)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
-                
+
                 command.Parameters.AddWithValue("@SearchVector", vectorJson);
                 command.Parameters.AddWithValue("@EntityType", entityType);
                 command.Parameters.AddWithValue("@VectorType", vectorType);
                 command.Parameters.AddWithValue("@TopN", topN);
                 command.Parameters.AddWithValue("@MinSimilarity", minSimilarity);
-                
+
                 using var reader = await command.ExecuteReaderAsync();
-                
+
                 while (await reader.ReadAsync())
                 {
                     results.Add(new VectorSearchResult
                     {
                         EntityId = reader.GetInt32(reader.GetOrdinal("EntityId")),
                         Similarity = Convert.ToSingle(reader.GetDouble(reader.GetOrdinal("Similarity"))),
-                        EntityName = reader.IsDBNull(reader.GetOrdinal("EntityName")) 
+                        EntityName = reader.IsDBNull(reader.GetOrdinal("EntityName"))
                             ? null : reader.GetString(reader.GetOrdinal("EntityName")),
-                        EntityDescription = reader.IsDBNull(reader.GetOrdinal("EntityDescription")) 
+                        EntityDescription = reader.IsDBNull(reader.GetOrdinal("EntityDescription"))
                             ? null : reader.GetString(reader.GetOrdinal("EntityDescription"))
                     });
                 }
-                
+
                 _logger.LogInformation($"Vector search returned {results.Count} results for {entityType}");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error performing vector search for {entityType}");
             }
-            
+
             return results;
         }
 
         public async Task<List<SimilarProductResult>> FindSimilarProductsAsync(int productId, int topN = 5)
         {
             var results = new List<SimilarProductResult>();
-            
+
             try
             {
                 using var connection = new SqlConnection(_connectionString);
                 await connection.OpenAsync();
-                
+
                 using var command = new SqlCommand("sp_FindSimilarProducts", connection)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
-                
+
                 command.Parameters.AddWithValue("@ProductId", productId);
                 command.Parameters.AddWithValue("@TopN", topN);
-                
+
                 using var reader = await command.ExecuteReaderAsync();
-                
+
                 while (await reader.ReadAsync())
                 {
                     results.Add(new SimilarProductResult
@@ -146,20 +146,20 @@ namespace FoodX.Core.Services
                         Id = reader.GetInt32(reader.GetOrdinal("Id")),
                         Name = reader.GetString(reader.GetOrdinal("Name")),
                         Category = reader.GetString(reader.GetOrdinal("Category")),
-                        Description = reader.IsDBNull(reader.GetOrdinal("Description")) 
+                        Description = reader.IsDBNull(reader.GetOrdinal("Description"))
                             ? null : reader.GetString(reader.GetOrdinal("Description")),
                         Price = reader.GetDecimal(reader.GetOrdinal("Price")),
                         Similarity = Convert.ToSingle(reader.GetDouble(reader.GetOrdinal("Similarity")))
                     });
                 }
-                
+
                 _logger.LogInformation($"Found {results.Count} similar products for product {productId}");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error finding similar products for {productId}");
             }
-            
+
             return results;
         }
 
@@ -169,19 +169,19 @@ namespace FoodX.Core.Services
             {
                 // Store name embedding
                 await StoreVectorAsync("Product", productId, "name", nameEmbedding);
-                
+
                 // Store description embedding
                 await StoreVectorAsync("Product", productId, "description", descriptionEmbedding);
-                
+
                 // Create combined embedding (average of name and description)
                 var combinedEmbedding = new float[nameEmbedding.Length];
                 for (int i = 0; i < nameEmbedding.Length; i++)
                 {
                     combinedEmbedding[i] = (nameEmbedding[i] + descriptionEmbedding[i]) / 2f;
                 }
-                
+
                 await StoreVectorAsync("Product", productId, "combined", combinedEmbedding);
-                
+
                 return true;
             }
             catch (Exception ex)

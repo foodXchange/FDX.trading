@@ -1,0 +1,312 @@
+@page "/portal/buyer/ai-search"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "SuperAdmin,Admin,Buyer")]
+@rendermode InteractiveServer
+
+<PageTitle>AI Search - FoodX Buyer Portal</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h4" GutterBottom="true">
+                <MudIcon Icon="@Icons.Material.Filled.Psychology" Class="mr-2" />
+                AI-Powered Product Search
+            </MudText>
+        </MudItem>
+
+        <!-- Search Section -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-6" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">What are you looking for?</MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_searchQuery" 
+                                    Label="Describe what you need..." 
+                                    Lines="3"
+                                    Placeholder="e.g., 'I need organic tomatoes for a restaurant, about 50kg per week, delivered to Milan'"
+                                    FullWidth="true" />
+                    </MudItem>
+                    <MudItem xs="12" Class="d-flex justify-end gap-2 mt-2">
+                        <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="ClearSearch">
+                            Clear
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" 
+                                 Color="Color.Primary" 
+                                 StartIcon="@Icons.Material.Filled.Search"
+                                 OnClick="PerformSearch"
+                                 Disabled="_isSearching">
+                            @if (_isSearching)
+                            {
+                                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                <MudText Class="ms-2">Searching...</MudText>
+                            }
+                            else
+                            {
+                                <MudText>Search with AI</MudText>
+                            }
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Quick Search Examples -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Quick Search Examples:</MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="4">
+                        <MudButton Variant="Variant.Text" 
+                                 Color="Color.Primary" 
+                                 Size="Size.Small"
+                                 FullWidth="true"
+                                 OnClick="@(() => SetSearchQuery("Fresh mozzarella for pizzeria, 20kg weekly"))">
+                            Fresh mozzarella for pizzeria
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudButton Variant="Variant.Text" 
+                                 Color="Color.Primary" 
+                                 Size="Size.Small"
+                                 FullWidth="true"
+                                 OnClick="@(() => SetSearchQuery("Organic vegetables for school cafeteria"))">
+                            Organic vegetables for school
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudButton Variant="Variant.Text" 
+                                 Color="Color.Primary" 
+                                 Size="Size.Small"
+                                 FullWidth="true"
+                                 OnClick="@(() => SetSearchQuery("Gluten-free bakery products for café"))">
+                            Gluten-free bakery products
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Search Results -->
+        @if (_showResults)
+        {
+            <MudItem xs="12">
+                <MudPaper Class="pa-4" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-4">AI Analysis Results</MudText>
+                    
+                    <!-- AI Summary -->
+                    <MudAlert Severity="Severity.Info" Class="mb-4">
+                        <MudText>
+                            <strong>AI Understanding:</strong> @_aiSummary
+                        </MudText>
+                    </MudAlert>
+
+                    <!-- Extracted Requirements -->
+                    <MudGrid Class="mb-4">
+                        <MudItem xs="12" md="6">
+                            <MudCard Outlined="true">
+                                <MudCardContent>
+                                    <MudText Typo="Typo.subtitle2" Class="mb-2">Extracted Requirements</MudText>
+                                    <MudList T="string" Dense="true">
+                                        @foreach (var req in _extractedRequirements)
+                                        {
+                                            <MudListItem T="string" Text="@req" Icon="@Icons.Material.Filled.Check" />
+                                        }
+                                    </MudList>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudCard Outlined="true">
+                                <MudCardContent>
+                                    <MudText Typo="Typo.subtitle2" Class="mb-2">Suggested Actions</MudText>
+                                    <MudList T="string" Dense="true">
+                                        @foreach (var action in _suggestedActions)
+                                        {
+                                            <MudListItem T="string" Text="@action" Icon="@Icons.Material.Filled.Lightbulb" />
+                                        }
+                                    </MudList>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    </MudGrid>
+
+                    <!-- Matching Products -->
+                    <MudText Typo="Typo.h6" Class="mb-3">Recommended Products & Suppliers</MudText>
+                    <MudGrid>
+                        @foreach (var product in _matchingProducts)
+                        {
+                            <MudItem xs="12" md="6">
+                                <MudCard>
+                                    <MudCardContent>
+                                        <div class="d-flex justify-space-between align-center mb-2">
+                                            <MudText Typo="Typo.h6">@product.Name</MudText>
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Success">
+                                                @product.MatchScore% Match
+                                            </MudChip>
+                                        </div>
+                                        <MudText Typo="Typo.body2" Class="mb-2">@product.Description</MudText>
+                                        <MudText Typo="Typo.caption" Class="mb-2">
+                                            <MudIcon Icon="@Icons.Material.Filled.Store" Size="Size.Small" />
+                                            @product.Supplier
+                                        </MudText>
+                                        <MudText Typo="Typo.caption" Class="mb-2">
+                                            <MudIcon Icon="@Icons.Material.Filled.Euro" Size="Size.Small" />
+                                            €@product.Price.ToString("N2") per @product.Unit
+                                        </MudText>
+                                    </MudCardContent>
+                                    <MudCardActions>
+                                        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary">
+                                            View Details
+                                        </MudButton>
+                                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success">
+                                            Send RFQ
+                                        </MudButton>
+                                    </MudCardActions>
+                                </MudCard>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+        }
+
+        <!-- Search History -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.h6" Class="mb-3">Recent Searches</MudText>
+                <MudList T="SearchHistory" Dense="true">
+                    @foreach (var search in _recentSearches)
+                    {
+                        <MudListItem T="SearchHistory" Value="@search">
+                            <div class="d-flex justify-space-between align-center">
+                                <div>
+                                    <MudText Typo="Typo.body2">@search.Query</MudText>
+                                    <MudText Typo="Typo.caption">@search.Date.ToString("MMM dd, HH:mm")</MudText>
+                                </div>
+                                <MudButton Size="Size.Small" 
+                                         Variant="Variant.Text" 
+                                         Color="Color.Primary"
+                                         OnClick="@(() => SetSearchQuery(search.Query))">
+                                    Search Again
+                                </MudButton>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private string _searchQuery = "";
+    private bool _isSearching = false;
+    private bool _showResults = false;
+    private string _aiSummary = "";
+    private List<string> _extractedRequirements = new();
+    private List<string> _suggestedActions = new();
+    private List<ProductMatch> _matchingProducts = new();
+    private List<SearchHistory> _recentSearches = new();
+    
+    protected override void OnInitialized()
+    {
+        _recentSearches = new List<SearchHistory>
+        {
+            new SearchHistory { Query = "Organic tomatoes for restaurant, 50kg weekly", Date = DateTime.Now.AddHours(-2) },
+            new SearchHistory { Query = "Fresh seafood for hotel buffet", Date = DateTime.Now.AddDays(-1) },
+            new SearchHistory { Query = "Gluten-free bread for bakery", Date = DateTime.Now.AddDays(-2) },
+        };
+    }
+    
+    private async Task PerformSearch()
+    {
+        if (string.IsNullOrWhiteSpace(_searchQuery)) return;
+        
+        _isSearching = true;
+        await Task.Delay(2000); // Simulate AI processing
+        
+        // Mock AI analysis results
+        _aiSummary = "Based on your query, you're looking for high-quality organic tomatoes suitable for restaurant use, with regular weekly deliveries of approximately 50kg.";
+        
+        _extractedRequirements = new List<string>
+        {
+            "Product: Organic tomatoes",
+            "Quantity: 50kg per week",
+            "End use: Restaurant/food service",
+            "Quality: Premium/organic certification required",
+            "Delivery: Weekly recurring orders"
+        };
+        
+        _suggestedActions = new List<string>
+        {
+            "Create an RFQ for weekly tomato supply",
+            "Contact Italian Farms Co. (95% match)",
+            "Set up recurring order schedule",
+            "Request organic certification documents"
+        };
+        
+        _matchingProducts = new List<ProductMatch>
+        {
+            new ProductMatch
+            {
+                Name = "Organic San Marzano Tomatoes",
+                Description = "Premium organic tomatoes from Italy, perfect for restaurants",
+                Supplier = "Italian Farms Co.",
+                Price = 3.50m,
+                Unit = "kg",
+                MatchScore = 95
+            },
+            new ProductMatch
+            {
+                Name = "Organic Roma Tomatoes",
+                Description = "Certified organic Roma tomatoes, ideal for cooking",
+                Supplier = "Mediterranean Organics",
+                Price = 2.80m,
+                Unit = "kg",
+                MatchScore = 88
+            },
+            new ProductMatch
+            {
+                Name = "Organic Cherry Tomatoes",
+                Description = "Sweet organic cherry tomatoes for garnish and salads",
+                Supplier = "Spanish Greenhouse Co.",
+                Price = 4.20m,
+                Unit = "kg",
+                MatchScore = 75
+            }
+        };
+        
+        _showResults = true;
+        _isSearching = false;
+        
+        // Add to search history
+        _recentSearches.Insert(0, new SearchHistory { Query = _searchQuery, Date = DateTime.Now });
+    }
+    
+    private void SetSearchQuery(string query)
+    {
+        _searchQuery = query;
+    }
+    
+    private void ClearSearch()
+    {
+        _searchQuery = "";
+        _showResults = false;
+    }
+    
+    private class ProductMatch
+    {
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Supplier { get; set; } = "";
+        public decimal Price { get; set; }
+        public string Unit { get; set; } = "";
+        public int MatchScore { get; set; }
+    }
+    
+    private class SearchHistory
+    {
+        public string Query { get; set; } = "";
+        public DateTime Date { get; set; }
+    }
+}

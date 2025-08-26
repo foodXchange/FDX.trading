@@ -110,8 +110,8 @@ namespace FoodX.Admin.Controllers
                 var analysisResult = new AIAnalysisResult
                 {
                     RequestId = request.Id,
-                    ConfidenceScore = analysis.ProductIdentification?.Confidence != null 
-                        ? (decimal)(analysis.ProductIdentification.Confidence * 100) 
+                    ConfidenceScore = analysis.ProductIdentification?.Confidence != null
+                        ? (decimal)(analysis.ProductIdentification.Confidence * 100)
                         : 50,
                     AIProvider = "OpenAI",
                     ProcessedAt = DateTime.UtcNow
@@ -119,11 +119,11 @@ namespace FoodX.Admin.Controllers
                 analysisResult.SetAnalysisData(analysis);
 
                 _context.AIAnalysisResults.Add(analysisResult);
-                
+
                 // Update request status
                 request.Status = RequestStatus.Analyzed;
                 request.UpdatedAt = DateTime.UtcNow;
-                
+
                 await _context.SaveChangesAsync();
 
                 return Ok(new
@@ -181,8 +181,8 @@ namespace FoodX.Admin.Controllers
                 var analysisResult = new AIAnalysisResult
                 {
                     RequestId = request.Id,
-                    ConfidenceScore = analysis.ProductIdentification?.Confidence != null 
-                        ? (decimal)(analysis.ProductIdentification.Confidence * 100) 
+                    ConfidenceScore = analysis.ProductIdentification?.Confidence != null
+                        ? (decimal)(analysis.ProductIdentification.Confidence * 100)
                         : 50,
                     AIProvider = "OpenAI",
                     ProcessedAt = DateTime.UtcNow
@@ -190,11 +190,11 @@ namespace FoodX.Admin.Controllers
                 analysisResult.SetAnalysisData(analysis);
 
                 _context.AIAnalysisResults.Add(analysisResult);
-                
+
                 // Update request status
                 request.Status = RequestStatus.Analyzed;
                 request.UpdatedAt = DateTime.UtcNow;
-                
+
                 await _context.SaveChangesAsync();
 
                 return Ok(new
@@ -257,8 +257,8 @@ namespace FoodX.Admin.Controllers
                 var analysisResult = new AIAnalysisResult
                 {
                     RequestId = request.Id,
-                    ConfidenceScore = analysis.ProductIdentification?.Confidence != null 
-                        ? (decimal)(analysis.ProductIdentification.Confidence * 100) 
+                    ConfidenceScore = analysis.ProductIdentification?.Confidence != null
+                        ? (decimal)(analysis.ProductIdentification.Confidence * 100)
                         : 50,
                     AIProvider = "Azure Computer Vision",
                     ProcessedAt = DateTime.UtcNow
@@ -266,11 +266,11 @@ namespace FoodX.Admin.Controllers
                 analysisResult.SetAnalysisData(analysis);
 
                 _context.AIAnalysisResults.Add(analysisResult);
-                
+
                 // Update request status
                 request.Status = RequestStatus.Analyzed;
                 request.UpdatedAt = DateTime.UtcNow;
-                
+
                 await _context.SaveChangesAsync();
 
                 return Ok(new

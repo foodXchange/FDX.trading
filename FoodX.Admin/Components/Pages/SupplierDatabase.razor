@@ -2,9 +2,11 @@
 @using FoodX.Admin.Data
 @using FoodX.Admin.Models
 @using Microsoft.EntityFrameworkCore
+@using System.Timers
 @inject FoodXDbContext DbContext
 @inject ISnackbar Snackbar
 @rendermode InteractiveServer
+@implements IDisposable
 
 <PageTitle>Supplier Database</PageTitle>
 
@@ -26,7 +28,7 @@
                               Variant="Variant.Outlined"
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Search"
-                              @onkeyup="@(async (e) => { if (e.Key == "Enter") await SearchSuppliers(); })"
+                              @onkeyup="@(async (KeyboardEventArgs e) => { if (e.Key == "Enter") await SearchSuppliers(); else OnSearchTextChanged(); })"
                               Immediate="true" />
             </MudItem>
             <MudItem xs="12" md="2">
@@ -77,18 +79,44 @@
         </MudGrid>
     </MudPaper>
 
-    @if (isLoading)
+    @if (isLoading && !suppliers.Any())
     {
-        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        <!-- Skeleton loaders for initial load -->
+        <MudGrid>
+            @for (int i = 0; i < 12; i++)
+            {
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudCard Class="h-100">
+                        <MudCardHeader Class="pb-2">
+                            <MudSkeleton Width="80%" Height="20px" />
+                            <MudSkeleton Width="50%" Height="15px" Class="mt-2" />
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudSkeleton Width="60%" Height="15px" Class="mb-2" />
+                            <MudSkeleton Width="100%" Height="40px" Class="mb-2" />
+                            <MudSkeleton Width="70%" Height="15px" />
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudSkeleton Width="80px" Height="30px" Class="mr-2" />
+                            <MudSkeleton Width="80px" Height="30px" />
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
     }
     else if (suppliers.Any())
     {
         <MudPaper Class="mb-3 pa-3">
             <MudText Typo="Typo.body2">
-                Found <strong>@suppliers.Count</strong> suppliers 
+                Found <strong>@totalFilteredSuppliers.ToString("N0")</strong> suppliers 
                 @if (!string.IsNullOrEmpty(searchTerm))
                 {
                     <text>matching "@searchTerm"</text>
+                }
+                @if (suppliers.Count < totalFilteredSuppliers)
+                {
+                    <text> (showing @suppliers.Count)</text>
                 }
             </MudText>
         </MudPaper>
@@ -97,66 +125,97 @@
             @foreach (var supplier in suppliers)
             {
                 <MudItem xs="12" sm="6" md="4" lg="3">
-                    <MudCard Class="h-100">
-                        <MudCardHeader Class="pb-2">
+                    <MudCard Class="h-100 supplier-card" Style="transition: all 0.3s ease; cursor: pointer;">
+                        <MudCardHeader Class="pb-2" Style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                             <CardHeaderContent>
-                                <MudText Typo="Typo.h6" Class="text-truncate" Style="font-size: 0.95rem;">
-                                    @supplier.SupplierName
-                                </MudText>
+                                <MudTooltip Text="@supplier.SupplierName">
+                                    <MudText Typo="Typo.h6" Class="text-truncate" Style="font-size: 1rem; font-weight: 500;">
+                                        @supplier.SupplierName
+                                    </MudText>
+                                </MudTooltip>
                                 @if (!string.IsNullOrEmpty(supplier.Country))
                                 {
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    <MudText Typo="Typo.body2" Style="opacity: 0.9;">
                                         <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" /> @supplier.Country
                                     </MudText>
                                 }
                             </CardHeaderContent>
+                            <CardHeaderAvatar>
+                                @if (!string.IsNullOrEmpty(supplier.Country) && supplier.Country.Length >= 2)
+                                {
+                                    <MudAvatar Size="Size.Small" Style="background-color: rgba(255,255,255,0.2);">
+                                        <MudText Typo="Typo.caption">@supplier.Country.Substring(0, Math.Min(2, supplier.Country.Length)).ToUpper()</MudText>
+                                    </MudAvatar>
+                                }
+                            </CardHeaderAvatar>
                         </MudCardHeader>
-                        <MudCardContent Class="pt-2 pb-2">
+                        <MudCardContent Class="pt-2 pb-2" Style="min-height: 120px;">
                             @if (!string.IsNullOrEmpty(supplier.ProductCategory))
                             {
-                                <MudText Typo="Typo.caption" Color="Color.Primary" Class="mb-2">
-                                    <strong>Category:</strong> @supplier.ProductCategory
-                                </MudText>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Class="mb-2">
+                                    @supplier.ProductCategory
+                                </MudChip>
                             }
                             
                             @if (!string.IsNullOrEmpty(supplier.Products))
                             {
-                                var products = supplier.Products.Split(';').Take(3).ToList();
-                                <MudText Typo="Typo.caption" Class="mb-1"><strong>Products:</strong></MudText>
-                                @foreach (var product in products)
+                                var products = supplier.Products.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                    .Where(p => !string.IsNullOrWhiteSpace(p))
+                                    .Take(2)
+                                    .ToList();
+                                
+                                <div class="mb-1">
+                                    @foreach (var product in products)
+                                    {
+                                        var trimmedProduct = product.Trim();
+                                        <MudTooltip Text="@trimmedProduct">
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Surface" Class="pa-1 mb-1">
+                                                @(trimmedProduct.Length > 25 ? trimmedProduct.Substring(0, 25) + "..." : trimmedProduct)
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
+                                </div>
+                                
+                                var totalProducts = supplier.Products.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries).Length;
+                                @if (totalProducts > 2)
                                 {
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Class="pa-1">
-                                        @(product.Length > 30 ? product.Substring(0, 30) + "..." : product)
-                                    </MudChip>
-                                }
-                                @if (supplier.Products.Split(';').Length > 3)
-                                {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                        +@(supplier.Products.Split(';').Length - 3) more products
+                                    <MudText Typo="Typo.caption" Color="Color.Primary" Style="font-weight: 500;">
+                                        <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Small" />@(totalProducts - 2) more products
                                     </MudText>
                                 }
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="font-italic">
+                                    No products listed
+                                </MudText>
                             }
 
                             @if (!string.IsNullOrEmpty(supplier.CompanyEmail))
                             {
-                                <MudText Typo="Typo.caption" Class="mt-2">
-                                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" /> 
-                                    @supplier.CompanyEmail
-                                </MudText>
+                                <MudTooltip Text="@supplier.CompanyEmail">
+                                    <MudText Typo="Typo.caption" Class="mt-2 text-truncate" Style="opacity: 0.8;">
+                                        <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" /> 
+                                        @supplier.CompanyEmail
+                                    </MudText>
+                                </MudTooltip>
                             }
                         </MudCardContent>
-                        <MudCardActions>
+                        <MudDivider />
+                        <MudCardActions Class="justify-space-between">
                             <MudButton Variant="Variant.Text" 
                                        Color="Color.Primary" 
                                        Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Info"
                                        OnClick="@(() => ViewSupplierDetails(supplier))">
-                                View Details
+                                Details
                             </MudButton>
-                            <MudButton Variant="Variant.Text" 
+                            <MudButton Variant="Variant.Filled" 
                                        Color="Color.Success" 
                                        Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Description"
                                        OnClick="@(() => CreateBrief(supplier))">
-                                Create Brief
+                                Brief
                             </MudButton>
                         </MudCardActions>
                     </MudCard>
@@ -169,10 +228,24 @@
             <MudPaper Class="mt-4 pa-3 text-center">
                 <MudButton Variant="Variant.Outlined" 
                            Color="Color.Primary"
-                           OnClick="LoadMore">
-                    Load More Suppliers
+                           OnClick="LoadMore"
+                           Disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                        <text>Loading...</text>
+                    }
+                    else
+                    {
+                        <text>Load More Suppliers</text>
+                    }
                 </MudButton>
             </MudPaper>
+        }
+        
+        @if (isLoading && suppliers.Any())
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-2" />
         }
     }
     else
@@ -202,11 +275,13 @@
     private bool filterOrganic = false;
     private bool filterGlutenFree = false;
     private int totalSuppliers = 0;
+    private int totalFilteredSuppliers = 0;
     private int currentPage = 0;
     private int pageSize = 24;
     private bool hasMore = false;
     private List<string> topCountries = new();
     private List<string> topCategories = new();
+    private System.Timers.Timer? searchDebounceTimer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -264,17 +339,18 @@
         isLoading = true;
         try
         {
-            var query = DbContext.FoodXSuppliers.AsQueryable();
+            var query = DbContext.FoodXSuppliers.AsNoTracking();
 
-            // Apply search filter
+            // Apply search filter using EF Core optimized queries
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                var term = searchTerm.ToLower();
+                var term = searchTerm.Trim();
+                // Use EF.Functions for better SQL generation
                 query = query.Where(s => 
-                    s.SupplierName.ToLower().Contains(term) ||
-                    (s.ProductCategory != null && s.ProductCategory.ToLower().Contains(term)) ||
-                    (s.Products != null && s.Products.ToLower().Contains(term)) ||
-                    (s.Description != null && s.Description.ToLower().Contains(term)));
+                    EF.Functions.Like(s.SupplierName, $"%{term}%") ||
+                    (s.ProductCategory != null && EF.Functions.Like(s.ProductCategory, $"%{term}%")) ||
+                    (s.Products != null && EF.Functions.Like(s.Products, $"%{term}%")) ||
+                    (s.Description != null && EF.Functions.Like(s.Description, $"%{term}%")));
             }
 
             // Apply country filter
@@ -295,42 +371,45 @@
                 query = query.Where(s => s.Products != null && s.Products != "");
             }
 
-            // Apply certification filters (if we have SupplierProducts table joined)
-            if (filterKosher || filterHalal || filterOrganic || filterGlutenFree)
+            // Apply certification filters using optimized boolean columns
+            if (filterKosher)
             {
-                // For now, search in product details text
-                if (filterKosher)
-                {
-                    query = query.Where(s => s.Country == "Israel" || 
-                        (s.Products != null && s.Products.ToLower().Contains("kosher")) ||
-                        (s.KosherCertification != null && s.KosherCertification != ""));
-                }
-                if (filterHalal)
-                {
-                    query = query.Where(s => (s.Products != null && s.Products.ToLower().Contains("halal")) ||
-                        (s.Certifications != null && s.Certifications.ToLower().Contains("halal")));
-                }
-                if (filterOrganic)
-                {
-                    query = query.Where(s => (s.Products != null && s.Products.ToLower().Contains("organic")) ||
-                        (s.Certifications != null && s.Certifications.ToLower().Contains("organic")));
-                }
-                if (filterGlutenFree)
-                {
-                    query = query.Where(s => s.Products != null && 
-                        (s.Products.ToLower().Contains("gluten-free") || s.Products.ToLower().Contains("gluten free")));
-                }
+                query = query.Where(s => s.IsKosherCertified == true);
+            }
+            if (filterHalal)
+            {
+                query = query.Where(s => s.IsHalalCertified == true);
+            }
+            if (filterOrganic)
+            {
+                query = query.Where(s => s.IsOrganicCertified == true);
+            }
+            if (filterGlutenFree)
+            {
+                query = query.Where(s => s.IsGlutenFreeCertified == true);
             }
 
             // Get total count for pagination
-            var totalCount = await query.CountAsync();
-            hasMore = (currentPage + 1) * pageSize < totalCount;
+            totalFilteredSuppliers = await query.CountAsync();
+            hasMore = (currentPage + 1) * pageSize < totalFilteredSuppliers;
 
-            // Apply pagination and get results
+            // Apply pagination and get results with optimized projection
             var newSuppliers = await query
                 .OrderBy(s => s.SupplierName)
                 .Skip(currentPage * pageSize)
                 .Take(pageSize)
+                .Select(s => new FoodXSupplier
+                {
+                    Id = s.Id,
+                    SupplierName = s.SupplierName,
+                    Country = s.Country,
+                    ProductCategory = s.ProductCategory,
+                    Products = s.Products,
+                    CompanyEmail = s.CompanyEmail,
+                    Description = s.Description,
+                    CompanyWebsite = s.CompanyWebsite,
+                    Phone = s.Phone
+                })
                 .ToListAsync();
 
             if (append)
@@ -341,6 +420,8 @@
             {
                 suppliers = newSuppliers;
             }
+
+            StateHasChanged();
         }
         catch (Exception ex)
         {
@@ -349,7 +430,31 @@
         finally
         {
             isLoading = false;
+            StateHasChanged();
         }
+    }
+
+    private void OnSearchTextChanged()
+    {
+        // Cancel any existing timer
+        searchDebounceTimer?.Stop();
+        searchDebounceTimer?.Dispose();
+
+        // Create a new timer that will fire after 500ms of no typing
+        searchDebounceTimer = new System.Timers.Timer(500);
+        searchDebounceTimer.Elapsed += async (sender, e) =>
+        {
+            searchDebounceTimer?.Dispose();
+            searchDebounceTimer = null;
+            
+            // Run search on UI thread
+            await InvokeAsync(async () =>
+            {
+                await SearchSuppliers();
+            });
+        };
+        searchDebounceTimer.AutoReset = false;
+        searchDebounceTimer.Start();
     }
 
     private void ViewSupplierDetails(FoodXSupplier supplier)
@@ -362,5 +467,10 @@
     {
         // TODO: Implement brief creation for supplier
         Snackbar.Add($"Create brief for {supplier.SupplierName}", Severity.Info);
+    }
+
+    public void Dispose()
+    {
+        searchDebounceTimer?.Dispose();
     }
 }

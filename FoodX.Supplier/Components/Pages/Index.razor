@@ -1,0 +1,286 @@
+@page "/"
+@using Microsoft.AspNetCore.Authorization
+@using FoodX.Supplier.Models
+@using MudBlazor
+@attribute [Authorize(Policy = "SupplierOnly")]
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Dashboard - FoodX Supplier Portal</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Supplier Dashboard</MudText>
+<MudText Typo="Typo.body1" Color="Color.Tertiary" Class="mb-6">
+    Welcome back, @userName! Here's your business overview.
+</MudText>
+
+<MudGrid>
+    <!-- Key Metrics Row -->
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudGrid>
+                <MudItem xs="8">
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Active Products</MudText>
+                    <MudText Typo="Typo.h4">247</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Success">
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> +12% this month
+                    </MudText>
+                </MudItem>
+                <MudItem xs="4" Class="d-flex align-center justify-end">
+                    <MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Large" Color="Color.Primary" />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudGrid>
+                <MudItem xs="8">
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Pending RFQs</MudText>
+                    <MudText Typo="Typo.h4">18</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Warning">
+                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" /> 5 urgent
+                    </MudText>
+                </MudItem>
+                <MudItem xs="4" Class="d-flex align-center justify-end">
+                    <MudIcon Icon="@Icons.Material.Filled.RequestQuote" Size="Size.Large" Color="Color.Warning" />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudGrid>
+                <MudItem xs="8">
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Active Orders</MudText>
+                    <MudText Typo="Typo.h4">34</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Info">
+                        <MudIcon Icon="@Icons.Material.Filled.Euro" Size="Size.Small" /> €145,230
+                    </MudText>
+                </MudItem>
+                <MudItem xs="4" Class="d-flex align-center justify-end">
+                    <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Size="Size.Large" Color="Color.Success" />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudItem>
+    
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudGrid>
+                <MudItem xs="8">
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Profile Views</MudText>
+                    <MudText Typo="Typo.h4">892</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Success">
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> +24% this week
+                    </MudText>
+                </MudItem>
+                <MudItem xs="4" Class="d-flex align-center justify-end">
+                    <MudIcon Icon="@Icons.Material.Filled.Visibility" Size="Size.Large" Color="Color.Info" />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<!-- Action Cards and Recent Activity -->
+<MudGrid Class="mt-6">
+    <!-- Quick Actions -->
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4" Elevation="2" Style="height: 100%;">
+            <MudText Typo="Typo.h6" Class="mb-4">Quick Actions</MudText>
+            
+            <MudStack Spacing="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Add" FullWidth="true"
+                           Href="/products/add">
+                    Add New Product
+                </MudButton>
+                
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" 
+                           StartIcon="@Icons.Material.Filled.RequestQuote" FullWidth="true"
+                           Href="/rfqs">
+                    View RFQ Requests
+                </MudButton>
+                
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" 
+                           StartIcon="@Icons.Material.Filled.Upload" FullWidth="true"
+                           Href="/products/import">
+                    Import Products
+                </MudButton>
+                
+                <MudButton Variant="Variant.Outlined" Color="Color.Success" 
+                           StartIcon="@Icons.Material.Filled.Receipt" FullWidth="true"
+                           Href="/quotes">
+                    Manage Quotes
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+    
+    <!-- Recent RFQs -->
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4" Elevation="2" Style="height: 100%;">
+            <MudText Typo="Typo.h6" Class="mb-4">Recent RFQ Requests</MudText>
+            
+            <MudList T="string" Dense="true">
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Circle" IconColor="Color.Warning">
+                    <MudText Typo="Typo.body2">Organic Tomatoes - 500kg</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Carrefour Poland • 2 hours ago</MudText>
+                </MudListItem>
+                
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Circle" IconColor="Color.Success">
+                    <MudText Typo="Typo.body2">Fresh Mozzarella - 200kg/week</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Metro Germany • 5 hours ago</MudText>
+                </MudListItem>
+                
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Circle" IconColor="Color.Info">
+                    <MudText Typo="Typo.body2">Olive Oil Extra Virgin - 1000L</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Tesco UK • 1 day ago</MudText>
+                </MudListItem>
+                
+                <MudListItem T="string" Icon="@Icons.Material.Filled.Circle" IconColor="Color.Default">
+                    <MudText Typo="Typo.body2">Frozen Vegetables Mix - 2 tons</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Auchan France • 2 days ago</MudText>
+                </MudListItem>
+            </MudList>
+            
+            <MudButton Variant="Variant.Text" Color="Color.Primary" FullWidth="true" 
+                       EndIcon="@Icons.Material.Filled.ArrowForward" Class="mt-2"
+                       Href="/rfqs">
+                View All RFQs
+            </MudButton>
+        </MudPaper>
+    </MudItem>
+    
+    <!-- Recent Orders -->
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4" Elevation="2" Style="height: 100%;">
+            <MudText Typo="Typo.h6" Class="mb-4">Recent Orders</MudText>
+            
+            <MudList T="string" Dense="true">
+                <MudListItem T="string">
+                    <MudGrid>
+                        <MudItem xs="8">
+                            <MudText Typo="Typo.body2">Order #FX-2024-1847</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Lidl Germany</MudText>
+                        </MudItem>
+                        <MudItem xs="4" Class="text-right">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">Shipped</MudChip>
+                        </MudItem>
+                    </MudGrid>
+                </MudListItem>
+                
+                <MudListItem T="string">
+                    <MudGrid>
+                        <MudItem xs="8">
+                            <MudText Typo="Typo.body2">Order #FX-2024-1846</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Carrefour Poland</MudText>
+                        </MudItem>
+                        <MudItem xs="4" Class="text-right">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">Processing</MudChip>
+                        </MudItem>
+                    </MudGrid>
+                </MudListItem>
+                
+                <MudListItem T="string">
+                    <MudGrid>
+                        <MudItem xs="8">
+                            <MudText Typo="Typo.body2">Order #FX-2024-1845</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Metro France</MudText>
+                        </MudItem>
+                        <MudItem xs="4" Class="text-right">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">Pending</MudChip>
+                        </MudItem>
+                    </MudGrid>
+                </MudListItem>
+                
+                <MudListItem T="string">
+                    <MudGrid>
+                        <MudItem xs="8">
+                            <MudText Typo="Typo.body2">Order #FX-2024-1844</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Tesco UK</MudText>
+                        </MudItem>
+                        <MudItem xs="4" Class="text-right">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">Delivered</MudChip>
+                        </MudItem>
+                    </MudGrid>
+                </MudListItem>
+            </MudList>
+            
+            <MudButton Variant="Variant.Text" Color="Color.Primary" FullWidth="true" 
+                       EndIcon="@Icons.Material.Filled.ArrowForward" Class="mt-2"
+                       Href="/orders">
+                View All Orders
+            </MudButton>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<!-- Sales Chart and Notifications -->
+<MudGrid Class="mt-6">
+    <!-- Sales Overview Chart -->
+    <MudItem xs="12" md="8">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-4">Sales Overview (Last 30 Days)</MudText>
+            
+            <!-- Placeholder for chart - will implement with actual charting library -->
+            <div style="height: 300px; display: flex; align-items: center; justify-content: center; border: 1px dashed #ccc; border-radius: 4px;">
+                <MudText Color="Color.Tertiary">Sales chart will be displayed here</MudText>
+            </div>
+            
+            <MudGrid Class="mt-4">
+                <MudItem xs="4" Class="text-center">
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Total Revenue</MudText>
+                    <MudText Typo="Typo.h6">€485,320</MudText>
+                </MudItem>
+                <MudItem xs="4" Class="text-center">
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Orders Completed</MudText>
+                    <MudText Typo="Typo.h6">142</MudText>
+                </MudItem>
+                <MudItem xs="4" Class="text-center">
+                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Avg. Order Value</MudText>
+                    <MudText Typo="Typo.h6">€3,417</MudText>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudItem>
+    
+    <!-- Notifications & Alerts -->
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-4">Notifications</MudText>
+            
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">
+                5 RFQs expiring in 24 hours
+            </MudAlert>
+            
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                Product certification expires in 30 days
+            </MudAlert>
+            
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mb-2">
+                Profile completion: 85%
+            </MudAlert>
+            
+            <MudAlert Severity="Severity.Normal" Dense="true" Class="mb-2">
+                New buyer message received
+            </MudAlert>
+            
+            <MudButton Variant="Variant.Text" Color="Color.Primary" FullWidth="true" 
+                       EndIcon="@Icons.Material.Filled.Notifications" Class="mt-2">
+                View All Notifications
+            </MudButton>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private string userName = "Supplier";
+    
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userName = authState.User.Identity?.Name ?? "Supplier";
+    }
+}

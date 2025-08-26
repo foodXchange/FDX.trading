@@ -23,7 +23,7 @@ public class DataImportService : IDataImportService
     public async Task<ImportResult> ImportBuyersAsync(string jsonFilePath)
     {
         var result = new ImportResult();
-        
+
         try
         {
             if (!File.Exists(jsonFilePath))
@@ -45,9 +45,9 @@ public class DataImportService : IDataImportService
             }
 
             result.TotalRecords = buyerData.AllBuyers.Count;
-            
+
             using var context = await _contextFactory.CreateDbContextAsync();
-            
+
             foreach (var buyerJson in buyerData.AllBuyers)
             {
                 try
@@ -93,7 +93,7 @@ public class DataImportService : IDataImportService
     public async Task<ImportResult> ImportSuppliersAsync(string jsonFilePath)
     {
         var result = new ImportResult();
-        
+
         try
         {
             if (!File.Exists(jsonFilePath))
@@ -115,9 +115,9 @@ public class DataImportService : IDataImportService
             }
 
             result.TotalRecords = supplierData.Suppliers.Count;
-            
+
             using var context = await _contextFactory.CreateDbContextAsync();
-            
+
             foreach (var supplierJson in supplierData.Suppliers)
             {
                 try
@@ -166,7 +166,7 @@ public class DataImportService : IDataImportService
     public async Task<ImportResult> ImportExhibitorsAsync(string jsonFilePath)
     {
         var result = new ImportResult();
-        
+
         try
         {
             if (!File.Exists(jsonFilePath))
@@ -188,12 +188,12 @@ public class DataImportService : IDataImportService
             }
 
             result.TotalRecords = exhibitorData.Count;
-            
+
             using var context = await _contextFactory.CreateDbContextAsync();
-            
+
             // Group by exhibition
             var exhibitionGroups = exhibitorData.GroupBy(e => e.Exhibition);
-            
+
             foreach (var group in exhibitionGroups)
             {
                 var exhibitionName = group.Key;
@@ -202,7 +202,7 @@ public class DataImportService : IDataImportService
                 // Get or create exhibition
                 var exhibition = await context.Set<Exhibition>()
                     .FirstOrDefaultAsync(e => e.Name == exhibitionName);
-                    
+
                 if (exhibition == null)
                 {
                     exhibition = new Exhibition
@@ -222,7 +222,7 @@ public class DataImportService : IDataImportService
                         if (string.IsNullOrEmpty(exhibitorJson.CompanyName)) continue;
 
                         var existingExhibitor = await context.Set<Exhibitor>()
-                            .FirstOrDefaultAsync(e => e.CompanyName == exhibitorJson.CompanyName 
+                            .FirstOrDefaultAsync(e => e.CompanyName == exhibitorJson.CompanyName
                                 && e.ExhibitionId == exhibition.Id);
 
                         if (existingExhibitor == null)

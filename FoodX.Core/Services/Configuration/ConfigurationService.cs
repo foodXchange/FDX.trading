@@ -80,7 +80,7 @@ namespace FoodX.Core.Services.Configuration
         public string GetPortalUrl(string portalName)
         {
             var isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
-            
+
             if (isDevelopment)
             {
                 return portalName?.ToLower() switch

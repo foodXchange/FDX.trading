@@ -1,0 +1,377 @@
+@page "/portal/supplier/dashboard"
+@using FoodX.Admin.Data
+@using FoodX.Admin.Models
+@using FoodX.Admin.Services
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject FoodXDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject IPortalContextService PortalContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "SuperAdmin,Admin,Supplier")]
+@rendermode InteractiveServer
+
+<PageTitle>Supplier Dashboard - FoodX</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    @if (PortalContext.IsImpersonating)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            <MudText>
+                <strong>Impersonating:</strong> @PortalContext.ImpersonatedUser?.Identity?.Name
+                - Viewing supplier portal as this user would see it
+            </MudText>
+        </MudAlert>
+    }
+    
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h4" GutterBottom="true">
+                <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Class="mr-2" />
+                Supplier Dashboard
+            </MudText>
+            <MudText Typo="Typo.body1" Class="mb-4">
+                Welcome back, @GetSupplierName()! Here's your business overview.
+            </MudText>
+        </MudItem>
+
+        <!-- Key Metrics -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="8">
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Active Products</MudText>
+                            <MudText Typo="Typo.h4">@_activeProducts</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Success">
+                                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> +12% this month
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="4" Class="d-flex align-center justify-end">
+                            <MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Large" Color="Color.Primary" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="8">
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Pending RFQs</MudText>
+                            <MudText Typo="Typo.h4">@_pendingRfqs</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Warning">
+                                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" /> 5 urgent
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="4" Class="d-flex align-center justify-end">
+                            <MudIcon Icon="@Icons.Material.Filled.RequestQuote" Size="Size.Large" Color="Color.Warning" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="8">
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Active Orders</MudText>
+                            <MudText Typo="Typo.h4">@_activeOrders</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Info">
+                                <MudIcon Icon="@Icons.Material.Filled.Euro" Size="Size.Small" /> €@_orderValue.ToString("N0")
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="4" Class="d-flex align-center justify-end">
+                            <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Size="Size.Large" Color="Color.Success" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="8">
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">Profile Views</MudText>
+                            <MudText Typo="Typo.h4">@_profileViews</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Success">
+                                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> +24% this week
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="4" Class="d-flex align-center justify-end">
+                            <MudIcon Icon="@Icons.Material.Filled.Visibility" Size="Size.Large" Color="Color.Info" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Quick Actions and Recent Activity -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Quick Actions</MudText>
+                
+                <MudStack Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                               StartIcon="@Icons.Material.Filled.Add" FullWidth="true"
+                               OnClick="@(() => NavigateTo("/portal/supplier/products/add"))">
+                        Add New Product
+                    </MudButton>
+                    
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" 
+                               StartIcon="@Icons.Material.Filled.RequestQuote" FullWidth="true"
+                               OnClick="@(() => NavigateTo("/portal/supplier/rfqs"))">
+                        View RFQ Requests
+                    </MudButton>
+                    
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" 
+                               StartIcon="@Icons.Material.Filled.Upload" FullWidth="true"
+                               OnClick="@(() => NavigateTo("/portal/supplier/products/import"))">
+                        Import Products
+                    </MudButton>
+                    
+                    <MudButton Variant="Variant.Outlined" Color="Color.Success" 
+                               StartIcon="@Icons.Material.Filled.Receipt" FullWidth="true"
+                               OnClick="@(() => NavigateTo("/portal/supplier/quotes"))">
+                        Manage Quotes
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Recent RFQs -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Recent RFQ Requests</MudText>
+                
+                <MudList T="string" Dense="true">
+                    @foreach (var rfq in _recentRfqs)
+                    {
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.Circle" 
+                                     IconColor="@GetRfqColor(rfq.Urgency)">
+                            <MudText Typo="Typo.body2">@rfq.ProductName - @rfq.Quantity</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                                @rfq.BuyerName • @rfq.TimeAgo
+                            </MudText>
+                        </MudListItem>
+                    }
+                </MudList>
+                
+                <MudButton Variant="Variant.Text" Color="Color.Primary" FullWidth="true" 
+                           EndIcon="@Icons.Material.Filled.ArrowForward" Class="mt-2"
+                           OnClick="@(() => NavigateTo("/portal/supplier/rfqs"))">
+                    View All RFQs
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Recent Orders -->
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Recent Orders</MudText>
+                
+                <MudList T="string" Dense="true">
+                    @foreach (var order in _recentOrders)
+                    {
+                        <MudListItem T="string">
+                            <MudGrid>
+                                <MudItem xs="8">
+                                    <MudText Typo="Typo.body2">Order #@order.OrderNumber</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Tertiary">@order.BuyerName</MudText>
+                                </MudItem>
+                                <MudItem xs="4" Class="text-right">
+                                    <MudChip T="string" Size="Size.Small" Color="@GetOrderStatusColor(order.Status)">
+                                        @order.Status
+                                    </MudChip>
+                                </MudItem>
+                            </MudGrid>
+                        </MudListItem>
+                    }
+                </MudList>
+                
+                <MudButton Variant="Variant.Text" Color="Color.Primary" FullWidth="true" 
+                           EndIcon="@Icons.Material.Filled.ArrowForward" Class="mt-2"
+                           OnClick="@(() => NavigateTo("/portal/supplier/orders"))">
+                    View All Orders
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Company Profile Completion -->
+        @if (_profileCompletion < 100)
+        {
+            <MudItem xs="12">
+                <MudAlert Severity="Severity.Warning">
+                    <div class="d-flex align-center justify-space-between">
+                        <div>
+                            <MudText>
+                                <strong>Complete Your Profile</strong> - Your profile is @_profileCompletion% complete. 
+                                Complete profiles get 3x more buyer inquiries!
+                            </MudText>
+                            <MudProgressLinear Value="@_profileCompletion" Color="Color.Warning" Class="mt-2" Style="height: 8px;" />
+                        </div>
+                        <MudButton Color="Color.Warning" Variant="Variant.Filled" 
+                                   OnClick="@(() => NavigateTo("/portal/supplier/profile"))">
+                            Complete Profile
+                        </MudButton>
+                    </div>
+                </MudAlert>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private int _activeProducts = 247;
+    private int _pendingRfqs = 18;
+    private int _activeOrders = 34;
+    private decimal _orderValue = 145230;
+    private int _profileViews = 892;
+    private int _profileCompletion = 85;
+    
+    private List<RfqItem> _recentRfqs = new();
+    private List<OrderItem> _recentOrders = new();
+    private FoodXSupplier? _currentSupplier;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSupplierData();
+        LoadMockData();
+    }
+
+    private async Task LoadSupplierData()
+    {
+        try
+        {
+            // Get current user (or impersonated user)
+            var user = PortalContext.IsImpersonating 
+                ? PortalContext.ImpersonatedUser 
+                : (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var userEmail = user.Identity.Name;
+                
+                // Try to find supplier by email
+                _currentSupplier = await DbContext.FoodXSuppliers
+                    .FirstOrDefaultAsync(s => s.CompanyEmail == userEmail || s.ContactEmail == userEmail);
+                
+                if (_currentSupplier != null)
+                {
+                    // Load real data
+                    _activeProducts = await DbContext.Products
+                        .Where(p => p.SupplierId == _currentSupplier.Id && p.IsActive == true)
+                        .CountAsync();
+                    
+                    // Calculate profile completion
+                    _profileCompletion = CalculateProfileCompletion(_currentSupplier);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading supplier data: {ex.Message}");
+        }
+    }
+
+    private int CalculateProfileCompletion(FoodXSupplier supplier)
+    {
+        int completed = 0;
+        int total = 10;
+        
+        if (!string.IsNullOrWhiteSpace(supplier.SupplierName)) completed++;
+        if (!string.IsNullOrWhiteSpace(supplier.Description)) completed++;
+        if (!string.IsNullOrWhiteSpace(supplier.CompanyEmail)) completed++;
+        if (!string.IsNullOrWhiteSpace(supplier.Phone)) completed++;
+        if (!string.IsNullOrWhiteSpace(supplier.Address)) completed++;
+        if (!string.IsNullOrWhiteSpace(supplier.Country)) completed++;
+        if (!string.IsNullOrWhiteSpace(supplier.ProductCategory)) completed++;
+        if (!string.IsNullOrWhiteSpace(supplier.CompanyWebsite)) completed++;
+        if (!string.IsNullOrWhiteSpace(supplier.Certifications)) completed++;
+        if (supplier.Products != null && supplier.Products.Length > 0) completed++;
+        
+        return (completed * 100) / total;
+    }
+
+    private void LoadMockData()
+    {
+        _recentRfqs = new List<RfqItem>
+        {
+            new RfqItem { ProductName = "Organic Tomatoes", Quantity = "500kg", BuyerName = "Carrefour Poland", TimeAgo = "2 hours ago", Urgency = "High" },
+            new RfqItem { ProductName = "Fresh Mozzarella", Quantity = "200kg/week", BuyerName = "Metro Germany", TimeAgo = "5 hours ago", Urgency = "Medium" },
+            new RfqItem { ProductName = "Olive Oil Extra Virgin", Quantity = "1000L", BuyerName = "Tesco UK", TimeAgo = "1 day ago", Urgency = "Low" },
+            new RfqItem { ProductName = "Frozen Vegetables Mix", Quantity = "2 tons", BuyerName = "Auchan France", TimeAgo = "2 days ago", Urgency = "Low" }
+        };
+
+        _recentOrders = new List<OrderItem>
+        {
+            new OrderItem { OrderNumber = "FX-2024-1847", BuyerName = "Lidl Germany", Status = "Shipped" },
+            new OrderItem { OrderNumber = "FX-2024-1846", BuyerName = "Carrefour Poland", Status = "Processing" },
+            new OrderItem { OrderNumber = "FX-2024-1845", BuyerName = "Metro France", Status = "Pending" },
+            new OrderItem { OrderNumber = "FX-2024-1844", BuyerName = "Tesco UK", Status = "Delivered" }
+        };
+    }
+
+    private string GetSupplierName()
+    {
+        if (_currentSupplier != null)
+            return _currentSupplier.SupplierName;
+        
+        var user = PortalContext.IsImpersonating 
+            ? PortalContext.ImpersonatedUser 
+            : AuthenticationStateProvider.GetAuthenticationStateAsync().Result.User;
+            
+        return user?.Identity?.Name ?? "Supplier";
+    }
+
+    private Color GetRfqColor(string urgency)
+    {
+        return urgency switch
+        {
+            "High" => Color.Warning,
+            "Medium" => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    private Color GetOrderStatusColor(string status)
+    {
+        return status switch
+        {
+            "Shipped" => Color.Success,
+            "Processing" => Color.Warning,
+            "Pending" => Color.Info,
+            "Delivered" => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    private void NavigateTo(string url)
+    {
+        NavigationManager.NavigateTo(url);
+    }
+
+    private class RfqItem
+    {
+        public string ProductName { get; set; } = "";
+        public string Quantity { get; set; } = "";
+        public string BuyerName { get; set; } = "";
+        public string TimeAgo { get; set; } = "";
+        public string Urgency { get; set; } = "";
+    }
+
+    private class OrderItem
+    {
+        public string OrderNumber { get; set; } = "";
+        public string BuyerName { get; set; } = "";
+        public string Status { get; set; } = "";
+    }
+}

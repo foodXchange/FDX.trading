@@ -47,7 +47,7 @@ namespace FoodX.Core.Repositories
                 return await GetActiveProductsAsync();
 
             var lowerSearchTerm = searchTerm.ToLower();
-            
+
             return await _dbSet
                 .Where(p => p.IsActive && (
                     p.Name.ToLower().Contains(lowerSearchTerm) ||
@@ -93,12 +93,12 @@ namespace FoodX.Core.Repositories
         public async Task<bool> IsSkuUniqueAsync(string sku, int? excludeProductId = null)
         {
             var query = _dbSet.Where(p => p.SKU == sku);
-            
+
             if (excludeProductId.HasValue)
             {
                 query = query.Where(p => p.Id != excludeProductId.Value);
             }
-            
+
             return !await query.AnyAsync();
         }
 

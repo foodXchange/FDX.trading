@@ -1,0 +1,197 @@
+@page "/reports"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "SuperAdmin,Admin")]
+@rendermode InteractiveServer
+
+<PageTitle>Reports - FoodX</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h3" GutterBottom="true">
+                <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" />
+                Reports & Analytics
+            </MudText>
+        </MudItem>
+
+        <!-- Report Categories -->
+        <MudItem xs="12">
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+                <MudTabPanel Text="Sales Reports">
+                    <MudGrid>
+                        <MudItem xs="12" md="6" lg="4">
+                            <MudCard>
+                                <MudCardContent>
+                                    <MudIcon Icon="@Icons.Material.Filled.PointOfSale" Size="Size.Large" Color="Color.Primary" />
+                                    <MudText Typo="Typo.h6" Class="mt-2">Sales Summary</MudText>
+                                    <MudText Typo="Typo.body2">Monthly and yearly sales overview</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Last generated: 2 hours ago</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Color="Color.Primary">Generate</MudButton>
+                                    <MudButton Color="Color.Secondary">Schedule</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6" lg="4">
+                            <MudCard>
+                                <MudCardContent>
+                                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Large" Color="Color.Success" />
+                                    <MudText Typo="Typo.h6" Class="mt-2">Revenue Analysis</MudText>
+                                    <MudText Typo="Typo.body2">Revenue trends and forecasts</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Last generated: Yesterday</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Color="Color.Primary">Generate</MudButton>
+                                    <MudButton Color="Color.Secondary">Schedule</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6" lg="4">
+                            <MudCard>
+                                <MudCardContent>
+                                    <MudIcon Icon="@Icons.Material.Filled.Category" Size="Size.Large" Color="Color.Info" />
+                                    <MudText Typo="Typo.h6" Class="mt-2">Product Performance</MudText>
+                                    <MudText Typo="Typo.body2">Best and worst performing products</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Tertiary">Last generated: 3 days ago</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Color="Color.Primary">Generate</MudButton>
+                                    <MudButton Color="Color.Secondary">Schedule</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+                
+                <MudTabPanel Text="User Reports">
+                    <MudGrid>
+                        <MudItem xs="12" md="6" lg="4">
+                            <MudCard>
+                                <MudCardContent>
+                                    <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" Color="Color.Primary" />
+                                    <MudText Typo="Typo.h6" Class="mt-2">User Activity</MudText>
+                                    <MudText Typo="Typo.body2">Login patterns and user engagement</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Color="Color.Primary">Generate</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6" lg="4">
+                            <MudCard>
+                                <MudCardContent>
+                                    <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Large" Color="Color.Success" />
+                                    <MudText Typo="Typo.h6" Class="mt-2">New Registrations</MudText>
+                                    <MudText Typo="Typo.body2">User registration trends</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Color="Color.Primary">Generate</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+                
+                <MudTabPanel Text="Operational Reports">
+                    <MudGrid>
+                        <MudItem xs="12" md="6" lg="4">
+                            <MudCard>
+                                <MudCardContent>
+                                    <MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Large" Color="Color.Warning" />
+                                    <MudText Typo="Typo.h6" Class="mt-2">Inventory Status</MudText>
+                                    <MudText Typo="Typo.body2">Stock levels and movement</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Color="Color.Primary">Generate</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6" lg="4">
+                            <MudCard>
+                                <MudCardContent>
+                                    <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Size="Size.Large" Color="Color.Info" />
+                                    <MudText Typo="Typo.h6" Class="mt-2">Delivery Performance</MudText>
+                                    <MudText Typo="Typo.body2">On-time delivery metrics</MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Color="Color.Primary">Generate</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+            </MudTabs>
+        </MudItem>
+
+        <!-- Recent Reports -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Recently Generated Reports</MudText>
+                <MudTable Items="@_recentReports" Hover="true" Dense="true">
+                    <HeaderContent>
+                        <MudTh>Report Name</MudTh>
+                        <MudTh>Type</MudTh>
+                        <MudTh>Generated By</MudTh>
+                        <MudTh>Date</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Name</MudTd>
+                        <MudTd>@context.Type</MudTd>
+                        <MudTd>@context.GeneratedBy</MudTd>
+                        <MudTd>@context.Date.ToString("MMM dd, yyyy HH:mm")</MudTd>
+                        <MudTd>
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                                @context.Status
+                            </MudChip>
+                        </MudTd>
+                        <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Email" Size="Size.Small" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<ReportItem> _recentReports = new();
+    
+    protected override void OnInitialized()
+    {
+        _recentReports = new List<ReportItem>
+        {
+            new ReportItem { Name = "Q4 Sales Report", Type = "Sales", GeneratedBy = "John Admin", Date = DateTime.Now.AddHours(-2), Status = "Ready" },
+            new ReportItem { Name = "Monthly User Activity", Type = "Users", GeneratedBy = "System", Date = DateTime.Now.AddDays(-1), Status = "Ready" },
+            new ReportItem { Name = "Inventory Analysis", Type = "Operational", GeneratedBy = "Jane Manager", Date = DateTime.Now.AddDays(-2), Status = "Ready" },
+            new ReportItem { Name = "Revenue Forecast", Type = "Sales", GeneratedBy = "System", Date = DateTime.Now.AddHours(-5), Status = "Processing" },
+            new ReportItem { Name = "Supplier Performance", Type = "Operational", GeneratedBy = "Mike Analyst", Date = DateTime.Now.AddDays(-3), Status = "Ready" },
+        };
+    }
+    
+    private Color GetStatusColor(string status) => status switch
+    {
+        "Ready" => Color.Success,
+        "Processing" => Color.Warning,
+        "Failed" => Color.Error,
+        _ => Color.Default
+    };
+    
+    private class ReportItem
+    {
+        public string Name { get; set; } = "";
+        public string Type { get; set; } = "";
+        public string GeneratedBy { get; set; } = "";
+        public DateTime Date { get; set; }
+        public string Status { get; set; } = "";
+    }
+}

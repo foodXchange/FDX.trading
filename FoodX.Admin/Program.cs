@@ -44,6 +44,9 @@ CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.GetCultureInfo("en-US");
 // Add MudBlazor services
 builder.Services.AddMudServices();
 
+// Add memory cache for performance optimization
+builder.Services.AddMemoryCache();
+
 // Add FoodX Core services (caching, email, etc.)
 builder.Services.AddFoodXCore(builder.Configuration);
 
@@ -76,6 +79,7 @@ builder.Services.AddScoped<FoodX.Admin.Services.TestUserService>();
 // Add AI Request Analyzer Service
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<FoodX.Admin.Services.IAIRequestAnalyzer, FoodX.Admin.Services.AIRequestAnalyzer>();
+builder.Services.AddScoped<FoodX.Admin.Services.SupplierSearchService>();
 
 // Add Authentication
 builder.Services.AddCascadingAuthenticationState();
@@ -183,6 +187,12 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 
 // Register role navigation service
 builder.Services.AddScoped<FoodX.Admin.Services.IRoleNavigationService, FoodX.Admin.Services.RoleNavigationService>();
+
+// Register Portal Context Service for SuperAdmin portal switching
+builder.Services.AddScoped<FoodX.Admin.Services.IPortalContextService, FoodX.Admin.Services.PortalContextService>();
+
+// Add Dashboard Data Service with caching
+builder.Services.AddScoped<FoodX.Admin.Services.IDashboardDataService, FoodX.Admin.Services.DashboardDataService>();
 
 // Configure SendGrid with API key from Azure Key Vault
 var sendGridApiKey = builder.Configuration["SendGridApiKey"];

@@ -28,7 +28,7 @@ public class MemoryCacheService : ICacheService
     public void Set<T>(string key, T value, TimeSpan? expiration = null)
     {
         var cacheOptions = new MemoryCacheEntryOptions();
-        
+
         if (expiration.HasValue)
         {
             cacheOptions.SetAbsoluteExpiration(expiration.Value);

@@ -20,7 +20,7 @@ namespace FoodX.Core.Models.Entities
         public string ProfilePictureUrl { get; set; } = string.Empty;
         public string TimeZone { get; set; } = "UTC";
         public string PreferredLanguage { get; set; } = "en";
-        
+
         // Navigation properties
         public virtual Company? Company { get; set; }
         public virtual ICollection<Order> CreatedOrders { get; set; } = new List<Order>();

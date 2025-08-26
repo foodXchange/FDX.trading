@@ -1,0 +1,371 @@
+@page "/portal/supplier/products/import"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "SuperAdmin,Admin,Supplier")]
+@inject ISnackbar Snackbar
+@rendermode InteractiveServer
+
+<PageTitle>Import Products - FoodX Supplier Portal</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudBreadcrumbs Items="_breadcrumbs" Class="mb-4"></MudBreadcrumbs>
+            
+            <MudText Typo="Typo.h4" GutterBottom="true">
+                <MudIcon Icon="@Icons.Material.Filled.FileUpload" Class="mr-2" />
+                Import Products
+            </MudText>
+        </MudItem>
+
+        <!-- Upload Section -->
+        <MudItem xs="12" lg="8">
+            <MudPaper Class="pa-6" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Upload Product File</MudText>
+                
+                <MudFileUpload T="IBrowserFile" Accept=".csv,.xlsx" FilesChanged="OnInputFileChanged" MaximumFileCount="1">
+                    <ActivatorContent>
+                        <MudButton HtmlTag="label"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload">
+                            Select File
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+                
+                @if (_selectedFile != null)
+                {
+                    <MudChip T="string" Color="Color.Primary" Class="mt-2">
+                        @_selectedFile.Name (@(_selectedFile.Size / 1024)KB)
+                    </MudChip>
+                }
+                
+                <MudText Typo="Typo.caption" Class="mt-2">
+                    Accepted formats: CSV, Excel (.xlsx). Maximum file size: 10MB
+                </MudText>
+                
+                @if (_selectedFile != null && !_isUploading)
+                {
+                    <div class="mt-4">
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Success" 
+                                   StartIcon="@Icons.Material.Filled.Upload"
+                                   OnClick="ProcessImport">
+                            Process Import
+                        </MudButton>
+                    </div>
+                }
+                
+                @if (_isUploading)
+                {
+                    <div class="mt-4">
+                        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
+                        <MudText Align="Align.Center">Processing your file...</MudText>
+                    </div>
+                }
+            </MudPaper>
+        </MudItem>
+
+        <!-- Template & Instructions -->
+        <MudItem xs="12" lg="4">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.h6" GutterBottom="true">
+                    <MudIcon Icon="@Icons.Material.Filled.Download" Class="mr-2" />
+                    Download Template
+                </MudText>
+                <MudText Typo="Typo.body2" Class="mb-3">
+                    Use our template to ensure your data imports correctly.
+                </MudText>
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Primary" 
+                           FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Download"
+                           OnClick="DownloadTemplate">
+                    Download CSV Template
+                </MudButton>
+                
+                <MudDivider Class="my-4" />
+                
+                <MudText Typo="Typo.h6" GutterBottom="true">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
+                    Required Fields
+                </MudText>
+                <MudList T="string" Dense="true">
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                        <MudText Typo="Typo.body2">Product Name</MudText>
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                        <MudText Typo="Typo.body2">SKU</MudText>
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                        <MudText Typo="Typo.body2">Category</MudText>
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                        <MudText Typo="Typo.body2">Price</MudText>
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                        <MudText Typo="Typo.body2">Unit</MudText>
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                        <MudText Typo="Typo.body2">Stock Quantity</MudText>
+                    </MudListItem>
+                </MudList>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Import Results -->
+        @if (_importResults.Any())
+        {
+            <MudItem xs="12">
+                <MudPaper Class="pa-4" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-4">Import Results</MudText>
+                    
+                    <MudGrid>
+                        <MudItem xs="12" sm="3">
+                            <MudCard>
+                                <MudCardContent>
+                                    <MudText Typo="Typo.caption">Total Records</MudText>
+                                    <MudText Typo="Typo.h4">@_importResults.Count</MudText>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                        
+                        <MudItem xs="12" sm="3">
+                            <MudCard>
+                                <MudCardContent>
+                                    <MudText Typo="Typo.caption">Successful</MudText>
+                                    <MudText Typo="Typo.h4" Color="Color.Success">@_importResults.Count(r => r.IsSuccess)</MudText>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                        
+                        <MudItem xs="12" sm="3">
+                            <MudCard>
+                                <MudCardContent>
+                                    <MudText Typo="Typo.caption">Failed</MudText>
+                                    <MudText Typo="Typo.h4" Color="Color.Error">@_importResults.Count(r => !r.IsSuccess)</MudText>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                        
+                        <MudItem xs="12" sm="3">
+                            <MudCard>
+                                <MudCardContent>
+                                    <MudText Typo="Typo.caption">Warnings</MudText>
+                                    <MudText Typo="Typo.h4" Color="Color.Warning">@_importResults.Count(r => r.HasWarnings)</MudText>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    </MudGrid>
+                    
+                    <MudTable Items="@_importResults" Hover="true" Dense="true" Class="mt-4">
+                        <HeaderContent>
+                            <MudTh>Row</MudTh>
+                            <MudTh>Product Name</MudTh>
+                            <MudTh>SKU</MudTh>
+                            <MudTh>Status</MudTh>
+                            <MudTh>Message</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.RowNumber</MudTd>
+                            <MudTd>@context.ProductName</MudTd>
+                            <MudTd>@context.Sku</MudTd>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small" Color="@(context.IsSuccess ? Color.Success : Color.Error)">
+                                    @(context.IsSuccess ? "Success" : "Failed")
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.body2" Color="@(context.IsSuccess ? Color.Success : Color.Error)">
+                                    @context.Message
+                                </MudText>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                    
+                    <div class="mt-4">
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Primary" 
+                                   StartIcon="@Icons.Material.Filled.Check"
+                                   OnClick="ConfirmImport"
+                                   Disabled="@(!_importResults.Any(r => r.IsSuccess))">
+                            Confirm Import (@_importResults.Count(r => r.IsSuccess) products)
+                        </MudButton>
+                        <MudButton Variant="Variant.Text" 
+                                   Color="Color.Secondary" 
+                                   Class="ml-2"
+                                   OnClick="ClearResults">
+                            Clear Results
+                        </MudButton>
+                    </div>
+                </MudPaper>
+            </MudItem>
+        }
+
+        <!-- Import History -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Recent Imports</MudText>
+                
+                <MudTable Items="@_importHistory" Hover="true" Dense="true">
+                    <HeaderContent>
+                        <MudTh>Import Date</MudTh>
+                        <MudTh>Filename</MudTh>
+                        <MudTh>Total Records</MudTh>
+                        <MudTh>Successful</MudTh>
+                        <MudTh>Failed</MudTh>
+                        <MudTh>Status</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.ImportDate.ToString("MMM dd, yyyy HH:mm")</MudTd>
+                        <MudTd>@context.Filename</MudTd>
+                        <MudTd>@context.TotalRecords</MudTd>
+                        <MudTd>
+                            <MudText Color="Color.Success">@context.SuccessfulRecords</MudText>
+                        </MudTd>
+                        <MudTd>
+                            <MudText Color="Color.Error">@context.FailedRecords</MudText>
+                        </MudTd>
+                        <MudTd>
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                                @context.Status
+                            </MudChip>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private IBrowserFile? _selectedFile;
+    private bool _isUploading = false;
+    private List<ImportResult> _importResults = new();
+    private List<ImportHistoryItem> _importHistory = new();
+    
+    private List<BreadcrumbItem> _breadcrumbs = new List<BreadcrumbItem>
+    {
+        new BreadcrumbItem("Supplier Portal", href: "/portal/supplier"),
+        new BreadcrumbItem("Products", href: "/portal/supplier/products"),
+        new BreadcrumbItem("Import Products", href: null, disabled: true)
+    };
+
+    protected override void OnInitialized()
+    {
+        LoadImportHistory();
+    }
+
+    private void OnInputFileChanged(IBrowserFile file)
+    {
+        _selectedFile = file;
+        ClearResults();
+    }
+
+    private async Task ProcessImport()
+    {
+        if (_selectedFile == null) return;
+
+        _isUploading = true;
+        _importResults.Clear();
+
+        try
+        {
+            // Simulate file processing
+            await Task.Delay(3000);
+            
+            // Mock import results
+            _importResults = new List<ImportResult>
+            {
+                new ImportResult { RowNumber = 1, ProductName = "Organic Milk", Sku = "MILK-001", IsSuccess = true, Message = "Product imported successfully" },
+                new ImportResult { RowNumber = 2, ProductName = "Free Range Eggs", Sku = "EGG-002", IsSuccess = true, Message = "Product imported successfully", HasWarnings = true },
+                new ImportResult { RowNumber = 3, ProductName = "Fresh Bread", Sku = "", IsSuccess = false, Message = "SKU is required" },
+                new ImportResult { RowNumber = 4, ProductName = "Cheddar Cheese", Sku = "CHE-003", IsSuccess = true, Message = "Product imported successfully" },
+                new ImportResult { RowNumber = 5, ProductName = "", Sku = "VEG-004", IsSuccess = false, Message = "Product name is required" },
+            };
+            
+            Snackbar.Add($"Import completed: {_importResults.Count(r => r.IsSuccess)} successful, {_importResults.Count(r => !r.IsSuccess)} failed");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Import failed: {ex.Message}");
+        }
+        finally
+        {
+            _isUploading = false;
+        }
+    }
+
+    private async Task ConfirmImport()
+    {
+        // Simulate confirmation
+        await Task.Delay(1000);
+        
+        var successfulCount = _importResults.Count(r => r.IsSuccess);
+        
+        // Add to history
+        _importHistory.Insert(0, new ImportHistoryItem
+        {
+            ImportDate = DateTime.Now,
+            Filename = _selectedFile?.Name ?? "Unknown",
+            TotalRecords = _importResults.Count,
+            SuccessfulRecords = successfulCount,
+            FailedRecords = _importResults.Count - successfulCount,
+            Status = "Completed"
+        });
+        
+        Snackbar.Add($"Successfully imported {successfulCount} products!");
+        ClearResults();
+        _selectedFile = null;
+    }
+
+    private void ClearResults()
+    {
+        _importResults.Clear();
+    }
+
+    private void DownloadTemplate()
+    {
+        // In real implementation, generate and download CSV template
+        Snackbar.Add("Template download started");
+    }
+
+    private void LoadImportHistory()
+    {
+        // Mock import history
+        _importHistory = new List<ImportHistoryItem>
+        {
+            new ImportHistoryItem { ImportDate = DateTime.Now.AddDays(-2), Filename = "products_batch_1.csv", TotalRecords = 45, SuccessfulRecords = 43, FailedRecords = 2, Status = "Completed" },
+            new ImportHistoryItem { ImportDate = DateTime.Now.AddDays(-7), Filename = "seasonal_products.xlsx", TotalRecords = 28, SuccessfulRecords = 28, FailedRecords = 0, Status = "Completed" },
+            new ImportHistoryItem { ImportDate = DateTime.Now.AddDays(-14), Filename = "dairy_products.csv", TotalRecords = 67, SuccessfulRecords = 60, FailedRecords = 7, Status = "Completed" },
+        };
+    }
+
+    private Color GetStatusColor(string status) => status switch
+    {
+        "Completed" => Color.Success,
+        "Processing" => Color.Info,
+        "Failed" => Color.Error,
+        _ => Color.Default
+    };
+
+    private class ImportResult
+    {
+        public int RowNumber { get; set; }
+        public string ProductName { get; set; } = "";
+        public string Sku { get; set; } = "";
+        public bool IsSuccess { get; set; }
+        public bool HasWarnings { get; set; }
+        public string Message { get; set; } = "";
+    }
+
+    private class ImportHistoryItem
+    {
+        public DateTime ImportDate { get; set; }
+        public string Filename { get; set; } = "";
+        public int TotalRecords { get; set; }
+        public int SuccessfulRecords { get; set; }
+        public int FailedRecords { get; set; }
+        public string Status { get; set; } = "";
+    }
+}

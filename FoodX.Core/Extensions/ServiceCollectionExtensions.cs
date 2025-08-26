@@ -17,7 +17,7 @@ public static class ServiceCollectionExtensions
         // Configure AppSettings
         services.Configure<AppSettings>(configuration.GetSection("AppSettings"));
         services.AddSingleton<IConfigurationService, ConfigurationService>();
-        
+
         // Add Memory Cache
         services.AddMemoryCache();
         services.AddSingleton<ICacheService, MemoryCacheService>();

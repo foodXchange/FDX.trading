@@ -35,6 +35,30 @@
                 </MudNavLink>
             </MudNavGroup>
             
+            <!-- SuperAdmin Only -->
+            <AuthorizeView Roles="SuperAdmin" Context="superAdminContext">
+                <MudNavGroup Title="SuperAdmin" Icon="@Icons.Material.Filled.SupervisorAccount" Expanded="false">
+                    <MudNavLink Href="superadmin/dashboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.SpaceDashboard">
+                        Unified Dashboard
+                    </MudNavLink>
+                    <MudNavLink Href="superadmin/impersonate" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PersonSearch">
+                        User Impersonation
+                    </MudNavLink>
+                    <MudNavLink Href="superadmin/portal-management" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ViewModule">
+                        Portal Management
+                    </MudNavLink>
+                    <MudNavLink Href="superadmin/analytics" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QueryStats">
+                        Cross-Portal Analytics
+                    </MudNavLink>
+                    <MudNavLink Href="superadmin/audit-log" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.History">
+                        Audit Log
+                    </MudNavLink>
+                    <MudNavLink Href="superadmin/system-health" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.MonitorHeart">
+                        System Health
+                    </MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+            
             <!-- Admin Only -->
             <AuthorizeView Roles="Admin,SuperAdmin" Context="adminContext">
                 <MudNavGroup Title="Administration" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">

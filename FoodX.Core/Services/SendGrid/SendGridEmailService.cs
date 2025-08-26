@@ -32,15 +32,15 @@ public class SendGridEmailService : IEmailService
             var from = new EmailAddress(_fromEmail, _fromName);
             var toAddress = new EmailAddress(to);
             var msg = MailHelper.CreateSingleEmail(from, toAddress, subject, null, htmlContent);
-            
+
             var response = await _sendGridClient.SendEmailAsync(msg);
-            
+
             if (response.IsSuccessStatusCode)
             {
                 _logger.LogInformation("Email sent successfully to {To}", to);
                 return true;
             }
-            
+
             _logger.LogWarning("Failed to send email. Status: {Status}", response.StatusCode);
             return false;
         }
@@ -58,15 +58,15 @@ public class SendGridEmailService : IEmailService
             var from = new EmailAddress(_fromEmail, _fromName);
             var toAddress = new EmailAddress(to);
             var msg = MailHelper.CreateSingleTemplateEmail(from, toAddress, templateId, templateData);
-            
+
             var response = await _sendGridClient.SendEmailAsync(msg);
-            
+
             if (response.IsSuccessStatusCode)
             {
                 _logger.LogInformation("Template email sent successfully to {To}", to);
                 return true;
             }
-            
+
             _logger.LogWarning("Failed to send template email. Status: {Status}", response.StatusCode);
             return false;
         }
@@ -84,15 +84,15 @@ public class SendGridEmailService : IEmailService
             var from = new EmailAddress(_fromEmail, _fromName);
             var tos = recipients.Select(r => new EmailAddress(r)).ToList();
             var msg = MailHelper.CreateSingleEmailToMultipleRecipients(from, tos, subject, null, htmlContent);
-            
+
             var response = await _sendGridClient.SendEmailAsync(msg);
-            
+
             if (response.IsSuccessStatusCode)
             {
                 _logger.LogInformation("Bulk email sent successfully to {Count} recipients", recipients.Count);
                 return true;
             }
-            
+
             _logger.LogWarning("Failed to send bulk email. Status: {Status}", response.StatusCode);
             return false;
         }

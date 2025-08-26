@@ -1,0 +1,127 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<MudNavMenu>
+    <AuthorizeView>
+        <Authorized>
+            <!-- Buyer Dashboard -->
+            <MudNavLink Href="/portal/buyer/dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+                Dashboard
+            </MudNavLink>
+            
+            <!-- Sourcing -->
+            <MudNavGroup Title="Sourcing" Icon="@Icons.Material.Filled.Search" Expanded="true">
+                <MudNavLink Href="/portal/buyer/suppliers" Icon="@Icons.Material.Filled.LocalShipping">
+                    Browse Suppliers
+                </MudNavLink>
+                <MudNavLink Href="/portal/buyer/products" Icon="@Icons.Material.Filled.Category">
+                    Product Catalog
+                </MudNavLink>
+                <MudNavLink Href="/portal/buyer/rfq/create" Icon="@Icons.Material.Filled.AddShoppingCart">
+                    Create RFQ
+                </MudNavLink>
+                <MudNavLink Href="/portal/buyer/ai-search" Icon="@Icons.Material.Filled.Psychology">
+                    AI Product Search
+                </MudNavLink>
+            </MudNavGroup>
+            
+            <!-- Procurement -->
+            <MudNavGroup Title="Procurement" Icon="@Icons.Material.Filled.ShoppingCart" Expanded="false">
+                <MudNavLink Href="/portal/buyer/rfqs" Icon="@Icons.Material.Filled.RequestQuote">
+                    My RFQs
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ml-2">8</MudChip>
+                </MudNavLink>
+                <MudNavLink Href="/portal/buyer/quotes" Icon="@Icons.Material.Filled.Receipt">
+                    Received Quotes
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-2">23</MudChip>
+                </MudNavLink>
+                <MudNavLink Href="/portal/buyer/orders" Icon="@Icons.Material.Filled.ShoppingBag">
+                    Purchase Orders
+                </MudNavLink>
+                <MudNavLink Href="/portal/buyer/contracts" Icon="@Icons.Material.Filled.Article">
+                    Contracts
+                </MudNavLink>
+            </MudNavGroup>
+            
+            <!-- Vendor Management -->
+            <MudNavGroup Title="Vendors" Icon="@Icons.Material.Filled.Business" Expanded="false">
+                <MudNavLink Href="/portal/buyer/vendors/approved" Icon="@Icons.Material.Filled.CheckCircle">
+                    Approved Vendors
+                </MudNavLink>
+                <MudNavLink Href="/portal/buyer/vendors/evaluation" Icon="@Icons.Material.Filled.Assessment">
+                    Vendor Evaluation
+                </MudNavLink>
+                <MudNavLink Href="/portal/buyer/vendors/performance" Icon="@Icons.Material.Filled.Speed">
+                    Performance Reports
+                </MudNavLink>
+            </MudNavGroup>
+            
+            <!-- Analytics -->
+            <MudNavGroup Title="Analytics" Icon="@Icons.Material.Filled.Analytics" Expanded="false">
+                <MudNavLink Href="/portal/buyer/analytics/spending" Icon="@Icons.Material.Filled.AttachMoney">
+                    Spend Analysis
+                </MudNavLink>
+                <MudNavLink Href="/portal/buyer/analytics/savings" Icon="@Icons.Material.Filled.Savings">
+                    Cost Savings
+                </MudNavLink>
+                <MudNavLink Href="/portal/buyer/analytics/suppliers" Icon="@Icons.Material.Filled.PieChart">
+                    Supplier Analytics
+                </MudNavLink>
+                <MudNavLink Href="/portal/buyer/analytics/trends" Icon="@Icons.Material.Filled.TrendingUp">
+                    Market Trends
+                </MudNavLink>
+            </MudNavGroup>
+            
+            <!-- Company -->
+            <MudNavGroup Title="Company" Icon="@Icons.Material.Filled.CorporateFare" Expanded="false">
+                <MudNavLink Href="/portal/buyer/company/profile" Icon="@Icons.Material.Filled.AccountBox">
+                    Company Profile
+                </MudNavLink>
+                <MudNavLink Href="/portal/buyer/company/requirements" Icon="@Icons.Material.Filled.Checklist">
+                    Requirements
+                </MudNavLink>
+                <MudNavLink Href="/portal/buyer/company/team" Icon="@Icons.Material.Filled.Groups">
+                    Team Members
+                </MudNavLink>
+            </MudNavGroup>
+            
+            <!-- Communications -->
+            <MudNavLink Href="/portal/buyer/messages" Icon="@Icons.Material.Filled.Message">
+                Messages
+                <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ml-2">3</MudChip>
+            </MudNavLink>
+            
+            <!-- Settings -->
+            <MudNavLink Href="/portal/buyer/settings" Icon="@Icons.Material.Filled.Settings">
+                Settings
+            </MudNavLink>
+            
+            <MudDivider Class="my-2" />
+            
+            <!-- Account Management -->
+            <MudNavLink Href="/Account/Manage" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AccountCircle">
+                My Account
+            </MudNavLink>
+            
+            <!-- Logout -->
+            <form action="Account/Logout" method="post">
+                <AntiforgeryToken />
+                <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                <button type="submit" class="mud-nav-link mud-ripple">
+                    <MudIcon Icon="@Icons.Material.Filled.Logout" Color="Color.Error" Class="mr-3"></MudIcon>
+                    Sign Out
+                </button>
+            </form>
+        </Authorized>
+    </AuthorizeView>
+</MudNavMenu>
+
+@code {
+    private string? currentUrl;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+    }
+}

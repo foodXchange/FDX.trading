@@ -1,0 +1,281 @@
+@page "/portal/buyer/vendors/approved"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "SuperAdmin,Admin,Buyer")]
+@rendermode InteractiveServer
+
+<PageTitle>Approved Vendors - FoodX Buyer Portal</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudText Typo="Typo.h4" GutterBottom="true">
+                <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Class="mr-2" />
+                Approved Vendors
+            </MudText>
+        </MudItem>
+
+        <!-- Quick Stats -->
+        <MudItem xs="12" sm="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.caption">Total Approved</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Success">32</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        
+        <MudItem xs="12" sm="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.caption">Active This Month</MudText>
+                    <MudText Typo="Typo.h4">24</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        
+        <MudItem xs="12" sm="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.caption">Preferred Vendors</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Primary">8</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        
+        <MudItem xs="12" sm="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.caption">New This Quarter</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Info">5</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Filter and Search -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudGrid>
+                    <MudItem xs="12" md="4">
+                        <MudTextField @bind-Value="_searchQuery" 
+                                    Label="Search Vendors" 
+                                    Adornment="Adornment.End" 
+                                    AdornmentIcon="@Icons.Material.Filled.Search" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect @bind-Value="_selectedCategory" Label="Category">
+                            <MudSelectItem Value="@string.Empty">All Categories</MudSelectItem>
+                            <MudSelectItem Value="@("Produce")">Fresh Produce</MudSelectItem>
+                            <MudSelectItem Value="@("Dairy")">Dairy Products</MudSelectItem>
+                            <MudSelectItem Value="@("Meat")">Meat & Poultry</MudSelectItem>
+                            <MudSelectItem Value="@("Seafood")">Seafood</MudSelectItem>
+                            <MudSelectItem Value="@("Bakery")">Bakery</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect @bind-Value="_selectedStatus" Label="Status">
+                            <MudSelectItem Value="@string.Empty">All Status</MudSelectItem>
+                            <MudSelectItem Value="@("Preferred")">Preferred</MudSelectItem>
+                            <MudSelectItem Value="@("Active")">Active</MudSelectItem>
+                            <MudSelectItem Value="@("New")">New</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudButton Variant="Variant.Text" 
+                                 Color="Color.Primary"
+                                 FullWidth="true"
+                                 OnClick="ClearFilters">
+                            Clear Filters
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Vendors Table -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Vendor Directory</MudText>
+                
+                <MudTable Items="@GetFilteredVendors()" Hover="true" Dense="true" Filter="new Func<VendorItem,bool>(FilterFunc)">
+                    <HeaderContent>
+                        <MudTh>Vendor</MudTh>
+                        <MudTh>Category</MudTh>
+                        <MudTh>Location</MudTh>
+                        <MudTh>Rating</MudTh>
+                        <MudTh>Orders</MudTh>
+                        <MudTh>Last Order</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>
+                            <div class="d-flex align-center">
+                                <MudAvatar Color="Color.Primary" Size="Size.Small" Class="mr-2">
+                                    @context.Name.Substring(0, 1)
+                                </MudAvatar>
+                                <div>
+                                    <MudText Typo="Typo.body2">@context.Name</MudText>
+                                    <MudText Typo="Typo.caption">@context.ContactPerson</MudText>
+                                </div>
+                            </div>
+                        </MudTd>
+                        <MudTd>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default">@context.Category</MudChip>
+                        </MudTd>
+                        <MudTd>@context.Location</MudTd>
+                        <MudTd>
+                            <MudRating ReadOnly="true" SelectedValue="@context.Rating" MaxValue="5" Size="Size.Small" />
+                        </MudTd>
+                        <MudTd>@context.TotalOrders</MudTd>
+                        <MudTd>@context.LastOrderDate.ToString("MMM dd")</MudTd>
+                        <MudTd>
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                                @context.Status
+                            </MudChip>
+                        </MudTd>
+                        <MudTd>
+                            <MudMenu>
+                                <ActivatorContent>
+                                    <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" />
+                                </ActivatorContent>
+                                <ChildContent>
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Visibility">View Profile</MudMenuItem>
+                                    <MudMenuItem Icon="@Icons.Material.Filled.RequestQuote">Send RFQ</MudMenuItem>
+                                    <MudMenuItem Icon="@Icons.Material.Filled.ShoppingCart">Place Order</MudMenuItem>
+                                    <MudMenuItem Icon="@Icons.Material.Filled.History">Order History</MudMenuItem>
+                                    <MudDivider />
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Star">Set as Preferred</MudMenuItem>
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Email">Contact</MudMenuItem>
+                                </ChildContent>
+                            </MudMenu>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+
+        <!-- Vendor Performance -->
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Top Performing Vendors This Month</MudText>
+                <MudGrid>
+                    @foreach (var vendor in GetTopVendors())
+                    {
+                        <MudItem xs="12" sm="6" md="4">
+                            <MudCard Outlined="true">
+                                <MudCardContent>
+                                    <div class="d-flex justify-space-between align-center mb-2">
+                                        <MudText Typo="Typo.h6">@vendor.Name</MudText>
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success">Top Performer</MudChip>
+                                    </div>
+                                    <MudText Typo="Typo.body2" Class="mb-2">@vendor.Category</MudText>
+                                    <MudGrid>
+                                        <MudItem xs="6">
+                                            <MudText Typo="Typo.caption">On-time Delivery</MudText>
+                                            <MudText Typo="Typo.body1">@vendor.OnTimeDelivery%</MudText>
+                                        </MudItem>
+                                        <MudItem xs="6">
+                                            <MudText Typo="Typo.caption">Quality Score</MudText>
+                                            <MudText Typo="Typo.body1">@vendor.QualityScore/10</MudText>
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary">
+                                        View Details
+                                    </MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<VendorItem> _vendors = new();
+    private string _searchQuery = "";
+    private string _selectedCategory = "";
+    private string _selectedStatus = "";
+    
+    protected override void OnInitialized()
+    {
+        // Mock data
+        _vendors = new List<VendorItem>
+        {
+            new VendorItem { Name = "Italian Farms Co.", ContactPerson = "Marco Rossi", Category = "Produce", Location = "Milan, Italy", Rating = 5, TotalOrders = 48, LastOrderDate = DateTime.Now.AddDays(-2), Status = "Preferred", OnTimeDelivery = 98, QualityScore = 9.5 },
+            new VendorItem { Name = "Dutch Dairy Excellence", ContactPerson = "Anna van Berg", Category = "Dairy", Location = "Amsterdam, NL", Rating = 4, TotalOrders = 32, LastOrderDate = DateTime.Now.AddDays(-1), Status = "Active", OnTimeDelivery = 95, QualityScore = 9.2 },
+            new VendorItem { Name = "Spanish Olive Groves", ContactPerson = "Carlos Martinez", Category = "Produce", Location = "Seville, Spain", Rating = 5, TotalOrders = 28, LastOrderDate = DateTime.Now.AddDays(-5), Status = "Preferred", OnTimeDelivery = 97, QualityScore = 9.4 },
+            new VendorItem { Name = "French Bakery Artisans", ContactPerson = "Pierre Dubois", Category = "Bakery", Location = "Lyon, France", Rating = 4, TotalOrders = 15, LastOrderDate = DateTime.Now.AddDays(-3), Status = "Active", OnTimeDelivery = 92, QualityScore = 8.8 },
+            new VendorItem { Name = "Atlantic Seafood Co.", ContactPerson = "Maria Santos", Category = "Seafood", Location = "Porto, Portugal", Rating = 4, TotalOrders = 22, LastOrderDate = DateTime.Now.AddDays(-1), Status = "Active", OnTimeDelivery = 94, QualityScore = 9.1 },
+            new VendorItem { Name = "German Meat Masters", ContactPerson = "Hans Mueller", Category = "Meat", Location = "Munich, Germany", Rating = 5, TotalOrders = 38, LastOrderDate = DateTime.Now.AddDays(-4), Status = "Preferred", OnTimeDelivery = 96, QualityScore = 9.3 },
+            new VendorItem { Name = "Nordic Fish Supply", ContactPerson = "Erik Larsson", Category = "Seafood", Location = "Oslo, Norway", Rating = 4, TotalOrders = 8, LastOrderDate = DateTime.Now.AddDays(-7), Status = "New", OnTimeDelivery = 90, QualityScore = 8.6 },
+        };
+    }
+    
+    private IEnumerable<VendorItem> GetFilteredVendors()
+    {
+        var filtered = _vendors.AsEnumerable();
+        
+        if (!string.IsNullOrEmpty(_selectedCategory))
+        {
+            filtered = filtered.Where(v => v.Category == _selectedCategory);
+        }
+        
+        if (!string.IsNullOrEmpty(_selectedStatus))
+        {
+            filtered = filtered.Where(v => v.Status == _selectedStatus);
+        }
+        
+        return filtered.OrderBy(v => v.Name);
+    }
+    
+    private IEnumerable<VendorItem> GetTopVendors()
+    {
+        return _vendors.Where(v => v.OnTimeDelivery >= 95 && v.QualityScore >= 9.0)
+                      .OrderByDescending(v => v.OnTimeDelivery)
+                      .Take(3);
+    }
+    
+    private bool FilterFunc(VendorItem vendor)
+    {
+        if (string.IsNullOrWhiteSpace(_searchQuery))
+            return true;
+        
+        return vendor.Name.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+               vendor.ContactPerson.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+               vendor.Location.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase);
+    }
+    
+    private void ClearFilters()
+    {
+        _searchQuery = "";
+        _selectedCategory = "";
+        _selectedStatus = "";
+    }
+    
+    private Color GetStatusColor(string status) => status switch
+    {
+        "Preferred" => Color.Success,
+        "Active" => Color.Primary,
+        "New" => Color.Info,
+        "Inactive" => Color.Default,
+        _ => Color.Default
+    };
+    
+    private class VendorItem
+    {
+        public string Name { get; set; } = "";
+        public string ContactPerson { get; set; } = "";
+        public string Category { get; set; } = "";
+        public string Location { get; set; } = "";
+        public int Rating { get; set; }
+        public int TotalOrders { get; set; }
+        public DateTime LastOrderDate { get; set; }
+        public string Status { get; set; } = "";
+        public int OnTimeDelivery { get; set; }
+        public double QualityScore { get; set; }
+    }
+}

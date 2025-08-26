@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\FoodX.Core\FoodX.Core.csproj" />
     <ProjectReference Include="..\FoodX.SharedUI\FoodX.SharedUI.csproj" />
+    <ProjectReference Include="..\FoodX.Admin\FoodX.Admin.csproj" />
   </ItemGroup>
 
 </Project>

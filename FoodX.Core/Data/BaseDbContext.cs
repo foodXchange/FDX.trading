@@ -27,7 +27,7 @@ namespace FoodX.Core.Data
 
             // Apply common configurations
             ApplyCommonConfigurations(modelBuilder);
-            
+
             // Apply entity-specific configurations
             ApplyEntityConfigurations(modelBuilder);
         }
@@ -49,12 +49,12 @@ namespace FoodX.Core.Data
                 {
                     // Create parameter for entity type
                     var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
-                    
+
                     // Create expression: e => !e.IsDeleted
                     var propertyAccess = System.Linq.Expressions.Expression.Property(parameter, isDeletedProperty.PropertyInfo!);
                     var notDeleted = System.Linq.Expressions.Expression.Not(propertyAccess);
                     var lambda = System.Linq.Expressions.Expression.Lambda(notDeleted, parameter);
-                    
+
                     // Apply global filter
                     modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
                 }
