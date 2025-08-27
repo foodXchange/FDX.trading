@@ -3,8 +3,9 @@
 @using FoodX.Admin.Models
 @using Microsoft.EntityFrameworkCore
 @using FoodX.Admin.Components.Dialogs
-@inject FoodXDbContext DbContext
+@inject IDbContextFactory<FoodXDbContext> DbFactory
 @inject IDialogService DialogService
+@inject ISnackbar Snackbar
 @rendermode InteractiveServer
 
 <PageTitle>Suppliers</PageTitle>
@@ -36,57 +37,117 @@
     {
         <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
     }
-    else if (suppliers.Any())
+    else if (suppliers.Any() || foodXSuppliers.Any())
     {
-        <MudGrid>
-            @foreach (var supplier in suppliers)
-            {
-                <MudItem xs="12" sm="6" md="4">
-                    <MudCard>
-                        <MudCardHeader>
-                            <CardHeaderAvatar>
-                                <MudAvatar Color="Color.Success">
-                                    @supplier.User.FirstName.Substring(0, 1)@supplier.User.LastName.Substring(0, 1)
-                                </MudAvatar>
-                            </CardHeaderAvatar>
-                            <CardHeaderContent>
-                                <MudText Typo="Typo.h6">@supplier.User.FullName</MudText>
-                                <MudText Typo="Typo.body2">@supplier.SupplierType</MudText>
-                            </CardHeaderContent>
-                            <CardHeaderActions>
-                                <MudIconButton Icon="@Icons.Material.Filled.MoreVert" />
-                            </CardHeaderActions>
-                        </MudCardHeader>
-                        <MudCardContent>
-                            <MudText Typo="Typo.body2">
-                                <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" /> @supplier.User.Email
-                            </MudText>
-                            <MudText Typo="Typo.body2" Class="mt-2">
-                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" /> 
-                                @(supplier.Company?.Name ?? "No Company")
-                            </MudText>
-                            <MudText Typo="Typo.body2" Class="mt-2">
-                                <MudIcon Icon="@Icons.Material.Filled.DateRange" Size="Size.Small" /> 
-                                Joined: @supplier.CreatedAt.ToString("MMM dd, yyyy")
-                            </MudText>
-                            <div class="mt-3">
-                                <MudChip T="string" Color="@(supplier.User.IsActive ? Color.Success : Color.Error)" 
-                                         Size="Size.Small">
-                                    @(supplier.User.IsActive ? "Active" : "Inactive")
-                                </MudChip>
-                                <MudChip T="string" Color="Color.Success" Size="Size.Small">
-                                    Supplier
-                                </MudChip>
-                            </div>
-                        </MudCardContent>
-                        <MudCardActions>
-                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">View Profile</MudButton>
-                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">Edit</MudButton>
-                        </MudCardActions>
-                    </MudCard>
-                </MudItem>
-            }
-        </MudGrid>
+        @if (showFoodXSuppliers && foodXSuppliers.Any())
+        {
+            <MudText Typo="Typo.h6" Class="mb-3">Total Suppliers: @foodXSuppliers.Count</MudText>
+            <MudDataGrid T="FoodXSupplier" Items="@foodXSuppliers" SortMode="SortMode.Multiple" 
+                         Filterable="true" QuickFilter="@_quickFilter"
+                         Hideable="true" RowsPerPage="25">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">FoodX Suppliers Database</MudText>
+                    <MudSpacer />
+                    <MudTextField @bind-Value="_searchString" Placeholder="Quick search..." 
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                </ToolBarContent>
+                <Columns>
+                    <PropertyColumn Property="x => x.SupplierName" Title="Supplier Name" />
+                    <PropertyColumn Property="x => x.Country" Title="Country" />
+                    <PropertyColumn Property="x => x.ProductCategory" Title="Category" />
+                    <PropertyColumn Property="x => x.CompanyEmail" Title="Email">
+                        <CellTemplate>
+                            @if (!string.IsNullOrEmpty(context.Item.CompanyEmail))
+                            {
+                                <MudLink Href="@($"mailto:{context.Item.CompanyEmail}")">@context.Item.CompanyEmail</MudLink>
+                            }
+                        </CellTemplate>
+                    </PropertyColumn>
+                    <PropertyColumn Property="x => x.CompanyWebsite" Title="Website">
+                        <CellTemplate>
+                            @if (!string.IsNullOrEmpty(context.Item.CompanyWebsite))
+                            {
+                                <MudLink Href="@context.Item.CompanyWebsite" Target="_blank">View</MudLink>
+                            }
+                        </CellTemplate>
+                    </PropertyColumn>
+                    <TemplateColumn Title="Certifications" Sortable="false">
+                        <CellTemplate>
+                            <MudStack Row>
+                                @if (context.Item.IsKosherCertified == true)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info">Kosher</MudChip>
+                                }
+                                @if (context.Item.IsHalalCertified == true)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success">Halal</MudChip>
+                                }
+                                @if (context.Item.IsOrganicCertified == true)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Primary">Organic</MudChip>
+                                }
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+                <PagerContent>
+                    <MudDataGridPager T="FoodXSupplier" />
+                </PagerContent>
+            </MudDataGrid>
+        }
+        else
+        {
+            <MudGrid>
+                @foreach (var supplier in suppliers)
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCard>
+                            <MudCardHeader>
+                                <CardHeaderAvatar>
+                                    <MudAvatar Color="Color.Success">
+                                        @supplier.User.FirstName.Substring(0, 1)@supplier.User.LastName.Substring(0, 1)
+                                    </MudAvatar>
+                                </CardHeaderAvatar>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.h6">@supplier.User.FullName</MudText>
+                                    <MudText Typo="Typo.body2">@supplier.SupplierType</MudText>
+                                </CardHeaderContent>
+                                <CardHeaderActions>
+                                    <MudIconButton Icon="@Icons.Material.Filled.MoreVert" />
+                                </CardHeaderActions>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudText Typo="Typo.body2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" /> @supplier.User.Email
+                                </MudText>
+                                <MudText Typo="Typo.body2" Class="mt-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" /> 
+                                    @(supplier.Company?.Name ?? "No Company")
+                                </MudText>
+                                <MudText Typo="Typo.body2" Class="mt-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.DateRange" Size="Size.Small" /> 
+                                    Joined: @supplier.CreatedAt.ToString("MMM dd, yyyy")
+                                </MudText>
+                                <div class="mt-3">
+                                    <MudChip T="string" Color="@(supplier.User.IsActive ? Color.Success : Color.Error)" 
+                                             Size="Size.Small">
+                                        @(supplier.User.IsActive ? "Active" : "Inactive")
+                                    </MudChip>
+                                    <MudChip T="string" Color="Color.Success" Size="Size.Small">
+                                        Supplier
+                                    </MudChip>
+                                </div>
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">View Profile</MudButton>
+                                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">Edit</MudButton>
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
     }
     else
     {
@@ -96,12 +157,44 @@
 
 @code {
     private List<Supplier> suppliers = new();
+    private List<FoodXSupplier> foodXSuppliers = new();
     private bool isLoading = true;
     private string searchTerm = "";
+    private bool showFoodXSuppliers = false;
+    private string _searchString = "";
+    
+    private Func<FoodXSupplier, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (x.SupplierName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        if (x.Country?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        if (x.ProductCategory?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        if (x.CompanyEmail?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        return false;
+    };
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadSuppliers();
+        try
+        {
+            await LoadSuppliers();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error initializing page: {ex.Message}", Severity.Error);
+            suppliers = new List<Supplier>();
+            isLoading = false;
+        }
     }
 
     private async Task LoadSuppliers()
@@ -109,7 +202,10 @@
         isLoading = true;
         try
         {
-            var query = DbContext.Suppliers
+            using var context = await DbFactory.CreateDbContextAsync();
+            
+            // First try to load from Suppliers table
+            var query = context.Suppliers
                 .Include(s => s.User)
                 .Include(s => s.Company)
                 .AsQueryable();
@@ -124,11 +220,47 @@
             }
             
             suppliers = await query.OrderBy(s => s.User.FirstName).ToListAsync();
+            
+            // If no suppliers in main table, check FoodXSuppliers
+            if (!suppliers.Any())
+            {
+                var foodXQuery = context.FoodXSuppliers.AsQueryable();
+                
+                if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    foodXQuery = foodXQuery.Where(s => 
+                        s.SupplierName.Contains(searchTerm) || 
+                        (s.Country != null && s.Country.Contains(searchTerm)) ||
+                        (s.ProductCategory != null && s.ProductCategory.Contains(searchTerm)) ||
+                        (s.CompanyEmail != null && s.CompanyEmail.Contains(searchTerm)));
+                }
+                
+                foodXSuppliers = await foodXQuery
+                    .OrderBy(s => s.SupplierName)
+                    .Take(100) // Limit for performance
+                    .ToListAsync();
+                    
+                showFoodXSuppliers = true;
+                
+                if (foodXSuppliers.Any())
+                {
+                    Snackbar.Add($"Loaded {foodXSuppliers.Count} suppliers from FoodX database", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("No suppliers found in the database", Severity.Info);
+                }
+            }
+            else
+            {
+                Snackbar.Add($"Loaded {suppliers.Count} suppliers", Severity.Success);
+            }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Log error
+            Snackbar.Add($"Error loading suppliers: {ex.Message}", Severity.Error);
             suppliers = new List<Supplier>();
+            foodXSuppliers = new List<FoodXSupplier>();
         }
         finally
         {

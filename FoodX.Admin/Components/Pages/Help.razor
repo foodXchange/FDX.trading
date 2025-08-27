@@ -1,5 +1,7 @@
 @page "/help"
 @using Microsoft.AspNetCore.Authorization
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
 @attribute [Authorize]
 @rendermode InteractiveServer
 
@@ -51,8 +53,8 @@
                 
                 <MudGrid>
                     <MudItem xs="12" sm="6">
-                        <MudCard>
-                            <MudCardContent>
+                        <MudCard Class="cursor-pointer" @onclick="@(() => PlayVideo("GettingStarted"))">
+                            <MudCardContent Class="text-center">
                                 <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Size="Size.Large" Color="Color.Primary" />
                                 <MudText Typo="Typo.h6">Getting Started</MudText>
                                 <MudText Typo="Typo.body2">Learn the basics of FoodX platform</MudText>
@@ -61,8 +63,8 @@
                     </MudItem>
                     
                     <MudItem xs="12" sm="6">
-                        <MudCard>
-                            <MudCardContent>
+                        <MudCard Class="cursor-pointer" @onclick="@(() => PlayVideo("AdvancedFeatures"))">
+                            <MudCardContent Class="text-center">
                                 <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Size="Size.Large" Color="Color.Primary" />
                                 <MudText Typo="Typo.h6">Advanced Features</MudText>
                                 <MudText Typo="Typo.body2">Master advanced platform features</MudText>
@@ -95,12 +97,14 @@
                 <MudDivider Class="my-3" />
                 
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
-                           StartIcon="@Icons.Material.Filled.Chat">
+                           StartIcon="@Icons.Material.Filled.Chat"
+                           OnClick="StartLiveChat">
                     Start Live Chat
                 </MudButton>
                 
                 <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" 
-                           Class="mt-2" StartIcon="@Icons.Material.Filled.BugReport">
+                           Class="mt-2" StartIcon="@Icons.Material.Filled.BugReport"
+                           OnClick="ReportIssue">
                     Report an Issue
                 </MudButton>
             </MudPaper>
@@ -109,19 +113,23 @@
                 <MudText Typo="Typo.h6" Class="mb-4">Resources</MudText>
                 
                 <MudList T="string">
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.MenuBook">
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.MenuBook" 
+                                 OnClick="@(() => OpenResource("UserGuide"))">
                         User Guide
                     </MudListItem>
                     
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.Api">
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.Api"
+                                 OnClick="@(() => OpenResource("API"))">
                         API Documentation
                     </MudListItem>
                     
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.School">
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.School"
+                                 OnClick="@(() => OpenResource("Training"))">
                         Training Center
                     </MudListItem>
                     
-                    <MudListItem T="string" Icon="@Icons.Material.Filled.Update">
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.Update"
+                                 OnClick="@(() => OpenResource("ReleaseNotes"))">
                         Release Notes
                     </MudListItem>
                 </MudList>
@@ -131,5 +139,74 @@
 </MudContainer>
 
 @code {
-    // Future: Add live chat integration, ticket system, etc.
+    protected override void OnInitialized()
+    {
+        try
+        {
+            base.OnInitialized();
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't display to user
+            Console.WriteLine($"Error initializing Help page: {ex.Message}");
+        }
+    }
+    
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await base.OnInitializedAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't display to user
+            Console.WriteLine($"Error in Help page initialization: {ex.Message}");
+        }
+    }
+    
+    private void StartLiveChat()
+    {
+        // Open live chat window or navigate to chat page
+        Snackbar.Add("Opening live chat support...", Severity.Info);
+        // In a real implementation, this would open a chat widget or navigate to a chat page
+    }
+    
+    private void ReportIssue()
+    {
+        // Navigate to issue reporting form or open modal
+        Snackbar.Add("Opening issue report form...", Severity.Info);
+        Navigation.NavigateTo("/support/report-issue");
+    }
+    
+    private void OpenResource(string resourceType)
+    {
+        var message = resourceType switch
+        {
+            "UserGuide" => "Opening User Guide...",
+            "API" => "Opening API Documentation...",
+            "Training" => "Opening Training Center...",
+            "ReleaseNotes" => "Opening Release Notes...",
+            _ => "Opening resource..."
+        };
+        
+        Snackbar.Add(message, Severity.Info);
+        
+        // In a real implementation, these would open the actual resources
+        // For now, we'll just show a notification
+    }
+    
+    private void PlayVideo(string videoType)
+    {
+        var message = videoType switch
+        {
+            "GettingStarted" => "Playing Getting Started video...",
+            "AdvancedFeatures" => "Playing Advanced Features video...",
+            _ => "Playing video..."
+        };
+        
+        Snackbar.Add(message, Severity.Info);
+        
+        // In a real implementation, this would open a video player modal or navigate to video page
+    }
 }

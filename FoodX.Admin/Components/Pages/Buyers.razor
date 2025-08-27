@@ -3,7 +3,7 @@
 @using FoodX.Admin.Models
 @using Microsoft.EntityFrameworkCore
 @using FoodX.Admin.Components.Dialogs
-@inject FoodXDbContext DbContext
+@inject IDbContextFactory<FoodXDbContext> DbFactory
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @rendermode InteractiveServer
@@ -14,18 +14,23 @@
     <MudText Typo="Typo.h3" Class="mb-4">Buyer Companies</MudText>
     <MudText Typo="Typo.body1" Class="mb-4">Total: @totalBuyers buyers</MudText>
     
-    <MudPaper Class="pa-4 mb-4">
-        <MudGrid>
-            <MudItem xs="12" md="4">
+    <MudPaper Class="pa-4 mb-4" Elevation="2">
+        <MudGrid Spacing="3">
+            <MudItem xs="12" sm="6" md="4">
                 <MudTextField @bind-Value="searchTerm" Label="Search Buyers" 
                               Variant="Variant.Outlined" 
                               Adornment="Adornment.Start" 
                               AdornmentIcon="@Icons.Material.Filled.Search"
                               Immediate="true"
+                              FullWidth="true"
                               OnKeyUp="@(async (e) => { if (e.Key == "Enter") await SearchBuyers(); })" />
             </MudItem>
-            <MudItem xs="12" md="3">
-                <MudSelect @bind-Value="selectedCategory" Label="Category" Variant="Variant.Outlined">
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect @bind-Value="selectedCategory" Label="Category" 
+                           Variant="Variant.Outlined" 
+                           FullWidth="true"
+                           AnchorOrigin="Origin.BottomCenter"
+                           Dense="false">
                     <MudSelectItem Value="@("")">All Categories</MudSelectItem>
                     @foreach (var category in categories)
                     {
@@ -33,8 +38,12 @@
                     }
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" md="3">
-                <MudSelect @bind-Value="selectedCountry" Label="Country/Region" Variant="Variant.Outlined">
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect @bind-Value="selectedCountry" Label="Country/Region" 
+                           Variant="Variant.Outlined" 
+                           FullWidth="true"
+                           AnchorOrigin="Origin.BottomCenter"
+                           Dense="false">
                     <MudSelectItem Value="@("")">All Countries</MudSelectItem>
                     @foreach (var country in countries)
                     {
@@ -42,11 +51,13 @@
                     }
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" md="2">
+            <MudItem xs="12" sm="6" md="2">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" 
                            StartIcon="@Icons.Material.Filled.Search" 
                            FullWidth="true"
-                           OnClick="SearchBuyers">
+                           Size="Size.Large"
+                           OnClick="SearchBuyers"
+                           Style="height: 56px;">
                     Search
                 </MudButton>
             </MudItem>
@@ -75,9 +86,13 @@
                     <CellTemplate>
                         @if (!string.IsNullOrEmpty(context.Item.BuyerCategory))
                         {
-                            <MudChip T="string" Color="Color.Info" Size="Size.Small">
-                                @context.Item.BuyerCategory
-                            </MudChip>
+                            <MudTooltip Text="@context.Item.BuyerCategory">
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Style="max-width: 200px;">
+                                    <span style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        @FormatCategoryText(context.Item.BuyerCategory)
+                                    </span>
+                                </MudChip>
+                            </MudTooltip>
                         }
                         else
                         {
@@ -87,7 +102,9 @@
                 </PropertyColumn>
                 <PropertyColumn Property="x => x.Country" Title="Country/Region">
                     <CellTemplate>
-                        @(context.Item.Country ?? "Not specified")
+                        <MudText Typo="Typo.body2">
+                            @(string.IsNullOrWhiteSpace(context.Item.Country) ? "Not specified" : FormatCountryText(context.Item.Country))
+                        </MudText>
                     </CellTemplate>
                 </PropertyColumn>
                 <PropertyColumn Property="x => x.MainEmail" Title="Email">
@@ -175,16 +192,27 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadFilterOptions();
-        await LoadBuyers();
+        try
+        {
+            await LoadFilterOptions();
+            await LoadBuyers();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error initializing page: {ex.Message}", Severity.Error);
+            buyerCompanies = new List<Company>();
+            isLoading = false;
+        }
     }
 
     private async Task LoadFilterOptions()
     {
         try
         {
+            using var context = await DbFactory.CreateDbContextAsync();
+            
             // Get unique categories
-            categories = await DbContext.Companies
+            categories = await context.Companies
                 .Where(c => c.CompanyType == "Buyer" && c.BuyerCategory != null)
                 .Select(c => c.BuyerCategory)
                 .Distinct()
@@ -192,7 +220,7 @@
                 .ToListAsync();
 
             // Get unique countries
-            countries = await DbContext.Companies
+            countries = await context.Companies
                 .Where(c => c.CompanyType == "Buyer" && c.Country != null)
                 .Select(c => c.Country)
                 .Distinct()
@@ -210,10 +238,12 @@
         isLoading = true;
         try
         {
+            using var context = await DbFactory.CreateDbContextAsync();
+            
             // Get total count
-            totalBuyers = await DbContext.Companies.CountAsync(c => c.CompanyType == "Buyer");
+            totalBuyers = await context.Companies.CountAsync(c => c.CompanyType == "Buyer");
 
-            var query = DbContext.Companies
+            var query = context.Companies
                 .Where(c => c.CompanyType == "Buyer")
                 .AsQueryable();
             
@@ -237,7 +267,11 @@
             
             buyerCompanies = await query.OrderBy(c => c.Name).ToListAsync();
             
-            Snackbar.Add($"Loaded {buyerCompanies.Count} buyer companies", Severity.Success);
+            // Only show notification if no results found
+            if (!buyerCompanies.Any())
+            {
+                Snackbar.Add("No buyer companies found with the current filters", Severity.Info);
+            }
         }
         catch (Exception ex)
         {
@@ -287,5 +321,82 @@
         // TODO: Implement edit functionality
         Snackbar.Add("Edit functionality coming soon", Severity.Info);
         return Task.CompletedTask;
+    }
+    
+    private string FormatCategoryText(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+            return "Not specified";
+            
+        // Clean up the category text
+        category = category.Trim();
+        
+        // Common abbreviation expansions
+        var replacements = new Dictionary<string, string>
+        {
+            { "Distribut", "Distributor" },
+            { "Manufacture", "Manufacturer" },
+            { "24/7", "24/7" },
+            { "Arab", "Arabic" },
+            { "Asian", "Asian" },
+            { "Bedouin", "Bedouin" }
+        };
+        
+        foreach (var replacement in replacements)
+        {
+            if (category.Contains(replacement.Key, StringComparison.OrdinalIgnoreCase) && !category.Contains(replacement.Value, StringComparison.OrdinalIgnoreCase))
+            {
+                category = category.Replace(replacement.Key, replacement.Value, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        
+        // Ensure proper capitalization
+        if (category.Length > 0)
+        {
+            category = char.ToUpper(category[0]) + category.Substring(1);
+        }
+        
+        return category;
+    }
+    
+    private string FormatCountryText(string? country)
+    {
+        if (string.IsNullOrWhiteSpace(country))
+            return "Not specified";
+            
+        // Clean up the country text
+        country = country.Trim();
+        
+        // Map common country codes or abbreviations
+        var countryMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "IL", "Israel" },
+            { "US", "United States" },
+            { "UK", "United Kingdom" },
+            { "UAE", "United Arab Emirates" },
+            { "SA", "Saudi Arabia" },
+            { "EG", "Egypt" },
+            { "JO", "Jordan" },
+            { "LB", "Lebanon" },
+            { "TR", "Turkey" },
+            { "GR", "Greece" }
+        };
+        
+        if (countryMappings.TryGetValue(country, out var fullName))
+        {
+            return fullName;
+        }
+        
+        // Ensure proper capitalization for multi-word countries
+        var words = country.Split(' ');
+        for (int i = 0; i < words.Length; i++)
+        {
+            if (words[i].Length > 0)
+            {
+                words[i] = char.ToUpper(words[i][0]) + words[i].Substring(1).ToLower();
+            }
+        }
+        
+        return string.Join(" ", words);
     }
 }

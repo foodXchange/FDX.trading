@@ -1,0 +1,323 @@
+@page "/portal/buyer/order/create"
+@using Microsoft.AspNetCore.Authorization
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "SuperAdmin,Admin,Buyer")]
+@rendermode InteractiveServer
+
+<PageTitle>Create Order - FoodX Buyer Portal</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudBreadcrumbs Items="_breadcrumbs" />
+        </MudItem>
+        
+        <MudItem xs="12">
+            <MudText Typo="Typo.h4" GutterBottom="true">
+                <MudIcon Icon="@Icons.Material.Filled.AddShoppingCart" Class="mr-2" />
+                Create New Order
+            </MudText>
+        </MudItem>
+
+        <!-- Supplier Selection -->
+        <MudItem xs="12">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h6" GutterBottom="true">1. Select Supplier</MudText>
+                    <MudAutocomplete T="string" Label="Choose Supplier" 
+                                     @bind-Value="_selectedSupplier"
+                                     SearchFunc="SearchSuppliers"
+                                     AdornmentIcon="@Icons.Material.Filled.Business"
+                                     AdornmentColor="Color.Primary" />
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Product Selection -->
+        <MudItem xs="12">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h6" GutterBottom="true">2. Add Products</MudText>
+                    
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudAutocomplete T="string" Label="Search Products" 
+                                             @bind-Value="_selectedProduct"
+                                             SearchFunc="SearchProducts"
+                                             AdornmentIcon="@Icons.Material.Filled.Search"
+                                             AdornmentColor="Color.Primary"
+                                             Disabled="@(string.IsNullOrEmpty(_selectedSupplier))" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudNumericField @bind-Value="_quantity" Label="Quantity" Min="1" 
+                                             Disabled="@(string.IsNullOrEmpty(_selectedProduct))" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="AddToOrder"
+                                       Disabled="@(string.IsNullOrEmpty(_selectedProduct) || _quantity <= 0)"
+                                       Class="mt-3">
+                                Add to Order
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+
+                    @if (_orderItems.Any())
+                    {
+                        <MudTable Items="@_orderItems" Dense="true" Hover="true" Class="mt-4">
+                            <HeaderContent>
+                                <MudTh>Product</MudTh>
+                                <MudTh>Quantity</MudTh>
+                                <MudTh>Unit Price</MudTh>
+                                <MudTh>Total</MudTh>
+                                <MudTh>Actions</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.ProductName</MudTd>
+                                <MudTd>@context.Quantity @context.Unit</MudTd>
+                                <MudTd>€@context.UnitPrice.ToString("N2")</MudTd>
+                                <MudTd><b>€@context.Total.ToString("N2")</b></MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                   Color="Color.Error" 
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => RemoveItem(context))" />
+                                </MudTd>
+                            </RowTemplate>
+                            <FooterContent>
+                                <MudTh colspan="3" Style="text-align: right;">Total:</MudTh>
+                                <MudTh><b>€@GetOrderTotal().ToString("N2")</b></MudTh>
+                                <MudTh></MudTh>
+                            </FooterContent>
+                        </MudTable>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info" Class="mt-4">
+                            No products added yet. Select a supplier and add products to your order.
+                        </MudAlert>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Delivery Information -->
+        <MudItem xs="12">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h6" GutterBottom="true">3. Delivery Information</MudText>
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudDatePicker Label="Requested Delivery Date" 
+                                           @bind-Date="_deliveryDate"
+                                           MinDate="DateTime.Today.AddDays(1)" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudSelect T="string" Label="Delivery Priority" @bind-Value="_deliveryPriority">
+                                <MudSelectItem Value="@("Standard")">Standard (3-5 days)</MudSelectItem>
+                                <MudSelectItem Value="@("Express")">Express (1-2 days)</MudSelectItem>
+                                <MudSelectItem Value="@("Urgent")">Urgent (Same day)</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_deliveryAddress" 
+                                          Label="Delivery Address" 
+                                          Lines="3"
+                                          Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_notes" 
+                                          Label="Special Instructions (Optional)" 
+                                          Lines="2"
+                                          Variant="Variant.Outlined" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Order Summary & Actions -->
+        <MudItem xs="12">
+            <MudCard>
+                <MudCardContent>
+                    <div class="d-flex justify-space-between align-center">
+                        <div>
+                            <MudText Typo="Typo.h6">Order Summary</MudText>
+                            <MudText Typo="Typo.body2">
+                                @_orderItems.Count items • Total: <b>€@GetOrderTotal().ToString("N2")</b>
+                            </MudText>
+                        </div>
+                        <div>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Default" 
+                                       OnClick="CancelOrder"
+                                       Class="mr-2">
+                                Cancel
+                            </MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                                       StartIcon="@Icons.Material.Filled.Send"
+                                       OnClick="SubmitOrder"
+                                       Disabled="@(!CanSubmitOrder())">
+                                Submit Order
+                            </MudButton>
+                        </div>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<BreadcrumbItem> _breadcrumbs = new();
+    private string _selectedSupplier = "";
+    private string _selectedProduct = "";
+    private decimal _quantity = 1;
+    private List<OrderItem> _orderItems = new();
+    private DateTime? _deliveryDate = DateTime.Today.AddDays(3);
+    private string _deliveryPriority = "Standard";
+    private string _deliveryAddress = "123 Business Street, Dublin, Ireland";
+    private string _notes = "";
+
+    protected override void OnInitialized()
+    {
+        _breadcrumbs = new List<BreadcrumbItem>
+        {
+            new BreadcrumbItem("Buyer Portal", href: "/portal/buyer", disabled: false),
+            new BreadcrumbItem("Orders", href: "/portal/buyer/orders", disabled: false),
+            new BreadcrumbItem("Create Order", href: null, disabled: true)
+        };
+    }
+    
+    private async Task<IEnumerable<string>> SearchSuppliers(string value, CancellationToken token = default)
+    {
+        // Mock supplier search - replace with actual API call
+        await Task.Delay(1); // Simulate async operation
+        
+        var allSuppliers = new List<string>
+        {
+            "Italian Farms",
+            "Dutch Dairy",
+            "Spanish Oils",
+            "French Bakery",
+            "German Meats",
+            "Greek Olives",
+            "Belgian Chocolates"
+        };
+        
+        if (string.IsNullOrEmpty(value))
+            return allSuppliers;
+            
+        return allSuppliers.Where(s => s.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+    
+    private async Task<IEnumerable<string>> SearchProducts(string value, CancellationToken token = default)
+    {
+        // Mock product search based on selected supplier - replace with actual API call
+        await Task.Delay(1); // Simulate async operation
+        
+        var products = _selectedSupplier switch
+        {
+            "Italian Farms" => new List<string> { "Organic Tomatoes", "Fresh Basil", "Buffalo Mozzarella", "Olive Oil", "Pasta" },
+            "Dutch Dairy" => new List<string> { "Gouda Cheese", "Edam Cheese", "Fresh Milk", "Butter", "Yogurt" },
+            "Spanish Oils" => new List<string> { "Extra Virgin Olive Oil", "Sunflower Oil", "Olives", "Vinegar" },
+            "French Bakery" => new List<string> { "Baguettes", "Croissants", "Pain au Chocolat", "Sourdough", "Brioche" },
+            _ => new List<string>()
+        };
+        
+        if (string.IsNullOrEmpty(value))
+            return products;
+            
+        return products.Where(p => p.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+    
+    private void AddToOrder()
+    {
+        if (string.IsNullOrEmpty(_selectedProduct) || _quantity <= 0)
+            return;
+            
+        var existingItem = _orderItems.FirstOrDefault(i => i.ProductName == _selectedProduct);
+        
+        if (existingItem != null)
+        {
+            existingItem.Quantity += _quantity;
+            existingItem.Total = existingItem.Quantity * existingItem.UnitPrice;
+        }
+        else
+        {
+            // Mock pricing - replace with actual pricing from API
+            var unitPrice = _selectedProduct switch
+            {
+                "Organic Tomatoes" => 3.50m,
+                "Fresh Basil" => 5.00m,
+                "Buffalo Mozzarella" => 10.00m,
+                "Gouda Cheese" => 12.50m,
+                "Extra Virgin Olive Oil" => 15.00m,
+                "Baguettes" => 1.50m,
+                _ => 10.00m
+            };
+            
+            var unit = _selectedProduct.Contains("Oil") || _selectedProduct.Contains("Milk") ? "L" : "kg";
+            
+            _orderItems.Add(new OrderItem
+            {
+                ProductName = _selectedProduct,
+                Quantity = _quantity,
+                Unit = unit,
+                UnitPrice = unitPrice,
+                Total = _quantity * unitPrice
+            });
+        }
+        
+        _selectedProduct = "";
+        _quantity = 1;
+        
+        Snackbar.Add("Product added to order", Severity.Success);
+    }
+    
+    private void RemoveItem(OrderItem item)
+    {
+        _orderItems.Remove(item);
+        Snackbar.Add("Product removed from order", Severity.Info);
+    }
+    
+    private decimal GetOrderTotal()
+    {
+        return _orderItems.Sum(i => i.Total);
+    }
+    
+    private bool CanSubmitOrder()
+    {
+        return !string.IsNullOrEmpty(_selectedSupplier) 
+               && _orderItems.Any() 
+               && _deliveryDate.HasValue
+               && !string.IsNullOrEmpty(_deliveryAddress);
+    }
+    
+    private void SubmitOrder()
+    {
+        // Generate order number
+        var orderNumber = $"ORD-{DateTime.Now.Year}-{new Random().Next(1000, 9999)}";
+        
+        // Here you would submit the order to the API
+        Snackbar.Add($"Order {orderNumber} submitted successfully!", Severity.Success);
+        
+        // Navigate to orders page
+        Navigation.NavigateTo("/portal/buyer/orders");
+    }
+    
+    private void CancelOrder()
+    {
+        Navigation.NavigateTo("/portal/buyer/orders");
+    }
+    
+    private class OrderItem
+    {
+        public string ProductName { get; set; } = "";
+        public decimal Quantity { get; set; }
+        public string Unit { get; set; } = "";
+        public decimal UnitPrice { get; set; }
+        public decimal Total { get; set; }
+    }
+}

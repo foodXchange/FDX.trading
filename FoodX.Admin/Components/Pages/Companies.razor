@@ -4,8 +4,9 @@
 @using FoodX.Admin.Models
 @using Microsoft.EntityFrameworkCore
 @using FoodX.Admin.Components.Dialogs
-@inject FoodXDbContext DbContext
+@inject IDbContextFactory<FoodXDbContext> DbFactory
 @inject IDialogService DialogService
+@inject ISnackbar Snackbar
 @rendermode InteractiveServer
 
 <PageTitle>Companies</PageTitle>
@@ -109,7 +110,9 @@
         isLoading = true;
         try
         {
-            var query = DbContext.Companies.AsQueryable();
+            using var context = await DbFactory.CreateDbContextAsync();
+            
+            var query = context.Companies.AsQueryable();
             
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
@@ -124,10 +127,21 @@
             }
             
             companies = await query.OrderBy(c => c.Name).ToListAsync();
+            
+            if (companies.Any())
+            {
+                var buyerCount = companies.Count(c => c.CompanyType == "Buyer");
+                var supplierCount = companies.Count(c => c.CompanyType == "Supplier");
+                Snackbar.Add($"Loaded {companies.Count} companies ({buyerCount} buyers, {supplierCount} suppliers)", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("No companies found in the database", Severity.Info);
+            }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Log error
+            Snackbar.Add($"Error loading companies: {ex.Message}", Severity.Error);
             companies = new List<Company>();
         }
         finally

@@ -1,5 +1,6 @@
 @page "/portal/buyer/quotes"
 @using Microsoft.AspNetCore.Authorization
+@using MudBlazor
 @attribute [Authorize(Roles = "SuperAdmin,Admin,Buyer")]
 @rendermode InteractiveServer
 
@@ -40,8 +41,8 @@
                             </MudChip>
                         </MudTd>
                         <MudTd>
-                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary">View</MudButton>
-                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Success">Accept</MudButton>
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" @onclick="() => ViewQuote(context)">View</MudButton>
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Success" @onclick="() => AcceptQuote(context)">Accept</MudButton>
                         </MudTd>
                     </RowTemplate>
                 </MudTable>
@@ -51,6 +52,9 @@
 </MudContainer>
 
 @code {
+    [Inject] private ISnackbar Snackbar { get; set; } = null!;
+    [Inject] private IDialogService Dialog { get; set; } = null!;
+    
     private List<QuoteItem> _quotes = new();
     
     protected override void OnInitialized()
@@ -63,6 +67,31 @@
         };
     }
     
+    private async Task ViewQuote(QuoteItem quote)
+    {
+        var parameters = new DialogParameters<QuoteDetailsDialog>
+        {
+            { x => x.Quote, quote }
+        };
+        
+        var dialog = await Dialog.ShowAsync<QuoteDetailsDialog>($"Quote {quote.Id}", parameters);
+    }
+    
+    private async Task AcceptQuote(QuoteItem quote)
+    {
+        var result = await Dialog.ShowMessageBox(
+            "Accept Quote",
+            $"Are you sure you want to accept quote {quote.Id} from {quote.Supplier}?",
+            yesText: "Accept", cancelText: "Cancel");
+            
+        if (result == true)
+        {
+            quote.Status = "Accepted";
+            Snackbar.Add($"Quote {quote.Id} has been accepted", Severity.Success);
+            StateHasChanged();
+        }
+    }
+    
     private Color GetStatusColor(string status) => status switch
     {
         "New" => Color.Warning,
@@ -73,7 +102,7 @@
         _ => Color.Default
     };
     
-    private class QuoteItem
+    public class QuoteItem
     {
         public string Id { get; set; } = "";
         public string Supplier { get; set; } = "";

@@ -374,7 +374,16 @@
       "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../execute_sql.py ../add_certification_columns_step2.sql)",
       "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT COUNT(*) as TotalSuppliers, SUM(CASE WHEN IsKosherCertified = 1 THEN 1 ELSE 0 END) as KosherSuppliers, SUM(CASE WHEN IsHalalCertified = 1 THEN 1 ELSE 0 END) as HalalSuppliers, SUM(CASE WHEN IsOrganicCertified = 1 THEN 1 ELSE 0 END) as OrganicSuppliers, SUM(CASE WHEN IsGlutenFreeCertified = 1 THEN 1 ELSE 0 END) as GlutenFreeSuppliers FROM FoodXSuppliers\")",
       "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT COUNT(*) as TotalSuppliers FROM Suppliers; SELECT COUNT(*) as TotalFoodXSuppliers FROM FoodXSuppliers; SELECT COUNT(*) as SupplierUsers FROM AspNetUsers u JOIN AspNetUserRoles ur ON u.Id = ur.UserId JOIN AspNetRoles r ON ur.RoleId = r.Id WHERE r.Name = ''Supplier''\")",
-      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../test_buttons.py)"
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../test_buttons.py)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\" ../run_sql.py \"SELECT ''AspNetUsers'' as TableName, COUNT(*) as Count FROM AspNetUsers UNION ALL SELECT ''AspNetRoles'', COUNT(*) FROM AspNetRoles UNION ALL SELECT ''Companies'', COUNT(*) FROM Companies UNION ALL SELECT ''Products'', COUNT(*) FROM Products UNION ALL SELECT ''FoodXSuppliers'', COUNT(*) FROM FoodXSuppliers UNION ALL SELECT ''FoodXBuyers'', COUNT(*) FROM FoodXBuyers UNION ALL SELECT ''BuyerRequests'', COUNT(*) FROM BuyerRequests UNION ALL SELECT ''AIAnalysisResults'', COUNT(*) FROM AIAnalysisResults UNION ALL SELECT ''SupplierProducts'', COUNT(*) FROM SupplierProducts\")",
+      "Bash(cat:*)",
+      "Bash(\"C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe\":*)",
+      "Bash(set ASPNETCORE_URLS=http://localhost:5195)",
+      "Bash(where winget)",
+      "Bash(az redis list:*)",
+      "Bash(az monitor app-insights component list:*)",
+      "Bash(az monitor app-insights component show:*)",
+      "Bash(del \"../FoodX.Admin/Services/CacheService.cs\")"
     ],
     "deny": [],
     "ask": [],

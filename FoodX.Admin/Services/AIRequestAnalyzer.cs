@@ -68,7 +68,7 @@ namespace FoodX.Admin.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error analyzing text request");
-                return GenerateFallbackAnalysis(text, "text");
+                throw;
             }
         }
 
@@ -104,13 +104,13 @@ namespace FoodX.Admin.Services
                     return await AnalyzeWithComputerVision(imageData, visionEndpoint, visionKey);
                 }
 
-                _logger.LogWarning("Vision analysis failed, returning mock data");
-                return GenerateMockImageAnalysis();
+                _logger.LogError("Vision analysis failed. No AI service available.");
+                throw new InvalidOperationException("Image analysis failed. Please configure OpenAI Vision or Azure Computer Vision.");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error analyzing image request");
-                return GenerateFallbackAnalysis("image", "image");
+                throw;
             }
         }
 
@@ -131,12 +131,17 @@ namespace FoodX.Admin.Services
                 var prompt = GenerateImageAnalysisPrompt(extractedText);
                 var analysisJson = await CallOpenAIApi(prompt);
 
-                return JsonSerializer.Deserialize<ProductAnalysis>(analysisJson) ?? GenerateMockImageAnalysis();
+                var result = JsonSerializer.Deserialize<ProductAnalysis>(analysisJson);
+                if (result == null)
+                {
+                    throw new InvalidOperationException("Failed to parse AI response.");
+                }
+                return result;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error with Computer Vision analysis");
-                return GenerateMockImageAnalysis();
+                throw new InvalidOperationException("Computer Vision analysis failed", ex);
             }
         }
 
@@ -207,7 +212,7 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error analyzing URL request");
-                return GenerateFallbackAnalysis(url, "url");
+                throw;
             }
         }
 
@@ -224,8 +229,8 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
             }
             else
             {
-                _logger.LogWarning("No AI service configured, returning mock data");
-                return JsonSerializer.Serialize(GenerateMockAnalysis());
+                _logger.LogError("No AI service configured. Please configure Azure OpenAI or OpenAI API keys.");
+                throw new InvalidOperationException("AI service not configured. Please add Azure OpenAI or OpenAI API keys to configuration.");
             }
         }
 
@@ -247,7 +252,7 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
                 _logger.LogError(ex, "Error calling Vision API");
             }
 
-            return JsonSerializer.Serialize(GenerateMockImageAnalysis());
+            throw new InvalidOperationException("Failed to analyze image. Vision API not available.");
         }
 
         private async Task<string> CallOpenAIVision(string imageDataUrl)
@@ -355,9 +360,14 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
 
                 var response = await chatClient.CompleteChatAsync(messages);
 
-                if (response.Value != null)
+                if (response.Value != null && response.Value.Content.Count > 0)
                 {
-                    return response.Value.Content[0].Text ?? JsonSerializer.Serialize(GenerateMockAnalysis());
+                    var text = response.Value.Content[0].Text;
+                    if (string.IsNullOrEmpty(text))
+                    {
+                        throw new InvalidOperationException("AI service returned empty response");
+                    }
+                    return text;
                 }
             }
             catch (Exception ex)
@@ -365,7 +375,7 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
                 _logger.LogError(ex, "Error calling Azure OpenAI API");
             }
 
-            return JsonSerializer.Serialize(GenerateMockAnalysis());
+            throw new InvalidOperationException("Failed to call AI service. Please check your API configuration.");
         }
 
         private async Task<string> CallStandardOpenAI(string prompt)
@@ -412,7 +422,7 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
                 _logger.LogError(ex, "Error calling OpenAI API");
             }
 
-            return JsonSerializer.Serialize(GenerateMockAnalysis());
+            throw new InvalidOperationException("Failed to call AI service. Please check your API configuration.");
         }
 
         private async Task<string> FetchUrlContent(string url)
@@ -592,167 +602,5 @@ Focus on extracting:
 Be extremely detailed and specific.";
         }
 
-        private ProductAnalysis GenerateMockAnalysis()
-        {
-            // Generate mock Oreo-style cookie analysis for demo based on the image provided
-            return new ProductAnalysis
-            {
-                ProductIdentification = new ProductIdentification
-                {
-                    DetectedProduct = "OREO Original Chocolate Sandwich Cookies",
-                    Confidence = 0.95,
-                    BrandReference = "OREO",
-                    GenericName = "Cream-filled chocolate sandwich biscuit"
-                },
-                DetailedDescription = new DetailedDescription
-                {
-                    Summary = "A sandwich cookie consisting of two chocolate-flavored wafers with sweet cream filling, packaged in a blue cardboard box",
-                    KeyCharacteristics = new List<string>
-                    {
-                        "Round shape with embossed OREO pattern",
-                        "Dark chocolate-flavored wafers",
-                        "White vanilla-flavored cream center",
-                        "Crispy texture with smooth filling",
-                        "4x individual packs"
-                    }
-                },
-                TechnicalSpecifications = new TechnicalSpecifications
-                {
-                    ProductDimensions = "Approximately 45mm diameter, 9mm thickness per cookie",
-                    Composition = "Two wafer discs with cream filling (approximately 29% filling)",
-                    ColorProfile = "Dark brown/black wafers, white filling, blue packaging",
-                    TextureProfile = "Crunchy wafer, smooth cream"
-                },
-                CategoryClassification = new CategoryClassification
-                {
-                    PrimaryCategory = "Bakery & Confectionery",
-                    SecondaryCategory = "Biscuits & Cookies",
-                    SpecificType = "Sandwich Cookies",
-                    AlternativeNames = new List<string> { "Sandwich biscuits", "Cream cookies", "Filled cookies" }
-                },
-                CommonAttributes = new CommonAttributes
-                {
-                    TypicalIngredients = new List<string>
-                    {
-                        "Wheat flour", "Sugar", "Vegetable oils (palm and/or canola)",
-                        "Cocoa powder (4.5%)", "High fructose corn syrup", "Leavening agents",
-                        "Salt", "Soy lecithin", "Vanilla flavoring", "Chocolate"
-                    },
-                    FlavorNotes = "Sweet, chocolatey with vanilla cream notes",
-                    UsageOccasions = new List<string> { "Snacking", "Tea/coffee accompaniment", "Dessert", "Baking ingredient", "Milk dunking" },
-                    ShelfLife = "6-9 months",
-                    Certifications = new List<string> { "Kosher", "Cocoa Life sustainability program" }
-                },
-                MarketContext = new MarketContext
-                {
-                    CommonBrands = new List<string> { "Oreo", "Chips Ahoy", "Hydrox", "Private label alternatives" },
-                    TypicalPackaging = "Cardboard box with plastic tray insert",
-                    MarketPositioning = "Premium mass market snack cookie",
-                    PriceSegment = "Mid-range"
-                },
-                PackagingDetails = new PackagingDetails
-                {
-                    PackageType = "Cardboard box",
-                    Material = "Recyclable cardboard with plastic tray",
-                    Dimensions = "200mm x 70mm x 45mm (approx)",
-                    NetWeight = "176g",
-                    NetWeightOz = "6.2 oz",
-                    UnitsPerPackage = "4x individual packs",
-                    ServingSize = "2 cookies (29g)",
-                    ServingsPerContainer = "6",
-                    PackagingComponents = new List<string> { "Outer cardboard box", "Inner plastic tray", "Individual wrappers" },
-                    IsResealable = false,
-                    IsRecyclable = true,
-                    RecyclingCode = "21 PAP (cardboard)"
-                },
-                LabelingInformation = new LabelingInformation
-                {
-                    ProductNameOnLabel = "OREO Original",
-                    BrandName = "OREO",
-                    Manufacturer = "Mondelez International",
-                    ManufacturerCompany = "Mondelez International, Inc.",
-                    ManufacturerWebsite = "https://www.mondelezinternational.com",
-                    BrandWebsite = "https://www.oreo.com",
-                    CountryOfOrigin = "Various (check package)",
-                    Languages = new List<string> { "Hebrew", "English" },
-                    Barcode = "7290000000000",
-                    IngredientsText = new List<string>
-                    {
-                        "Wheat flour", "Sugar", "Vegetable oil", "Cocoa powder", "Corn syrup",
-                        "Leavening agents", "Salt", "Soy lecithin", "Vanillin", "Chocolate"
-                    },
-                    NutritionalInfo = new Dictionary<string, string>
-                    {
-                        { "Calories", "160 per serving" },
-                        { "Total Fat", "7g" },
-                        { "Saturated Fat", "2g" },
-                        { "Trans Fat", "0g" },
-                        { "Cholesterol", "0mg" },
-                        { "Sodium", "135mg" },
-                        { "Total Carbohydrates", "25g" },
-                        { "Dietary Fiber", "1g" },
-                        { "Sugars", "14g" },
-                        { "Protein", "1g" }
-                    },
-                    Allergens = new List<string> { "Contains wheat", "Contains soy", "May contain milk" },
-                    CertificationMarks = new List<string> { "Kosher dairy", "Cocoa Life certified" },
-                    StorageInstructions = "Store in a cool, dry place",
-                    MarketingClaims = new List<string> { "Original", "4x", "Milk's favorite cookie" },
-                    RegulatoryText = new List<string> { "Product of licensed manufacturer" }
-                },
-                VisualElements = new VisualElements
-                {
-                    PrimaryColors = new List<string> { "Blue", "White", "Black" },
-                    LogoDescription = "OREO logo in white text on blue background with cookie imagery",
-                    ImageDescriptions = new List<string> { "OREO cookies with milk splash", "Stack of OREO cookies" },
-                    DesignStyle = "Modern, playful, bold",
-                    HasWindowDisplay = false,
-                    SpecialEffects = new List<string> { "Glossy finish", "Embossed logo", "Milk splash graphic" },
-                    PackageShape = "Rectangular box"
-                },
-                ProductAttributes = new ProductAttributes
-                {
-                    IsKosher = true,
-                    KosherCertification = "OU-D (Orthodox Union Dairy)",
-                    IsHalal = false,
-                    IsGlutenFree = false,
-                    ContainsAllergens = new List<string> { "Wheat", "Soy" },
-                    MayContainAllergens = new List<string> { "Milk" },
-                    IsSugarFree = false,
-                    IsNoSugarAdded = false,
-                    TotalSugarContent = "14g per serving",
-                    IsVegan = false,
-                    IsVegetarian = true,
-                    CaloriesPerServing = "160",
-                    PackageTextClaims = new List<string> { "Original", "4x", "Milk's Favorite Cookie" },
-                    IsNoArtificialColors = false,
-                    IsNoArtificialFlavors = false
-                }
-            };
-        }
-
-        private ProductAnalysis GenerateMockImageAnalysis()
-        {
-            // Return a mock analysis for image inputs
-            return GenerateMockAnalysis();
-        }
-
-        private ProductAnalysis GenerateFallbackAnalysis(string input, string inputType)
-        {
-            return new ProductAnalysis
-            {
-                ProductIdentification = new ProductIdentification
-                {
-                    DetectedProduct = $"Product from {inputType}",
-                    Confidence = 0.5,
-                    GenericName = "Food product requiring manual review"
-                },
-                DetailedDescription = new DetailedDescription
-                {
-                    Summary = $"Analysis pending for {inputType} input: {input.Substring(0, Math.Min(50, input.Length))}",
-                    KeyCharacteristics = new List<string> { "Requires manual review" }
-                }
-            };
-        }
     }
 }

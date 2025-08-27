@@ -1,0 +1,74 @@
+@using MudBlazor
+@using FoodX.Admin.Components.Pages.Portal.Buyer
+
+<MudDialog>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudText Typo="Typo.h6">Quote Details</MudText>
+            </MudItem>
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle2">Quote ID:</MudText>
+                <MudText>@Quote.Id</MudText>
+            </MudItem>
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle2">Status:</MudText>
+                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(Quote.Status)">
+                    @Quote.Status
+                </MudChip>
+            </MudItem>
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle2">Supplier:</MudText>
+                <MudText>@Quote.Supplier</MudText>
+            </MudItem>
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle2">Product:</MudText>
+                <MudText>@Quote.Product</MudText>
+            </MudItem>
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle2">Price:</MudText>
+                <MudText Typo="Typo.h6">€@Quote.Price.ToString("N2")</MudText>
+            </MudItem>
+            <MudItem xs="6">
+                <MudText Typo="Typo.subtitle2">Valid Until:</MudText>
+                <MudText>@Quote.ValidUntil.ToString("MMMM dd, yyyy")</MudText>
+            </MudItem>
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2">Additional Information:</MudText>
+                <MudText Class="mt-2">
+                    This quote includes standard delivery terms and payment conditions as per your agreement with the supplier.
+                </MudText>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Close</MudButton>
+        <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="Accept">Accept Quote</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Quotes.QuoteItem Quote { get; set; } = null!;
+    [Inject] private ISnackbar Snackbar { get; set; } = null!;
+
+    void Cancel() => MudDialog.Cancel();
+    
+    void Accept()
+    {
+        Quote.Status = "Accepted";
+        Snackbar.Add($"Quote {Quote.Id} has been accepted", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+    
+    private Color GetStatusColor(string status) => status switch
+    {
+        "New" => Color.Warning,
+        "Pending" => Color.Info,
+        "Reviewed" => Color.Success,
+        "Accepted" => Color.Success,
+        "Rejected" => Color.Error,
+        _ => Color.Default
+    };
+}

@@ -99,9 +99,9 @@
 
                         <MudItem xs="12">
                             <MudText Typo="Typo.h6" Class="mb-2">Supplier Selection</MudText>
-                            <MudCheckBox T="bool" @bind-Checked="_rfqModel.SendToAllSuppliers" 
+                            <MudCheckBox T="bool" @bind-Value="_rfqModel.SendToAllSuppliers" 
                                        Label="Send to all approved suppliers" />
-                            <MudCheckBox T="bool" @bind-Checked="_rfqModel.SendToSpecificSuppliers" 
+                            <MudCheckBox T="bool" @bind-Value="_rfqModel.SendToSpecificSuppliers" 
                                        Label="Send to specific suppliers only" />
                         </MudItem>
 

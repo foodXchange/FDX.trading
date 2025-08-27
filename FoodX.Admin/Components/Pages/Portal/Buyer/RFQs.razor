@@ -1,5 +1,7 @@
 @page "/portal/buyer/rfqs"
 @using Microsoft.AspNetCore.Authorization
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 @attribute [Authorize(Roles = "SuperAdmin,Admin,Buyer")]
 @rendermode InteractiveServer
 
@@ -76,7 +78,8 @@
                             </MudChip>
                         </MudTd>
                         <MudTd>
-                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary">
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary"
+                                       OnClick="@(() => ViewRFQ(context))">
                                 View
                             </MudButton>
                         </MudTd>
@@ -108,6 +111,12 @@
         "Closed" => Color.Default,
         _ => Color.Default
     };
+    
+    private void ViewRFQ(RFQItem rfq)
+    {
+        // Navigate to RFQ details page
+        Navigation.NavigateTo($"/portal/buyer/rfq/{rfq.Id}");
+    }
     
     private class RFQItem
     {

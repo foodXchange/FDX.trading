@@ -285,11 +285,14 @@
         // Dialog cancelled
     }
 
-    private Task ViewProduct(Product product)
+    private async Task ViewProduct(Product product)
     {
-        // TODO: Implement view product details
-        Snackbar.Add($"View product: {product.Name}", Severity.Info);
-        return Task.CompletedTask;
+        var parameters = new DialogParameters<ProductDetailsDialog>
+        {
+            { x => x.Product, product }
+        };
+        
+        var dialog = await DialogService.ShowAsync<ProductDetailsDialog>($"Product Details - {product.Name}", parameters);
     }
 
     private async Task EditProduct(Product product)

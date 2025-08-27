@@ -1,5 +1,10 @@
 @page "/settings"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using FoodX.Admin.Data
+@using FoodX.Admin.Models
+@inject IDbContextFactory<FoodXDbContext> DbFactory
+@inject ISnackbar Snackbar
 @attribute [Authorize(Roles = "Admin,SuperAdmin")]
 @rendermode InteractiveServer
 
@@ -176,24 +181,45 @@
                             </MudAlert>
                         </MudItem>
                         
+                        @if (isLoadingStats)
+                        {
+                            <MudItem xs="12">
+                                <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+                            </MudItem>
+                        }
+                        
                         <MudItem xs="12" md="6">
                             <MudPaper Class="pa-4" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
                                 <MudText Typo="Typo.body2">Total Users</MudText>
-                                <MudText Typo="Typo.h5">@totalUsers</MudText>
+                                <MudText Typo="Typo.h5">@totalUsers.ToString("N0")</MudText>
                             </MudPaper>
                         </MudItem>
                         
                         <MudItem xs="12" md="6">
                             <MudPaper Class="pa-4" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
                                 <MudText Typo="Typo.body2">Total Companies</MudText>
-                                <MudText Typo="Typo.h5">@totalCompanies</MudText>
+                                <MudText Typo="Typo.h5">@totalCompanies.ToString("N0")</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6">
+                            <MudPaper Class="pa-4" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+                                <MudText Typo="Typo.body2">Total Suppliers</MudText>
+                                <MudText Typo="Typo.h5">@totalSuppliers.ToString("N0")</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6">
+                            <MudPaper Class="pa-4" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+                                <MudText Typo="Typo.body2">Total Buyers</MudText>
+                                <MudText Typo="Typo.h5">@totalBuyers.ToString("N0")</MudText>
                             </MudPaper>
                         </MudItem>
                         
                         <MudItem xs="12" md="6">
                             <MudPaper Class="pa-4" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
                                 <MudText Typo="Typo.body2">Total Products</MudText>
-                                <MudText Typo="Typo.h5">@totalProducts</MudText>
+                                <MudText Typo="Typo.h5">@totalProducts.ToString("N0")</MudText>
                             </MudPaper>
                         </MudItem>
                         
@@ -205,8 +231,13 @@
                         </MudItem>
                         
                         <MudItem xs="12" Class="mt-3">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                                       StartIcon="@Icons.Material.Filled.Refresh"
+                                       OnClick="LoadDatabaseStatistics">
+                                Refresh Statistics
+                            </MudButton>
                             <MudButton Variant="Variant.Outlined" Color="Color.Warning" 
-                                       StartIcon="@Icons.Material.Filled.Backup">
+                                       StartIcon="@Icons.Material.Filled.Backup" Class="ml-2">
                                 Backup Database
                             </MudButton>
                             <MudButton Variant="Variant.Outlined" Color="Color.Info" 
@@ -247,10 +278,74 @@
     private string smtpPassword = "********";
     
     // Statistics
-    private int totalUsers = 12;
-    private int totalCompanies = 10;
-    private int totalProducts = 15;
-    private string databaseSize = "125 MB";
+    private int totalUsers = 0;
+    private int totalCompanies = 0;
+    private int totalProducts = 0;
+    private int totalSuppliers = 0;
+    private int totalBuyers = 0;
+    private string databaseSize = "Calculating...";
+    private bool isLoadingStats = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDatabaseStatistics();
+    }
+
+    private async Task LoadDatabaseStatistics()
+    {
+        isLoadingStats = true;
+        try
+        {
+            using var context = await DbFactory.CreateDbContextAsync();
+            
+            // Get total users from AspNetUsers table (through Users property in IdentityDbContext)
+            totalUsers = await context.Users.CountAsync();
+            
+            // Get total companies
+            totalCompanies = await context.Companies.CountAsync();
+            
+            // Get total suppliers from FoodXSuppliers table (the populated one)
+            totalSuppliers = await context.FoodXSuppliers.CountAsync();
+            
+            // Get total buyers from FoodXBuyers table (the populated one)
+            totalBuyers = await context.FoodXBuyers.CountAsync();
+            
+            // Get total products
+            totalProducts = await context.Products.CountAsync();
+            
+            // Calculate approximate database size (simplified)
+            var totalRecords = totalUsers + totalCompanies + totalSuppliers + totalBuyers + totalProducts;
+            if (totalRecords > 100000)
+            {
+                databaseSize = $"{(totalRecords * 1.5 / 1000):F1} MB (est.)";
+            }
+            else if (totalRecords > 10000)
+            {
+                databaseSize = $"{(totalRecords * 2.0 / 1000):F1} MB (est.)";
+            }
+            else
+            {
+                databaseSize = $"{(totalRecords * 3.0 / 1000):F1} MB (est.)";
+            }
+            
+            Snackbar.Add($"Database statistics loaded successfully", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading database statistics: {ex.Message}", Severity.Error);
+            // Set some default values if loading fails
+            totalUsers = 0;
+            totalCompanies = 0;
+            totalSuppliers = 0;
+            totalBuyers = 0;
+            totalProducts = 0;
+            databaseSize = "Error loading";
+        }
+        finally
+        {
+            isLoadingStats = false;
+        }
+    }
 
     private void EnableEdit()
     {

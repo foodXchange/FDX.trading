@@ -9,8 +9,14 @@ using FoodX.Core.Extensions;
 using System.Globalization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Azure.Identity;
+using Microsoft.AspNetCore.ResponseCompression;
+using System.IO.Compression;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Enable static web assets for MudBlazor and other libraries
+builder.WebHost.UseStaticWebAssets();
 
 // Configure Azure Key Vault (optional in Development)
 try
@@ -47,6 +53,59 @@ builder.Services.AddMudServices();
 // Add memory cache for performance optimization
 builder.Services.AddMemoryCache();
 
+// Configure distributed caching (Redis if available, in-memory as fallback)
+var redisConnection = builder.Configuration.GetConnectionString("Redis") 
+    ?? builder.Configuration["Redis:ConnectionString"];
+
+if (!string.IsNullOrEmpty(redisConnection))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnection;
+        options.InstanceName = "FoodXCache";
+    });
+    Console.WriteLine("[INFO] Redis distributed cache configured");
+}
+else
+{
+    // Use in-memory distributed cache as fallback
+    builder.Services.AddDistributedMemoryCache();
+    Console.WriteLine("[INFO] Using in-memory distributed cache");
+}
+
+// Cache service is already registered in FoodXCore
+
+// Add response compression for better performance
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] 
+    {
+        "application/octet-stream",
+        "image/svg+xml",
+        "application/font-woff2"
+    });
+});
+
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Fastest;
+});
+
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Optimal;
+});
+
+// Add output caching for static content
+builder.Services.AddOutputCache(options =>
+{
+    options.AddBasePolicy(builder => builder.Expire(TimeSpan.FromSeconds(60)));
+    options.AddPolicy("StaticAssets", builder => builder.Expire(TimeSpan.FromHours(24)));
+});
+
 // Add FoodX Core services (caching, email, etc.)
 builder.Services.AddFoodXCore(builder.Configuration);
 
@@ -60,15 +119,24 @@ builder.Services.AddRazorComponents()
 // Add controllers for API endpoints
 builder.Services.AddControllers();
 
-// Configure Blazor Server with circuit options
+// Configure Blazor Server with optimized circuit options
 builder.Services.AddServerSideBlazor()
     .AddCircuitOptions(options =>
     {
         options.DetailedErrors = builder.Environment.IsDevelopment();
-        options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(3);
-        options.DisconnectedCircuitMaxRetained = 100;
-        options.JSInteropDefaultCallTimeout = TimeSpan.FromMinutes(1);
-        options.MaxBufferedUnacknowledgedRenderBatches = 10;
+        options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(1); // Reduced from 3
+        options.DisconnectedCircuitMaxRetained = 20; // Reduced from 100
+        options.JSInteropDefaultCallTimeout = TimeSpan.FromSeconds(30); // Reduced from 1 minute
+        options.MaxBufferedUnacknowledgedRenderBatches = 5; // Reduced from 10 for faster response
+    })
+    .AddHubOptions(options =>
+    {
+        options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+        options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+        options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+        options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+        options.MaximumReceiveMessageSize = 32 * 1024; // 32KB
+        options.StreamBufferCapacity = 10;
     });
 
 // Add Vector Search Services
@@ -150,6 +218,21 @@ builder.Services.AddDbContext<FoodXDbContext>((serviceProvider, options) =>
     FoodX.Admin.Data.DatabaseConfiguration.ConfigureDbContext(options, optimizedConnectionString, false); // Disable sensitive logging in production
     options.AddInterceptors(interceptor);
 });
+
+// Add DbContextFactory for Blazor Server components to avoid disposed context issues
+builder.Services.AddDbContextFactory<ApplicationDbContext>((serviceProvider, options) =>
+{
+    var interceptor = serviceProvider.GetRequiredService<FoodX.Admin.Data.PerformanceInterceptor>();
+    FoodX.Admin.Data.DatabaseConfiguration.ConfigureDbContext(options, optimizedConnectionString, false);
+    options.AddInterceptors(interceptor);
+}, ServiceLifetime.Scoped);
+
+builder.Services.AddDbContextFactory<FoodXDbContext>((serviceProvider, options) =>
+{
+    var interceptor = serviceProvider.GetRequiredService<FoodX.Admin.Data.PerformanceInterceptor>();
+    FoodX.Admin.Data.DatabaseConfiguration.ConfigureDbContext(options, optimizedConnectionString, false);
+    options.AddInterceptors(interceptor);
+}, ServiceLifetime.Scoped);
 
 // Add database developer page exception filter only in development
 if (builder.Environment.IsDevelopment())
@@ -254,6 +337,28 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Enable response compression (must be before other middleware)
+app.UseResponseCompression();
+
+// Enable output caching
+app.UseOutputCache();
+
+// Configure static file options with caching
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Cache static files for 1 year (versioned files)
+        const int durationInSeconds = 365 * 24 * 60 * 60;
+        ctx.Context.Response.Headers.Append(
+            "Cache-Control", $"public, max-age={durationInSeconds}");
+        
+        // Add ETag for cache validation
+        ctx.Context.Response.Headers.Append("ETag", 
+            $"\"{ctx.File.LastModified.ToFileTime()}\"");
+    }
+});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

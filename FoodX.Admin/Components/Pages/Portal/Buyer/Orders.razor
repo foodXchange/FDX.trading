@@ -1,5 +1,8 @@
 @page "/portal/buyer/orders"
 @using Microsoft.AspNetCore.Authorization
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @attribute [Authorize(Roles = "SuperAdmin,Admin,Buyer")]
 @rendermode InteractiveServer
 
@@ -57,7 +60,8 @@
                 <div class="d-flex justify-space-between align-center mb-4">
                     <MudText Typo="Typo.h6">Your Orders</MudText>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" 
-                               StartIcon="@Icons.Material.Filled.Add">
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="CreateNewOrder">
                         Create New Order
                     </MudButton>
                 </div>
@@ -86,10 +90,12 @@
                             </MudChip>
                         </MudTd>
                         <MudTd>
-                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary">
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary"
+                                       OnClick="@(() => ViewOrder(context))">
                                 View
                             </MudButton>
-                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary">
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary"
+                                       OnClick="@(() => TrackOrder(context))">
                                 Track
                             </MudButton>
                         </MudTd>
@@ -124,6 +130,25 @@
         "Cancelled" => Color.Error,
         _ => Color.Default
     };
+    
+    private void CreateNewOrder()
+    {
+        // Navigate to create order page or open dialog
+        Navigation.NavigateTo("/portal/buyer/order/create");
+    }
+    
+    private void ViewOrder(OrderItem order)
+    {
+        // Navigate to order details page
+        Navigation.NavigateTo($"/portal/buyer/order/{order.OrderNumber}");
+    }
+    
+    private void TrackOrder(OrderItem order)
+    {
+        // Open tracking dialog or navigate to tracking page
+        Snackbar.Add($"Tracking order {order.OrderNumber}: {order.Status}", Severity.Info);
+        // In a real app, you would open a tracking dialog or navigate to a tracking page
+    }
     
     private class OrderItem
     {

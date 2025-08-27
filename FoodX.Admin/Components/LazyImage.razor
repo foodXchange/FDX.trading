@@ -1,0 +1,62 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<img @ref="imageElement" 
+     data-src="@Src" 
+     alt="@Alt" 
+     class="@($"lazy-image {Class}")" 
+     style="@Style" />
+
+@code {
+    [Parameter] public string? Src { get; set; }
+    [Parameter] public string? Alt { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter] public string PlaceholderSrc { get; set; } = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f0f0f0'/%3E%3C/svg%3E";
+
+    private ElementReference imageElement;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<LazyImage>? dotNetRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/lazyload.js");
+            dotNetRef = DotNetObjectReference.Create(this);
+            await module.InvokeVoidAsync("initLazyLoad", imageElement, dotNetRef);
+        }
+    }
+
+    [JSInvokable]
+    public void OnImageVisible()
+    {
+        // This method is called from JavaScript when the image becomes visible
+        // You can add telemetry or logging here if needed
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (module != null)
+        {
+            await module.DisposeAsync();
+        }
+        dotNetRef?.Dispose();
+    }
+}
+
+<style>
+    .lazy-image {
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    }
+    
+    .lazy-image.loaded {
+        opacity: 1;
+    }
+    
+    .lazy-image.error {
+        opacity: 0.5;
+        background-color: #f0f0f0;
+    }
+</style>

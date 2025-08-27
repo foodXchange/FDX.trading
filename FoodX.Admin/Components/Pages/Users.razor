@@ -2,9 +2,13 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @using FoodX.Admin.Data
+@using FoodX.Admin.Components.Dialogs
 @using Microsoft.EntityFrameworkCore
 @inject UserManager<ApplicationUser> UserManager
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
 @attribute [Authorize(Roles = "Admin,SuperAdmin")]
 @rendermode InteractiveServer
 
@@ -22,7 +26,7 @@
                                   @bind-Value:after="OnSearch" Variant="Variant.Outlined" />
                 </MudItem>
                 <MudItem xs="12" md="4" Class="d-flex justify-end">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddUser">
                         Add User
                     </MudButton>
                 </MudItem>
@@ -199,14 +203,68 @@
         };
     }
 
-    private void EditUser(ApplicationUser user)
+    private async Task AddUser()
     {
-        // Navigate to edit page or open dialog
+        var parameters = new DialogParameters
+        {
+            { "User", new ApplicationUser() },
+            { "IsNew", true }
+        };
+        
+        var dialog = await DialogService.ShowAsync<UserEditDialog>("Add New User", parameters);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadUsers();
+            Snackbar.Add("User added successfully", Severity.Success);
+        }
     }
 
-    private Task DeleteUser(ApplicationUser user)
+    private async Task EditUser(ApplicationUser user)
     {
-        // Implement delete logic with confirmation
-        return Task.CompletedTask;
+        var parameters = new DialogParameters
+        {
+            { "User", user },
+            { "IsNew", false }
+        };
+        
+        var dialog = await DialogService.ShowAsync<UserEditDialog>($"Edit User - {GetUserFullName(user)}", parameters);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadUsers();
+            Snackbar.Add("User updated successfully", Severity.Success);
+        }
+    }
+
+    private async Task DeleteUser(ApplicationUser user)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Delete User",
+            $"Are you sure you want to delete {GetUserFullName(user)}?",
+            yesText: "Delete", cancelText: "Cancel");
+            
+        if (result == true)
+        {
+            try
+            {
+                var deleteResult = await UserManager.DeleteAsync(user);
+                if (deleteResult.Succeeded)
+                {
+                    await LoadUsers();
+                    Snackbar.Add("User deleted successfully", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add($"Error deleting user: {string.Join(", ", deleteResult.Errors.Select(e => e.Description))}", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting user: {ex.Message}", Severity.Error);
+            }
+        }
     }
 }

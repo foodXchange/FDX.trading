@@ -1,7 +1,13 @@
 @page "/portal/buyer/ai-search"
 @using Microsoft.AspNetCore.Authorization
+@using FoodX.Admin.Services
+@using FoodX.Admin.Models
 @attribute [Authorize(Roles = "SuperAdmin,Admin,Buyer")]
 @rendermode InteractiveServer
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IAIRequestAnalyzer AIRequestAnalyzer
+@inject ILogger<AISearch> Logger
 
 <PageTitle>AI Search - FoodX Buyer Portal</PageTitle>
 
@@ -13,6 +19,17 @@
                 AI-Powered Product Search
             </MudText>
         </MudItem>
+
+        <!-- API Status Alert -->
+        @if (_visionApiError)
+        {
+            <MudItem xs="12">
+                <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.Info" ShowCloseIcon="true" CloseIconClicked="() => _visionApiError = false">
+                    <strong>Vision API Not Configured:</strong> Image analysis is currently unavailable. You can still use text-based search or provide URLs for product matching.
+                    Contact your administrator to enable OpenAI Vision API for image analysis features.
+                </MudAlert>
+            </MudItem>
+        }
 
         <!-- Search Section -->
         <MudItem xs="12">
@@ -26,9 +43,47 @@
                                     Placeholder="e.g., 'I need organic tomatoes for a restaurant, about 50kg per week, delivered to Milan'"
                                     FullWidth="true" />
                     </MudItem>
-                    <MudItem xs="12" Class="d-flex justify-end gap-2 mt-2">
+                    
+                    <!-- Image Upload and URL Section -->
+                    <MudItem xs="12" md="6" Class="mt-3">
+                        <MudFileUpload T="IBrowserFile" Accept=".jpg,.jpeg,.png,.gif,.webp" 
+                                     OnFilesChanged="OnImageUpload" MaximumFileCount="1">
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Outlined" 
+                                         Color="Color.Primary" 
+                                         StartIcon="@Icons.Material.Filled.Image"
+                                         FullWidth="true">
+                                    Upload Image for Visual Search
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+                        @if (!string.IsNullOrEmpty(_uploadedImageName))
+                        {
+                            <MudText Typo="Typo.caption" Class="mt-1">
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                @_uploadedImageName
+                            </MudText>
+                        }
+                    </MudItem>
+                    
+                    <MudItem xs="12" md="6" Class="mt-3">
+                        <MudTextField @bind-Value="_benchmarkUrl" 
+                                    Label="Paste URL for benchmark project" 
+                                    Placeholder="https://example.com/product-reference"
+                                    FullWidth="true"
+                                    Adornment="Adornment.Start"
+                                    AdornmentIcon="@Icons.Material.Filled.Link" />
+                    </MudItem>
+                    
+                    <MudItem xs="12" Class="d-flex justify-end gap-2 mt-3">
                         <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="ClearSearch">
-                            Clear
+                            Clear All
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" 
+                                 Color="Color.Tertiary" 
+                                 StartIcon="@Icons.Material.Filled.Description"
+                                 OnClick="CreateAIRequestBrief">
+                            Create AI Request Brief
                         </MudButton>
                         <MudButton Variant="Variant.Filled" 
                                  Color="Color.Primary" 
@@ -49,6 +104,79 @@
                 </MudGrid>
             </MudPaper>
         </MudItem>
+
+        <!-- AI Request Brief Section -->
+        @if (_showBriefForm)
+        {
+            <MudItem xs="12">
+                <MudPaper Class="pa-6" Elevation="3">
+                    <MudText Typo="Typo.h5" Class="mb-4">
+                        <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" />
+                        Create AI Request Brief
+                    </MudText>
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="_briefTitle" 
+                                        Label="Brief Title" 
+                                        Required="true"
+                                        Placeholder="e.g., Weekly Organic Produce Supply" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudSelect @bind-Value="_briefCategory" Label="Category" Required="true">
+                                <MudSelectItem Value="@("Produce")">Fresh Produce</MudSelectItem>
+                                <MudSelectItem Value="@("Dairy")">Dairy Products</MudSelectItem>
+                                <MudSelectItem Value="@("Meat")">Meat & Poultry</MudSelectItem>
+                                <MudSelectItem Value="@("Seafood")">Seafood</MudSelectItem>
+                                <MudSelectItem Value="@("Bakery")">Bakery</MudSelectItem>
+                                <MudSelectItem Value="@("Other")">Other</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_briefDescription" 
+                                        Label="Detailed Requirements" 
+                                        Lines="4"
+                                        Required="true"
+                                        Placeholder="Describe your specific requirements, quality standards, certifications needed..." />
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="_briefQuantity" 
+                                        Label="Quantity Needed" 
+                                        Required="true"
+                                        Placeholder="e.g., 50kg per week" />
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField @bind-Value="_briefBudget" 
+                                        Label="Budget Range" 
+                                        Placeholder="e.g., €2-4 per kg" />
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudDatePicker @bind-Date="_briefDeadline" 
+                                         Label="Response Deadline" 
+                                         Required="true" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_briefDeliveryInfo" 
+                                        Label="Delivery Requirements" 
+                                        Lines="2"
+                                        Placeholder="Location, frequency, special handling requirements..." />
+                        </MudItem>
+                        <MudItem xs="12" Class="d-flex justify-end gap-2">
+                            <MudButton Variant="Variant.Text" 
+                                     Color="Color.Secondary"
+                                     OnClick="CancelBrief">
+                                Cancel
+                            </MudButton>
+                            <MudButton Variant="Variant.Filled" 
+                                     Color="Color.Success"
+                                     StartIcon="@Icons.Material.Filled.Save"
+                                     OnClick="SaveAIRequestBrief">
+                                Save AI Request Brief
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+        }
 
         <!-- Quick Search Examples -->
         <MudItem xs="12">
@@ -202,7 +330,23 @@
     private string _searchQuery = "";
     private bool _isSearching = false;
     private bool _showResults = false;
+    private bool _showBriefForm = false;
+    private bool _visionApiError = false;
     private string _aiSummary = "";
+    private string _uploadedImageName = "";
+    private string _benchmarkUrl = "";
+    private IBrowserFile? _uploadedImage;
+    private byte[]? _uploadedImageData;
+    
+    // AI Request Brief fields
+    private string _briefTitle = "";
+    private string _briefCategory = "";
+    private string _briefDescription = "";
+    private string _briefQuantity = "";
+    private string _briefBudget = "";
+    private DateTime? _briefDeadline = DateTime.Now.AddDays(7);
+    private string _briefDeliveryInfo = "";
+    
     private List<string> _extractedRequirements = new();
     private List<string> _suggestedActions = new();
     private List<ProductMatch> _matchingProducts = new();
@@ -210,78 +354,325 @@
     
     protected override void OnInitialized()
     {
-        _recentSearches = new List<SearchHistory>
+        _recentSearches = new List<SearchHistory>();
+    }
+    
+    private async Task OnImageUpload(InputFileChangeEventArgs e)
+    {
+        try
         {
-            new SearchHistory { Query = "Organic tomatoes for restaurant, 50kg weekly", Date = DateTime.Now.AddHours(-2) },
-            new SearchHistory { Query = "Fresh seafood for hotel buffet", Date = DateTime.Now.AddDays(-1) },
-            new SearchHistory { Query = "Gluten-free bread for bakery", Date = DateTime.Now.AddDays(-2) },
-        };
+            _uploadedImage = e.File;
+            _uploadedImageName = e.File.Name;
+            
+            // Read the image data for AI analysis
+            if (_uploadedImage != null && _uploadedImage.Size < 10 * 1024 * 1024) // 10MB limit
+            {
+                using var stream = new MemoryStream();
+                await _uploadedImage.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(stream);
+                _uploadedImageData = stream.ToArray();
+                
+                Logger.LogInformation($"Image uploaded: {_uploadedImageName}, Size: {_uploadedImageData.Length} bytes");
+            }
+            else if (_uploadedImage != null)
+            {
+                Snackbar.Add("Image size must be less than 10MB", Severity.Warning);
+                _uploadedImage = null;
+                _uploadedImageName = "";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error uploading image");
+            Snackbar.Add("Error uploading image", Severity.Error);
+        }
     }
     
     private async Task PerformSearch()
     {
-        if (string.IsNullOrWhiteSpace(_searchQuery)) return;
+        if (string.IsNullOrWhiteSpace(_searchQuery) && 
+            string.IsNullOrWhiteSpace(_benchmarkUrl) && 
+            _uploadedImageData == null) 
+        {
+            Snackbar.Add("Please provide a search query, upload an image, or enter a benchmark URL", Severity.Info);
+            return;
+        }
         
         _isSearching = true;
-        await Task.Delay(2000); // Simulate AI processing
+        _showResults = false;
         
-        // Mock AI analysis results
-        _aiSummary = "Based on your query, you're looking for high-quality organic tomatoes suitable for restaurant use, with regular weekly deliveries of approximately 50kg.";
-        
-        _extractedRequirements = new List<string>
+        try
         {
-            "Product: Organic tomatoes",
-            "Quantity: 50kg per week",
-            "End use: Restaurant/food service",
-            "Quality: Premium/organic certification required",
-            "Delivery: Weekly recurring orders"
-        };
-        
-        _suggestedActions = new List<string>
-        {
-            "Create an RFQ for weekly tomato supply",
-            "Contact Italian Farms Co. (95% match)",
-            "Set up recurring order schedule",
-            "Request organic certification documents"
-        };
-        
-        _matchingProducts = new List<ProductMatch>
-        {
-            new ProductMatch
+            ProductAnalysis? analysis = null;
+            
+            // Priority 1: Image analysis if image is uploaded
+            if (_uploadedImageData != null)
             {
-                Name = "Organic San Marzano Tomatoes",
-                Description = "Premium organic tomatoes from Italy, perfect for restaurants",
-                Supplier = "Italian Farms Co.",
-                Price = 3.50m,
-                Unit = "kg",
-                MatchScore = 95
-            },
-            new ProductMatch
-            {
-                Name = "Organic Roma Tomatoes",
-                Description = "Certified organic Roma tomatoes, ideal for cooking",
-                Supplier = "Mediterranean Organics",
-                Price = 2.80m,
-                Unit = "kg",
-                MatchScore = 88
-            },
-            new ProductMatch
-            {
-                Name = "Organic Cherry Tomatoes",
-                Description = "Sweet organic cherry tomatoes for garnish and salads",
-                Supplier = "Spanish Greenhouse Co.",
-                Price = 4.20m,
-                Unit = "kg",
-                MatchScore = 75
+                Logger.LogInformation("Performing AI image analysis");
+                analysis = await AIRequestAnalyzer.AnalyzeImageRequest(_uploadedImageData);
             }
-        };
-        
-        _showResults = true;
-        _isSearching = false;
-        
-        // Add to search history
-        _recentSearches.Insert(0, new SearchHistory { Query = _searchQuery, Date = DateTime.Now });
+            // Priority 2: URL analysis if benchmark URL provided
+            else if (!string.IsNullOrWhiteSpace(_benchmarkUrl))
+            {
+                Logger.LogInformation($"Performing AI URL analysis: {_benchmarkUrl}");
+                analysis = await AIRequestAnalyzer.AnalyzeUrlRequest(_benchmarkUrl);
+            }
+            // Priority 3: Text analysis for search query
+            else if (!string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                Logger.LogInformation($"Performing AI text analysis: {_searchQuery}");
+                analysis = await AIRequestAnalyzer.AnalyzeTextRequest(_searchQuery);
+            }
+            
+            if (analysis != null)
+            {
+                // Map AI analysis results to UI display format
+                MapAnalysisToUI(analysis);
+                _showResults = true;
+                
+                // Add to search history
+                var historyQuery = "";
+                if (_uploadedImageData != null && analysis.ProductIdentification != null)
+                {
+                    historyQuery = $"[Image] {analysis.ProductIdentification.DetectedProduct ?? _uploadedImageName}";
+                }
+                else if (!string.IsNullOrWhiteSpace(_benchmarkUrl))
+                {
+                    historyQuery = $"[URL] {_benchmarkUrl}";
+                }
+                else
+                {
+                    historyQuery = _searchQuery;
+                }
+                
+                _recentSearches.Insert(0, new SearchHistory { Query = historyQuery, Date = DateTime.Now });
+                
+                Logger.LogInformation("AI analysis completed successfully");
+            }
+            else
+            {
+                Snackbar.Add("Unable to analyze the request. Please try again.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error during AI search");
+            
+            // Show user-friendly error message based on the exception
+            string errorMessage = ex.Message;
+            if (ex.Message.Contains("AI service not configured") || ex.Message.Contains("API keys"))
+            {
+                errorMessage = "AI service is not configured. Please contact administrator to set up OpenAI or Azure OpenAI API keys.";
+            }
+            else if (ex.Message.Contains("Vision") || ex.Message.Contains("image"))
+            {
+                _visionApiError = true;
+                // Clear the uploaded image since we can't process it
+                _uploadedImage = null;
+                _uploadedImageData = null;
+                _uploadedImageName = "";
+                
+                // If there's still a text query, continue with text-based search
+                if (!string.IsNullOrWhiteSpace(_searchQuery))
+                {
+                    try
+                    {
+                        var analysis = await AIRequestAnalyzer.AnalyzeTextRequest(_searchQuery);
+                        if (analysis != null)
+                        {
+                            MapAnalysisToUI(analysis);
+                            _showResults = true;
+                        }
+                    }
+                    catch
+                    {
+                        errorMessage = "Text-based search also failed. Please try again later.";
+                    }
+                }
+                else
+                {
+                    errorMessage = "Image analysis is not available. Please use text-based search instead.";
+                }
+            }
+            
+            Snackbar.Add(errorMessage, Severity.Error);
+            _showResults = false;
+        }
+        finally
+        {
+            _isSearching = false;
+        }
     }
+    
+    private void MapAnalysisToUI(ProductAnalysis analysis)
+    {
+        // Generate AI summary
+        _aiSummary = GenerateAISummary(analysis);
+        
+        // Extract requirements from analysis
+        _extractedRequirements = ExtractRequirements(analysis);
+        
+        // Generate suggested actions
+        _suggestedActions = GenerateSuggestedActions(analysis);
+        
+        // Generate matching products (in real scenario, would query database)
+        _matchingProducts = GenerateMatchingProducts(analysis);
+    }
+    
+    private string GenerateAISummary(ProductAnalysis analysis)
+    {
+        var summary = "Based on your ";
+        
+        if (_uploadedImageData != null)
+        {
+            summary += "uploaded image, ";
+        }
+        else if (!string.IsNullOrWhiteSpace(_benchmarkUrl))
+        {
+            summary += "benchmark URL, ";
+        }
+        else
+        {
+            summary += "search query, ";
+        }
+        
+        if (analysis.ProductIdentification != null && !string.IsNullOrEmpty(analysis.ProductIdentification.DetectedProduct))
+        {
+            summary += $"I've identified {analysis.ProductIdentification.DetectedProduct}";
+            
+            if (analysis.ProductIdentification.Confidence > 0)
+            {
+                summary += $" with {(analysis.ProductIdentification.Confidence * 100):F0}% confidence";
+            }
+            
+            if (!string.IsNullOrEmpty(analysis.ProductIdentification.BrandReference))
+            {
+                summary += $" from {analysis.ProductIdentification.BrandReference}";
+            }
+            
+            if (analysis.DetailedDescription != null && !string.IsNullOrEmpty(analysis.DetailedDescription.Summary))
+            {
+                summary += $". {analysis.DetailedDescription.Summary}";
+            }
+        }
+        else if (analysis.DetailedDescription != null && !string.IsNullOrEmpty(analysis.DetailedDescription.Summary))
+        {
+            summary += analysis.DetailedDescription.Summary;
+        }
+        else
+        {
+            summary += "I'm analyzing your product requirements to find the best matches.";
+        }
+        
+        return summary;
+    }
+    
+    private List<string> ExtractRequirements(ProductAnalysis analysis)
+    {
+        var requirements = new List<string>();
+        
+        if (analysis.ProductIdentification != null && !string.IsNullOrEmpty(analysis.ProductIdentification.DetectedProduct))
+        {
+            requirements.Add($"Product: {analysis.ProductIdentification.DetectedProduct}");
+        }
+        
+        if (analysis.ProductIdentification != null && !string.IsNullOrEmpty(analysis.ProductIdentification.BrandReference))
+        {
+            requirements.Add($"Brand: {analysis.ProductIdentification.BrandReference}");
+        }
+        
+        if (analysis.PackagingDetails != null)
+        {
+            if (!string.IsNullOrEmpty(analysis.PackagingDetails.NetWeight))
+            {
+                requirements.Add($"Net Weight: {analysis.PackagingDetails.NetWeight}");
+            }
+            
+            if (!string.IsNullOrEmpty(analysis.PackagingDetails.UnitsPerPackage))
+            {
+                requirements.Add($"Units: {analysis.PackagingDetails.UnitsPerPackage}");
+            }
+        }
+        
+        if (analysis.ProductAttributes != null)
+        {
+            if (analysis.ProductAttributes.IsKosher == true)
+            {
+                requirements.Add($"Kosher Certified: {analysis.ProductAttributes.KosherCertification ?? "Yes"}");
+            }
+            
+            if (analysis.ProductAttributes.IsHalal == true)
+            {
+                requirements.Add($"Halal Certified: {analysis.ProductAttributes.HalalCertification ?? "Yes"}");
+            }
+            
+            if (analysis.ProductAttributes.IsGlutenFree == true)
+            {
+                requirements.Add("Gluten-Free");
+            }
+            
+            if (analysis.ProductAttributes.IsOrganic == true)
+            {
+                requirements.Add($"Organic: {analysis.ProductAttributes.OrganicCertification ?? "Yes"}");
+            }
+        }
+        
+        if (analysis.CategoryClassification != null && !string.IsNullOrEmpty(analysis.CategoryClassification.PrimaryCategory))
+        {
+            requirements.Add($"Category: {analysis.CategoryClassification.PrimaryCategory}");
+        }
+        
+        // Return empty list if no requirements found - no fallback data
+        
+        return requirements;
+    }
+    
+    private List<string> GenerateSuggestedActions(ProductAnalysis analysis)
+    {
+        var actions = new List<string>();
+        
+        if (analysis.ProductIdentification != null && !string.IsNullOrEmpty(analysis.ProductIdentification.DetectedProduct))
+        {
+            actions.Add($"Create an RFQ for {analysis.ProductIdentification.DetectedProduct}");
+            actions.Add("Contact matching suppliers");
+        }
+        
+        if (analysis.ProductAttributes != null)
+        {
+            if (analysis.ProductAttributes.IsKosher == true || analysis.ProductAttributes.IsHalal == true || 
+                analysis.ProductAttributes.IsOrganic == true)
+            {
+                actions.Add("Request certification documents");
+            }
+        }
+        
+        if (analysis.PackagingDetails != null && !string.IsNullOrEmpty(analysis.PackagingDetails.NetWeight))
+        {
+            actions.Add("Set up recurring order schedule");
+        }
+        
+        actions.Add("Compare prices from multiple suppliers");
+        actions.Add("Request product samples");
+        
+        return actions;
+    }
+    
+    private List<ProductMatch> GenerateMatchingProducts(ProductAnalysis analysis)
+    {
+        var products = new List<ProductMatch>();
+        
+        // In a real implementation, this would query the database for matching products
+        // For now, we'll generate relevant products based on the analysis
+        
+        var productName = analysis.ProductIdentification?.DetectedProduct ?? "Product";
+        var category = analysis.CategoryClassification?.PrimaryCategory ?? "Food";
+        
+        // In production, this would query the actual database for matching products
+        // For now, return empty list since we don't have mock data
+        // TODO: Implement actual database query for matching products based on analysis
+        
+        return products;
+    }
+    
     
     private void SetSearchQuery(string query)
     {
@@ -291,7 +682,72 @@
     private void ClearSearch()
     {
         _searchQuery = "";
+        _benchmarkUrl = "";
+        _uploadedImage = null;
+        _uploadedImageName = "";
+        _uploadedImageData = null;
         _showResults = false;
+    }
+    
+    private void CreateAIRequestBrief()
+    {
+        _showBriefForm = true;
+        _showResults = false;
+        
+        // Pre-fill brief with search data if available
+        if (!string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            _briefDescription = _searchQuery;
+        }
+    }
+    
+    private void CancelBrief()
+    {
+        _showBriefForm = false;
+        ClearBriefForm();
+    }
+    
+    private void ClearBriefForm()
+    {
+        _briefTitle = "";
+        _briefCategory = "";
+        _briefDescription = "";
+        _briefQuantity = "";
+        _briefBudget = "";
+        _briefDeadline = DateTime.Now.AddDays(7);
+        _briefDeliveryInfo = "";
+    }
+    
+    private async Task SaveAIRequestBrief()
+    {
+        // Validate required fields
+        if (string.IsNullOrWhiteSpace(_briefTitle) || 
+            string.IsNullOrWhiteSpace(_briefDescription) || 
+            string.IsNullOrWhiteSpace(_briefQuantity))
+        {
+            Snackbar.Add("Please fill in all required fields", Severity.Warning);
+            return;
+        }
+        
+        // In a real implementation, this would save to the database
+        await Task.Delay(1000); // Simulate save operation
+        
+        Snackbar.Add($"AI Request Brief '{_briefTitle}' has been created successfully!", Severity.Success);
+        
+        // Add to search history
+        _recentSearches.Insert(0, new SearchHistory 
+        { 
+            Query = $"[Brief] {_briefTitle}: {_briefDescription}", 
+            Date = DateTime.Now 
+        });
+        
+        // Clear form and hide
+        _showBriefForm = false;
+        ClearBriefForm();
+        
+        // Optionally, perform a search based on the brief
+        _searchQuery = _briefDescription;
+        await PerformSearch();
     }
     
     private class ProductMatch
