@@ -353,18 +353,44 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
                 
                 var chatClient = client.GetChatClient(deploymentName);
 
+                // Convert base64 data URL to binary data
+                BinaryData imageData;
+                if (imageDataUrl.StartsWith("data:"))
+                {
+                    // Extract base64 data from data URL
+                    var base64Data = imageDataUrl.Substring(imageDataUrl.IndexOf(",") + 1);
+                    var imageBytes = Convert.FromBase64String(base64Data);
+                    imageData = BinaryData.FromBytes(imageBytes);
+                    
+                    // Determine MIME type from data URL
+                    var mimeType = "image/jpeg";
+                    if (imageDataUrl.Contains("image/png"))
+                        mimeType = "image/png";
+                    else if (imageDataUrl.Contains("image/gif"))
+                        mimeType = "image/gif";
+                    else if (imageDataUrl.Contains("image/webp"))
+                        mimeType = "image/webp";
+                    
+                    _logger.LogInformation($"Processing image data: {imageBytes.Length} bytes, type: {mimeType}");
+                }
+                else
+                {
+                    // If it's a regular URL, use it directly
+                    imageData = BinaryData.FromString(imageDataUrl);
+                }
+
                 var messages = new List<OpenAI.Chat.ChatMessage>
                 {
                     OpenAI.Chat.ChatMessage.CreateUserMessage(
                         OpenAI.Chat.ChatMessageContentPart.CreateTextPart(GenerateImageAnalysisPrompt()),
-                        OpenAI.Chat.ChatMessageContentPart.CreateImagePart(new Uri(imageDataUrl))
+                        OpenAI.Chat.ChatMessageContentPart.CreateImagePart(imageData, "image/jpeg")
                     )
                 };
 
                 _logger.LogInformation("Sending image to Azure OpenAI for analysis...");
                 var response = await chatClient.CompleteChatAsync(messages);
 
-                if (response.Value != null)
+                if (response.Value != null && response.Value.Content.Count > 0)
                 {
                     _logger.LogInformation("Successfully received response from Azure OpenAI Vision");
                     return response.Value.Content[0].Text ?? "{}";
