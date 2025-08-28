@@ -277,6 +277,24 @@ builder.Services.AddScoped<FoodX.Admin.Services.IPortalContextService, FoodX.Adm
 // Add Dashboard Data Service with caching
 builder.Services.AddScoped<FoodX.Admin.Services.IDashboardDataService, FoodX.Admin.Services.DashboardDataService>();
 
+// Configure Azure OpenAI with credentials from Azure Key Vault
+var azureOpenAIKey = builder.Configuration["AzureOpenAI-ApiKey"] 
+    ?? builder.Configuration["AzureOpenAI:ApiKey"];
+var azureOpenAIEndpoint = builder.Configuration["AzureOpenAI-Endpoint"] 
+    ?? builder.Configuration["AzureOpenAI:Endpoint"];
+
+if (!string.IsNullOrEmpty(azureOpenAIKey))
+{
+    // Store in configuration for services to access
+    builder.Configuration["AzureOpenAI:ApiKey"] = azureOpenAIKey;
+    builder.Configuration["AzureOpenAI:Endpoint"] = azureOpenAIEndpoint ?? "https://polandcentral.api.cognitive.microsoft.com/";
+    Console.WriteLine($"[INFO] Azure OpenAI configured from Key Vault (endpoint: {azureOpenAIEndpoint ?? "default"})");
+}
+else
+{
+    Console.WriteLine("[WARNING] Azure OpenAI API key not found in Azure Key Vault");
+}
+
 // Configure SendGrid with API key from Azure Key Vault
 var sendGridApiKey = builder.Configuration["SendGridApiKey"];
 if (!string.IsNullOrEmpty(sendGridApiKey))

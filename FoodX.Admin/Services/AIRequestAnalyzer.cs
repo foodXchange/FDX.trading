@@ -37,9 +37,9 @@ namespace FoodX.Admin.Services
             _httpClient = httpClientFactory.CreateClient();
             _embeddingService = embeddingService;
 
-            // Check for Azure OpenAI configuration first
-            _azureOpenAiEndpoint = configuration["AzureOpenAI:Endpoint"] ?? "";
-            _azureOpenAiKey = configuration["AzureOpenAI:ApiKey"] ?? "";
+            // Check for Azure OpenAI configuration first (from Key Vault or appsettings)
+            _azureOpenAiEndpoint = configuration["AzureOpenAI-Endpoint"] ?? configuration["AzureOpenAI:Endpoint"] ?? "";
+            _azureOpenAiKey = configuration["AzureOpenAI-ApiKey"] ?? configuration["AzureOpenAI:ApiKey"] ?? "";
             _useAzureOpenAI = !string.IsNullOrEmpty(_azureOpenAiEndpoint) && !string.IsNullOrEmpty(_azureOpenAiKey);
 
             // Fall back to OpenAI if Azure OpenAI not configured
@@ -76,6 +76,30 @@ namespace FoodX.Admin.Services
         {
             try
             {
+                // Check if any vision API is configured
+                bool hasVisionApi = _useAzureOpenAI || !string.IsNullOrEmpty(_openAiApiKey);
+                
+                if (!hasVisionApi)
+                {
+                    _logger.LogWarning("No Vision API configured. Returning demo analysis for UI display.");
+                    
+                    // Return a demo response with proper structure
+                    return new ProductAnalysis
+                    {
+                        ProductIdentification = new ProductIdentification
+                        {
+                            DetectedProduct = "Vision API not configured",
+                            Confidence = 0.0,
+                            GenericName = "Please use text-based search instead"
+                        },
+                        DetailedDescription = new DetailedDescription
+                        {
+                            Summary = "Image analysis requires OpenAI or Azure Vision API configuration.",
+                            KeyCharacteristics = new List<string> { "Use text search", "Or paste product URLs" }
+                        }
+                    };
+                }
+
                 _logger.LogInformation("Analyzing image request with GPT-4 Vision");
 
                 // Convert image to base64 for GPT-4 Vision
@@ -104,13 +128,17 @@ namespace FoodX.Admin.Services
                     return await AnalyzeWithComputerVision(imageData, visionEndpoint, visionKey);
                 }
 
-                _logger.LogError("Vision analysis failed. No AI service available.");
-                throw new InvalidOperationException("Image analysis failed. Please configure OpenAI Vision or Azure Computer Vision.");
+                _logger.LogWarning("Vision analysis failed but returning empty result gracefully");
+                
+                // Return empty analysis instead of throwing
+                return new ProductAnalysis();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error analyzing image request");
-                throw;
+                _logger.LogError(ex, "Error analyzing image request - returning empty analysis");
+                
+                // Return empty analysis instead of throwing
+                return new ProductAnalysis();
             }
         }
 
@@ -252,7 +280,8 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
                 _logger.LogError(ex, "Error calling Vision API");
             }
 
-            throw new InvalidOperationException("Failed to analyze image. Vision API not available.");
+            // Return empty string instead of throwing to allow graceful fallback
+            return string.Empty;
         }
 
         private async Task<string> CallOpenAIVision(string imageDataUrl)
@@ -312,12 +341,17 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
         {
             try
             {
+                _logger.LogInformation($"Calling Azure Vision with endpoint: {_azureOpenAiEndpoint}");
+                
                 var client = new Azure.AI.OpenAI.AzureOpenAIClient(
                     new Uri(_azureOpenAiEndpoint),
                     new AzureKeyCredential(_azureOpenAiKey));
 
-                // For Azure OpenAI, we need to use gpt-4-vision deployment
-                var chatClient = client.GetChatClient("gpt-4-vision-preview");
+                // Use gpt-4o model which has vision capabilities
+                var deploymentName = _configuration["AzureOpenAI:DeploymentName"] ?? "gpt-4o";
+                _logger.LogInformation($"Using deployment: {deploymentName}");
+                
+                var chatClient = client.GetChatClient(deploymentName);
 
                 var messages = new List<OpenAI.Chat.ChatMessage>
                 {
@@ -327,16 +361,19 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
                     )
                 };
 
+                _logger.LogInformation("Sending image to Azure OpenAI for analysis...");
                 var response = await chatClient.CompleteChatAsync(messages);
 
                 if (response.Value != null)
                 {
+                    _logger.LogInformation("Successfully received response from Azure OpenAI Vision");
                     return response.Value.Content[0].Text ?? "{}";
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error calling Azure Vision API");
+                _logger.LogError(ex, $"Error calling Azure Vision API: {ex.Message}");
+                _logger.LogError($"Endpoint: {_azureOpenAiEndpoint}, Has Key: {!string.IsNullOrEmpty(_azureOpenAiKey)}");
             }
 
             return "{}";
