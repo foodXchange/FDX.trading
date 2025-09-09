@@ -99,6 +99,33 @@ namespace FoodX.Admin.Controllers
         }
 
         /// <summary>
+        /// Create SuperAdmin user for udi@fdx.trading (Development only)
+        /// </summary>
+        [HttpPost("create-superadmin")]
+        public async Task<IActionResult> CreateSuperAdmin()
+        {
+            try
+            {
+                var success = await _testUserService.CreateSuperAdminAsync("udi@fdx.trading");
+                
+                if (success)
+                {
+                    return Ok(new { 
+                        message = "SuperAdmin user created/updated successfully",
+                        email = "udi@fdx.trading",
+                        role = "SuperAdmin"
+                    });
+                }
+                
+                return StatusCode(500, "Failed to create SuperAdmin user. Check logs for details.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error creating SuperAdmin", error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Health check endpoint
         /// </summary>
         [HttpGet("health")]

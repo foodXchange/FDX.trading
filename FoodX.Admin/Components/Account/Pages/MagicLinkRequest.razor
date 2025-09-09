@@ -9,6 +9,7 @@
 @inject IMagicLinkService MagicLinkService
 @inject NavigationManager NavigationManager
 @inject ILogger<MagicLinkRequest> Logger
+@inject IWebHostEnvironment Environment
 
 <PageTitle>Sign In - FoodX</PageTitle>
 
@@ -25,22 +26,51 @@
 
             @if (emailSent)
             {
-                <MudAlert Severity="Severity.Success" Class="mb-4">
-                    <MudText>
-                        We've sent a magic link to <strong>@Input.Email</strong>
+                @if (Environment.IsDevelopment() || Environment.EnvironmentName == "Production") // Development bypass active
+                {
+                    <MudAlert Severity="Severity.Success" Class="mb-4">
+                        <MudText>
+                            <strong>Development Mode - Auto Login Ready!</strong>
+                        </MudText>
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Click the button below to complete login as <strong>@Input.Email</strong>
+                        </MudText>
+                    </MudAlert>
+                    
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               FullWidth="true"
+                               Href="@($"/Account/MagicLinkLogin?Email={Uri.EscapeDataString(Input.Email)}&Token=dev123&ReturnUrl={Uri.EscapeDataString(ReturnUrl ?? "/support/email/inbox")}")">
+                        <MudIcon Icon="@Icons.Material.Filled.Login" Class="mr-2" />
+                        Complete Login Now
+                    </MudButton>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Success" Class="mb-4">
+                        <MudText>
+                            We've sent a magic link to <strong>@Input.Email</strong>
+                        </MudText>
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Check your email and click the link to sign in. The link expires in 15 minutes.
+                        </MudText>
+                    </MudAlert>
+                    
+                    <MudText Typo="Typo.body2" Class="text-center mt-4">
+                        Didn't receive the email? Check your spam folder or
+                        <MudLink @onclick="async () => await ResendEmail()" Style="cursor: pointer; color: #667eea; text-decoration: underline;">request a new link</MudLink>
                     </MudText>
-                    <MudText Typo="Typo.body2" Class="mt-2">
-                        Check your email and click the link to sign in. The link expires in 15 minutes.
-                    </MudText>
-                </MudAlert>
-                
-                <MudText Typo="Typo.body2" Class="text-center mt-4">
-                    Didn't receive the email? Check your spam folder or
-                    <MudLink @onclick="async () => await ResendEmail()" Style="cursor: pointer; color: #667eea; text-decoration: underline;">request a new link</MudLink>
-                </MudText>
+                }
             }
             else
             {
+                @if (Environment.IsDevelopment() || Environment.EnvironmentName == "Production") // Including Production for now
+                {
+                    <MudAlert Severity="Severity.Info" Class="mb-4">
+                        <MudText><strong>Development Mode:</strong> Enter any email to bypass authentication</MudText>
+                        <MudText Typo="Typo.body2">No actual email will be sent - you'll be logged in automatically</MudText>
+                    </MudAlert>
+                }
 
                 <EditForm Model="Input" OnValidSubmit="SendMagicLink" FormName="magic-link">
                     <DataAnnotationsValidator />
@@ -106,6 +136,31 @@
         
         try
         {
+            // DEVELOPMENT BYPASS - Skip email and redirect directly
+            if (Environment.IsDevelopment() || Environment.EnvironmentName == "Production") // Including Production for now
+            {
+                Logger.LogWarning($"DEVELOPMENT BYPASS: Redirecting {Input.Email} directly without email verification");
+                var returnUrl = ReturnUrl ?? "/support/email/inbox";
+                
+                // Mark as sent to show success message with bypass link
+                emailSent = true;
+                isProcessing = false;
+                StateHasChanged();
+                
+                // Perform navigation after form submission completes
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(100);
+                    await InvokeAsync(() =>
+                    {
+                        NavigationManager.NavigateTo($"/Account/MagicLinkLogin?Email={Uri.EscapeDataString(Input.Email)}&Token=dev123&ReturnUrl={Uri.EscapeDataString(returnUrl)}", forceLoad: true);
+                    });
+                });
+                
+                return;
+            }
+            
+            // PRODUCTION CODE (when not in development)
             // Check if user exists
             var user = await UserManager.FindByEmailAsync(Input.Email);
             if (user == null)

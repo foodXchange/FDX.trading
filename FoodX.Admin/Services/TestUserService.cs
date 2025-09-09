@@ -123,5 +123,64 @@ namespace FoodX.Admin.Services
 
             return result;
         }
+
+        public async Task<bool> CreateSuperAdminAsync(string email)
+        {
+            try
+            {
+                // Ensure SuperAdmin role exists
+                if (!await _roleManager.RoleExistsAsync("SuperAdmin"))
+                {
+                    await _roleManager.CreateAsync(new IdentityRole("SuperAdmin"));
+                    _logger.LogInformation("Created SuperAdmin role");
+                }
+
+                // Find or create user
+                var user = await _userManager.FindByEmailAsync(email);
+                if (user == null)
+                {
+                    user = new ApplicationUser
+                    {
+                        UserName = email,
+                        Email = email,
+                        EmailConfirmed = true,
+                        CompanyName = "FDX Trading",
+                        FirstName = "Udi",
+                        LastName = "Admin"
+                    };
+
+                    var createResult = await _userManager.CreateAsync(user);
+                    if (!createResult.Succeeded)
+                    {
+                        _logger.LogError($"Failed to create user {email}: {string.Join(", ", createResult.Errors.Select(e => e.Description))}");
+                        return false;
+                    }
+                    _logger.LogInformation($"Created new user {email}");
+                }
+
+                // Remove existing roles and add SuperAdmin
+                var existingRoles = await _userManager.GetRolesAsync(user);
+                if (existingRoles.Any())
+                {
+                    await _userManager.RemoveFromRolesAsync(user, existingRoles);
+                    _logger.LogInformation($"Removed existing roles from {email}: {string.Join(", ", existingRoles)}");
+                }
+
+                var roleResult = await _userManager.AddToRoleAsync(user, "SuperAdmin");
+                if (!roleResult.Succeeded)
+                {
+                    _logger.LogError($"Failed to add SuperAdmin role to {email}: {string.Join(", ", roleResult.Errors.Select(e => e.Description))}");
+                    return false;
+                }
+
+                _logger.LogInformation($"Successfully assigned SuperAdmin role to {email}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error creating SuperAdmin user {email}");
+                return false;
+            }
+        }
     }
 }

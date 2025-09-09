@@ -149,6 +149,14 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<FoodX.Admin.Services.IAIRequestAnalyzer, FoodX.Admin.Services.AIRequestAnalyzer>();
 builder.Services.AddScoped<FoodX.Admin.Services.SupplierSearchService>();
 
+// Add Email Service Client
+builder.Services.AddHttpClient<FoodX.Admin.Services.IEmailServiceClient, FoodX.Admin.Services.EmailServiceClient>(client =>
+{
+    var emailServiceUrl = builder.Configuration["EmailService:BaseUrl"] ?? "https://localhost:7001";
+    client.BaseAddress = new Uri(emailServiceUrl);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
 // Add Authentication
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityUserAccessor>();
@@ -316,6 +324,13 @@ builder.Services.AddScoped<FoodX.Admin.Services.IEmailService, FoodX.Admin.Servi
 
 // Register test user service for development
 builder.Services.AddScoped<FoodX.Admin.Services.TestUserService>();
+
+// Add EmailServiceClient for Email Service microservice communication
+builder.Services.AddHttpClient<FoodX.Admin.Services.EmailServiceClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["EmailService:BaseUrl"] ?? "http://localhost:5257");
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
 
 // Add health checks
 builder.Services.AddHealthChecks()
