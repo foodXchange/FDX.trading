@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SendGrid.Extensions.DependencyInjection;
 using FoodX.EmailService.Data;
 using FoodX.EmailService.Services;
+using FoodX.EmailService.Hubs;
 using Azure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +28,10 @@ catch (Exception ex)
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSignalR();
+
+// Add memory caching for performance
+builder.Services.AddMemoryCache();
 
 // Configure CORS for FoodX.Admin
 builder.Services.AddCors(options =>
@@ -73,6 +78,10 @@ else
 // Register Email Services
 builder.Services.AddScoped<IEmailSendingService, EmailSendingService>();
 builder.Services.AddScoped<IEmailReceivingService, EmailReceivingService>();
+builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
+
+// Register Background Services
+builder.Services.AddHostedService<EmailCleanupService>();
 
 // Add health checks
 builder.Services.AddHealthChecks()
@@ -109,6 +118,7 @@ app.UseCors("FoodXPolicy");
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<EmailHub>("/emailHub");
 
 app.MapHealthChecks("/health");
 

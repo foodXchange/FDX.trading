@@ -129,14 +129,14 @@ public class EmailController : ControllerBase
     }
 
     [HttpGet("inbox")]
-    public async Task<IActionResult> GetInbox([FromQuery] string userEmail, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetInbox([FromQuery] string userEmail, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? folder = null, [FromQuery] string? category = null, [FromQuery] string? search = null)
     {
         try
         {
             if (string.IsNullOrEmpty(userEmail))
                 return BadRequest(new { Error = "User email is required" });
 
-            var emails = await _emailReceivingService.GetInboxAsync(userEmail, page, pageSize);
+            var emails = await _emailReceivingService.GetInboxAsync(userEmail, page, pageSize, folder, category, search);
             
             var response = emails.Select(e => new EmailResponse
             {
@@ -253,6 +253,82 @@ public class EmailController : ControllerBase
         {
             _logger.LogError(ex, $"Error marking email {emailId} as read");
             return StatusCode(500, new { Error = "Failed to mark email as read", Details = ex.Message });
+        }
+    }
+
+    [HttpDelete("{emailId}")]
+    public async Task<IActionResult> DeleteEmail(int emailId)
+    {
+        try
+        {
+            await _emailReceivingService.DeleteEmailAsync(emailId);
+            return Ok(new { Success = true, Message = "Email moved to deleted folder (30 days retention)" });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error deleting email {emailId}");
+            return StatusCode(500, new { Success = false, Message = "Failed to delete email", Details = ex.Message });
+        }
+    }
+
+    [HttpPost("archive/{emailId}")]
+    public async Task<IActionResult> ArchiveEmail(int emailId)
+    {
+        try
+        {
+            await _emailReceivingService.ArchiveEmailAsync(emailId);
+            return Ok(new { Success = true, Message = "Email archived successfully" });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error archiving email {emailId}");
+            return StatusCode(500, new { Success = false, Message = "Failed to archive email", Details = ex.Message });
+        }
+    }
+
+    [HttpPost("restore/{emailId}")]
+    public async Task<IActionResult> RestoreEmail(int emailId)
+    {
+        try
+        {
+            await _emailReceivingService.RestoreEmailAsync(emailId);
+            return Ok(new { Success = true, Message = "Email restored successfully" });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error restoring email {emailId}");
+            return StatusCode(500, new { Success = false, Message = "Failed to restore email", Details = ex.Message });
+        }
+    }
+
+    [HttpDelete("permanent/{emailId}")]
+    public async Task<IActionResult> PermanentlyDeleteEmail(int emailId)
+    {
+        try
+        {
+            await _emailReceivingService.PermanentlyDeleteEmailAsync(emailId);
+            return Ok(new { Success = true, Message = "Email permanently deleted" });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error permanently deleting email {emailId}");
+            return StatusCode(500, new { Success = false, Message = "Failed to permanently delete email", Details = ex.Message });
         }
     }
 }

@@ -68,6 +68,18 @@ public class Email
 
     public string? ErrorMessage { get; set; }
 
+    // Folder and soft delete properties
+    [MaxLength(50)]
+    public string Folder { get; set; } = "inbox"; // inbox, sent, drafts, archived, deleted
+
+    public bool IsDeleted { get; set; } = false;
+
+    public DateTime? DeletedAt { get; set; }
+
+    public bool IsArchived { get; set; } = false;
+
+    public DateTime? ArchivedAt { get; set; }
+
     // Navigation properties
     [ForeignKey("ThreadId")]
     public virtual EmailThread? Thread { get; set; }

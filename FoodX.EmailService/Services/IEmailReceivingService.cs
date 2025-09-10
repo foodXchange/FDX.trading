@@ -8,8 +8,14 @@ public interface IEmailReceivingService
     Task<Email> ProcessInboundEmailAsync(SendGridInboundEmail inboundEmail);
     Task<Email> ProcessAzureEmailEventAsync(AzureEmailEvent emailEvent);
     Task MarkEmailAsReadAsync(int emailId);
-    Task<List<Email>> GetInboxAsync(string userEmail, int page = 1, int pageSize = 20);
+    Task<List<Email>> GetInboxAsync(string userEmail, int page = 1, int pageSize = 20, string? folder = null, string? category = null, string? search = null);
     Task<EmailThread> GetThreadAsync(int threadId);
+    Task DeleteEmailAsync(int emailId);
+    Task ArchiveEmailAsync(int emailId);
+    Task RestoreEmailAsync(int emailId);
+    Task PermanentlyDeleteEmailAsync(int emailId);
+    Task<List<Email>> AdvancedSearchAsync(string userEmail, string? searchTerm = null, string? fromEmail = null, string? toEmail = null, DateTime? dateFrom = null, DateTime? dateTo = null, bool? hasAttachments = null, bool? unreadOnly = null, string? category = null, string sortBy = "date", bool sortDescending = true, int page = 1, int pageSize = 20);
+    Task<List<string>> GetSearchSuggestionsAsync(string userEmail, string searchTerm, int maxSuggestions = 5);
 }
 
 public class SendGridInboundEmail

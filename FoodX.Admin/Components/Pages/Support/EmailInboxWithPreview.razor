@@ -1,0 +1,760 @@
+@page "/support/email/inbox"
+@using FoodX.Admin.Services
+@using System.Text.Json
+@using System.Linq
+@inject EmailServiceClient EmailService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<PageTitle>Email Inbox - FoodX Support</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 px-4">
+    <MudGrid>
+        <!-- Left Sidebar - Folders & Actions -->
+        <MudItem xs="12" md="2">
+            <MudPaper Elevation="2" Class="pa-3">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Create"
+                           OnClick="@(() => Navigation.NavigateTo("/support/email/compose-enhanced"))">
+                    Compose Email
+                </MudButton>
+                
+                <MudDivider Class="my-3" />
+                
+                <MudList T="string">
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.Inbox" 
+                                 OnClick="@(() => LoadEmails("inbox"))"
+                                 Class="@(currentFolder == "inbox" ? "mud-theme-primary" : "")">
+                        Inbox
+                        @if (unreadCount > 0)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Class="ml-auto">@unreadCount</MudChip>
+                        }
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.Send" 
+                                 OnClick="@(() => LoadEmails("sent"))"
+                                 Class="@(currentFolder == "sent" ? "mud-theme-primary" : "")">
+                        Sent
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.Drafts" 
+                                 OnClick="@(() => LoadEmails("drafts"))"
+                                 Class="@(currentFolder == "drafts" ? "mud-theme-primary" : "")">
+                        Drafts
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.Archive" 
+                                 OnClick="@(() => LoadEmails("archived"))"
+                                 Class="@(currentFolder == "archived" ? "mud-theme-primary" : "")">
+                        Archived
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.Delete" 
+                                 OnClick="@(() => LoadEmails("deleted"))"
+                                 Class="@(currentFolder == "deleted" ? "mud-theme-primary" : "")">
+                        Deleted
+                        <MudText Typo="Typo.caption" Class="ml-auto">30 days</MudText>
+                    </MudListItem>
+                </MudList>
+                
+                <MudDivider Class="my-3" />
+                
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Categories</MudText>
+                <MudList T="string" Dense="true">
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.RequestQuote" OnClick="@(() => FilterByCategory("RFQ"))">
+                        RFQ Related
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.Description" OnClick="@(() => FilterByCategory("Quote"))">
+                        Quotes
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.ShoppingCart" OnClick="@(() => FilterByCategory("Order"))">
+                        Orders
+                    </MudListItem>
+                    <MudListItem T="string" Icon="@Icons.Material.Filled.Support" OnClick="@(() => FilterByCategory("Support"))">
+                        Support
+                    </MudListItem>
+                </MudList>
+            </MudPaper>
+        </MudItem>
+        
+        <!-- Middle - Email List -->
+        <MudItem xs="12" md="@(selectedEmail != null ? 4 : 10)">
+            <MudPaper Elevation="2" Class="pa-3" Style="height: calc(100vh - 120px); overflow-y: auto;">
+                <!-- Toolbar -->
+                <MudToolBar Dense="true">
+                    <MudText Typo="Typo.h6">
+                        <MudIcon Icon="@GetFolderIcon()" Class="mr-2" />
+                        @GetFolderTitle()
+                    </MudText>
+                    <MudSpacer />
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" 
+                                   title="Refresh"
+                                   Size="Size.Small"
+                                   OnClick="RefreshEmails" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Search" 
+                                   title="Search"
+                                   Size="Size.Small"
+                                   OnClick="ToggleSearch" />
+                </MudToolBar>
+                
+                <!-- Search Bar -->
+                @if (showSearch)
+                {
+                    <MudTextField @bind-Value="searchQuery" 
+                                  Label="Search emails..." 
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  OnKeyUp="@(async (e) => { if (e.Key == "Enter") await SearchEmails(); })"
+                                  Class="mb-3" />
+                }
+                
+                <!-- Email List with Virtual Scrolling -->
+                @if (isLoading)
+                {
+                    <MudProgressLinear Indeterminate="true" />
+                    <MudText Align="Align.Center" Class="my-4">Loading emails...</MudText>
+                }
+                else if (!emails.Any())
+                {
+                    <MudAlert Severity="Severity.Info" Class="my-4">
+                        No emails found in @GetFolderTitle().ToLower()
+                    </MudAlert>
+                }
+                else
+                {
+                    <div style="height: calc(100vh - 320px); overflow-y: auto;">
+                        <MudVirtualize Items="@emails" Context="email" ItemSize="80">
+                            <MudListItem T="EmailDto" Value="email" 
+                                         Class="@(selectedEmail?.Id == email.Id ? "mud-theme-primary-lighten" : "")"
+                                         OnClick="@(() => EmailSelected(email))">
+                                <div class="d-flex flex-column" style="cursor: pointer; padding: 8px 0;">
+                                    <div class="d-flex justify-space-between align-center">
+                                        <MudText Typo="Typo.body2" 
+                                                 Style="@(email.ReadAt == null && email.Direction == "Inbound" ? "font-weight: bold;" : "")">
+                                            @(email.Direction == "Inbound" ? email.From : $"To: {email.To}")
+                                        </MudText>
+                                        <MudText Typo="Typo.caption">
+                                            @GetRelativeTime(email.CreatedAt)
+                                        </MudText>
+                                    </div>
+                                    <MudText Typo="Typo.body2" 
+                                             Style="@(email.ReadAt == null ? "font-weight: bold;" : "")">
+                                        @email.Subject
+                                        @if (email.Attachments?.Any() == true)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.AttachFile" 
+                                                     Size="Size.Small" 
+                                                     Class="ml-1" />
+                                        }
+                                    </MudText>
+                                    @if (!string.IsNullOrWhiteSpace(email.PlainTextBody))
+                                    {
+                                        <MudText Typo="Typo.caption" Class="text-truncate" Style="max-width: 100%;">
+                                            @(email.PlainTextBody.Length > 100 ? email.PlainTextBody.Substring(0, 100) + "..." : email.PlainTextBody)
+                                        </MudText>
+                                    }
+                                </div>
+                                <MudDivider />
+                            </MudListItem>
+                        </MudVirtualize>
+                    </div>
+                    
+                    <!-- Load More Button for infinite scroll -->
+                    @if (totalEmails > emails.Count)
+                    {
+                        <div class="d-flex justify-center mt-3">
+                            <MudButton Variant="Variant.Text" 
+                                       Color="Color.Primary"
+                                       OnClick="LoadMoreEmails"
+                                       Disabled="@isLoadingMore">
+                                @if (isLoadingMore)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                }
+                                Load More (@emails.Count of @totalEmails)
+                            </MudButton>
+                        </div>
+                    }
+                }
+                
+                <!-- Bulk Actions -->
+                @if (selectedEmails.Any())
+                {
+                    <MudPaper Elevation="3" Class="pa-3 mt-3">
+                        <MudText Typo="Typo.body2" Class="mb-2">
+                            @selectedEmails.Count email(s) selected
+                        </MudText>
+                        <MudButton Variant="Variant.Text" 
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.MarkEmailRead"
+                                   OnClick="MarkSelectedAsRead"
+                                   Size="Size.Small">
+                            Mark as Read
+                        </MudButton>
+                        <MudButton Variant="Variant.Text" 
+                                   Color="Color.Warning"
+                                   StartIcon="@Icons.Material.Filled.Archive"
+                                   OnClick="ArchiveSelectedEmails"
+                                   Size="Size.Small">
+                            Archive
+                        </MudButton>
+                        <MudButton Variant="Variant.Text" 
+                                   Color="Color.Error"
+                                   StartIcon="@Icons.Material.Filled.Delete"
+                                   OnClick="DeleteSelectedEmails"
+                                   Size="Size.Small">
+                            Delete
+                        </MudButton>
+                    </MudPaper>
+                }
+            </MudPaper>
+        </MudItem>
+        
+        <!-- Right - Email Preview -->
+        @if (selectedEmail != null)
+        {
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="2" Class="pa-4" Style="height: calc(100vh - 120px); overflow-y: auto;">
+                    <!-- Email Header -->
+                    <div class="d-flex justify-space-between align-center mb-3">
+                        <MudText Typo="Typo.h5">@selectedEmail.Subject</MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" 
+                                       OnClick="@(() => selectedEmail = null)"
+                                       Size="Size.Small" />
+                    </div>
+                    
+                    <!-- Email Metadata -->
+                    <MudGrid Class="mb-3">
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.body2">
+                                <strong>From:</strong> @selectedEmail.From
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.body2">
+                                <strong>To:</strong> @selectedEmail.To
+                            </MudText>
+                        </MudItem>
+                        @if (!string.IsNullOrWhiteSpace(selectedEmail.Cc))
+                        {
+                            <MudItem xs="12">
+                                <MudText Typo="Typo.body2">
+                                    <strong>CC:</strong> @selectedEmail.Cc
+                                </MudText>
+                            </MudItem>
+                        }
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.body2">
+                                <strong>Date:</strong> @selectedEmail.CreatedAt.ToString("MMMM dd, yyyy h:mm tt")
+                            </MudText>
+                        </MudItem>
+                        @if (!string.IsNullOrWhiteSpace(selectedEmail.Category))
+                        {
+                            <MudItem xs="12">
+                                <MudChip T="string" Size="Size.Small" Color="@GetCategoryColor(selectedEmail.Category)">
+                                    @selectedEmail.Category
+                                </MudChip>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                    
+                    <MudDivider Class="mb-3" />
+                    
+                    <!-- Action Buttons -->
+                    <div class="mb-3">
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Reply"
+                                   OnClick="@(() => ReplyToEmail(selectedEmail))"
+                                   Size="Size.Small"
+                                   Class="mr-2">
+                            Reply
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" 
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.ReplyAll"
+                                   OnClick="@(() => ReplyAllToEmail(selectedEmail))"
+                                   Size="Size.Small"
+                                   Class="mr-2">
+                            Reply All
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" 
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Forward"
+                                   OnClick="@(() => ForwardEmail(selectedEmail))"
+                                   Size="Size.Small"
+                                   Class="mr-2">
+                            Forward
+                        </MudButton>
+                        @if (currentFolder != "archived")
+                        {
+                            <MudButton Variant="Variant.Outlined" 
+                                       Color="Color.Warning"
+                                       StartIcon="@Icons.Material.Filled.Archive"
+                                       OnClick="@(() => ArchiveEmail(selectedEmail.Id))"
+                                       Size="Size.Small"
+                                       Class="mr-2">
+                                Archive
+                            </MudButton>
+                        }
+                        <MudButton Variant="Variant.Outlined" 
+                                   Color="Color.Error"
+                                   StartIcon="@Icons.Material.Filled.Delete"
+                                   OnClick="@(() => DeleteEmail(selectedEmail.Id))"
+                                   Size="Size.Small">
+                            Delete
+                        </MudButton>
+                    </div>
+                    
+                    <!-- Email Content -->
+                    <MudPaper Elevation="0" Class="pa-3" Style="background-color: #f5f5f5;">
+                        @if (!string.IsNullOrWhiteSpace(selectedEmail.HtmlBody))
+                        {
+                            <div style="font-family: 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6;">
+                                @((MarkupString)selectedEmail.HtmlBody)
+                            </div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(selectedEmail.PlainTextBody))
+                        {
+                            <MudText Style="white-space: pre-wrap; font-family: 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6;">
+                                @selectedEmail.PlainTextBody
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                No content available
+                            </MudText>
+                        }
+                    </MudPaper>
+                    
+                    <!-- Attachments -->
+                    @if (selectedEmail.Attachments?.Any() == true)
+                    {
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.AttachFile" Class="mr-1" />
+                            Attachments (@selectedEmail.Attachments.Count)
+                        </MudText>
+                        <MudGrid>
+                            @foreach (var attachment in selectedEmail.Attachments)
+                            {
+                                <MudItem xs="12" sm="6">
+                                    <MudCard>
+                                        <MudCardContent Class="pa-2">
+                                            <div class="d-flex align-center">
+                                                <MudIcon Icon="@GetFileIcon(attachment.ContentType ?? "")" 
+                                                         Class="mr-2" 
+                                                         Color="Color.Primary" />
+                                                <div class="flex-grow-1">
+                                                    <MudText Typo="Typo.body2">@attachment.FileName</MudText>
+                                                    <MudText Typo="Typo.caption">@FormatFileSize(attachment.FileSize)</MudText>
+                                                </div>
+                                                <MudIconButton Icon="@Icons.Material.Filled.Download" 
+                                                               Size="Size.Small"
+                                                               title="Download" />
+                                            </div>
+                                        </MudCardContent>
+                                    </MudCard>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    }
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<EmailDto> emails = new();
+    private EmailDto? selectedEmail = null;
+    private HashSet<int> selectedEmails = new();
+    private string currentFolder = "inbox";
+    private string? currentCategory = null;
+    private string searchQuery = string.Empty;
+    private bool showSearch = false;
+    private bool isLoading = false;
+    private int unreadCount = 0;
+    private int currentPage = 1;
+    private int pageSize = 50; // Increased for better virtual scrolling
+    private int totalEmails = 0;
+    private bool isLoadingMore = false;
+    
+    // Current user email - in production, get from authentication
+    private string currentUserEmail = "noreply@fdx.trading";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmails("inbox");
+    }
+
+    private async Task LoadEmails(string folder)
+    {
+        currentFolder = folder;
+        currentCategory = null;
+        selectedEmails.Clear();
+        selectedEmail = null;
+        currentPage = 1;
+        
+        await RefreshEmails();
+    }
+
+    private async Task RefreshEmails()
+    {
+        isLoading = true;
+        try
+        {
+            var response = await EmailService.GetInboxAsync(
+                currentUserEmail, 
+                currentPage, 
+                pageSize,
+                currentFolder,
+                currentCategory,
+                searchQuery
+            );
+            
+            if (response.Success)
+            {
+                emails = response.Emails;
+                totalEmails = response.TotalCount;
+                unreadCount = response.UnreadCount;
+            }
+            else
+            {
+                Snackbar.Add("Failed to load emails", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading emails: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task FilterByCategory(string category)
+    {
+        currentCategory = category;
+        currentPage = 1;
+        await RefreshEmails();
+    }
+
+    private async Task SearchEmails()
+    {
+        currentPage = 1;
+        await RefreshEmails();
+    }
+
+    private void ToggleSearch()
+    {
+        showSearch = !showSearch;
+        if (!showSearch)
+        {
+            searchQuery = string.Empty;
+            _ = RefreshEmails();
+        }
+    }
+
+    private async Task EmailSelected(EmailDto email)
+    {
+        selectedEmail = email;
+        
+        // Mark as read if unread
+        if (email.ReadAt == null && email.Direction == "Inbound")
+        {
+            await EmailService.MarkAsReadAsync(email.Id);
+            email.ReadAt = DateTime.UtcNow;
+            unreadCount--;
+            StateHasChanged();
+        }
+    }
+
+    private void ReplyToEmail(EmailDto email)
+    {
+        Navigation.NavigateTo($"/support/email/compose-enhanced?replyTo={email.Id}");
+    }
+
+    private void ReplyAllToEmail(EmailDto email)
+    {
+        Navigation.NavigateTo($"/support/email/compose-enhanced?replyAll={email.Id}");
+    }
+
+    private void ForwardEmail(EmailDto email)
+    {
+        Navigation.NavigateTo($"/support/email/compose-enhanced?forward={email.Id}");
+    }
+
+    private Task ArchiveEmail(int emailId)
+    {
+        var email = emails.FirstOrDefault(e => e.Id == emailId);
+        if (email != null)
+        {
+            email.Status = "Archived";
+            Snackbar.Add("Email archived", Severity.Success);
+            emails.Remove(email);
+            if (selectedEmail?.Id == emailId)
+            {
+                selectedEmail = null;
+            }
+            StateHasChanged();
+        }
+        return Task.CompletedTask;
+    }
+
+    private async Task DeleteEmail(int emailId)
+    {
+        var result = await EmailService.DeleteEmailAsync(emailId);
+        if (result.Success)
+        {
+            Snackbar.Add("Email deleted", Severity.Success);
+            emails.RemoveAll(e => e.Id == emailId);
+            if (selectedEmail?.Id == emailId)
+            {
+                selectedEmail = null;
+            }
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add("Failed to delete email", Severity.Error);
+        }
+    }
+
+    private async Task MarkSelectedAsRead()
+    {
+        foreach (var emailId in selectedEmails)
+        {
+            await EmailService.MarkAsReadAsync(emailId);
+            var email = emails.FirstOrDefault(e => e.Id == emailId);
+            if (email != null)
+            {
+                email.ReadAt = DateTime.UtcNow;
+            }
+        }
+        selectedEmails.Clear();
+        unreadCount = emails.Count(e => e.ReadAt == null && e.Direction == "Inbound");
+        StateHasChanged();
+        Snackbar.Add("Emails marked as read", Severity.Success);
+    }
+
+    private async Task ArchiveSelectedEmails()
+    {
+        foreach (var emailId in selectedEmails)
+        {
+            await ArchiveEmail(emailId);
+        }
+        selectedEmails.Clear();
+        Snackbar.Add("Emails archived", Severity.Success);
+    }
+
+    private async Task DeleteSelectedEmails()
+    {
+        foreach (var emailId in selectedEmails)
+        {
+            await EmailService.DeleteEmailAsync(emailId);
+        }
+        emails.RemoveAll(e => selectedEmails.Contains(e.Id));
+        selectedEmails.Clear();
+        await RefreshEmails();
+        Snackbar.Add("Emails deleted", Severity.Success);
+    }
+
+    private async Task PageChanged(int page)
+    {
+        currentPage = page;
+        await RefreshEmails();
+    }
+
+    private async Task LoadMoreEmails()
+    {
+        if (isLoadingMore || emails.Count >= totalEmails)
+            return;
+
+        isLoadingMore = true;
+        try
+        {
+            currentPage++;
+            var response = await EmailService.GetInboxAsync(
+                currentUserEmail,
+                currentPage,
+                pageSize,
+                currentFolder,
+                currentCategory,
+                searchQuery
+            );
+
+            if (response.Success)
+            {
+                emails.AddRange(response.Emails);
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading more emails: {ex.Message}", Severity.Error);
+            currentPage--; // Revert page increment on error
+        }
+        finally
+        {
+            isLoadingMore = false;
+        }
+    }
+
+    private string GetFolderIcon()
+    {
+        return currentFolder switch
+        {
+            "sent" => Icons.Material.Filled.Send,
+            "drafts" => Icons.Material.Filled.Drafts,
+            "archived" => Icons.Material.Filled.Archive,
+            "deleted" => Icons.Material.Filled.Delete,
+            _ => Icons.Material.Filled.Inbox
+        };
+    }
+
+    private string GetFolderTitle()
+    {
+        if (!string.IsNullOrWhiteSpace(currentCategory))
+            return $"{currentCategory} Emails";
+            
+        return currentFolder switch
+        {
+            "sent" => "Sent Mail",
+            "drafts" => "Drafts",
+            "archived" => "Archived",
+            "deleted" => "Deleted (30 days)",
+            _ => "Inbox"
+        };
+    }
+
+    private Color GetCategoryColor(string category)
+    {
+        return category switch
+        {
+            "RFQ" => Color.Primary,
+            "Quote" => Color.Secondary,
+            "Order" => Color.Success,
+            "Support" => Color.Info,
+            "Marketing" => Color.Warning,
+            _ => Color.Default
+        };
+    }
+
+    private string GetRelativeTime(DateTime dateTime)
+    {
+        var timeSpan = DateTime.UtcNow - dateTime;
+        
+        if (timeSpan.TotalMinutes < 1)
+            return "just now";
+        if (timeSpan.TotalMinutes < 60)
+            return $"{(int)timeSpan.TotalMinutes}m ago";
+        if (timeSpan.TotalHours < 24)
+            return $"{(int)timeSpan.TotalHours}h ago";
+        if (timeSpan.TotalDays < 7)
+            return $"{(int)timeSpan.TotalDays}d ago";
+        
+        return dateTime.ToString("MMM dd");
+    }
+
+    private string GetFileIcon(string contentType)
+    {
+        return contentType switch
+        {
+            var ct when ct.StartsWith("image/") => Icons.Material.Filled.Image,
+            "application/pdf" => Icons.Material.Filled.PictureAsPdf,
+            var ct when ct.Contains("spreadsheet") || ct.Contains("excel") => Icons.Material.Filled.TableChart,
+            var ct when ct.Contains("document") || ct.Contains("word") => Icons.Material.Filled.Description,
+            _ => Icons.Material.Filled.AttachFile
+        };
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        int order = 0;
+        double size = bytes;
+        
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        
+        return $"{size:0.##} {sizes[order]}";
+    }
+
+    // Keyboard shortcuts handling
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitializeKeyboardShortcuts();
+        }
+    }
+
+    private async Task InitializeKeyboardShortcuts()
+    {
+        // Simple keyboard navigation using JavaScript interop
+        await JSRuntime.InvokeVoidAsync("eval", @"
+            window.emailKeyboardHandler = function(e) {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                
+                switch(e.key) {
+                    case 'c':
+                        if (!e.ctrlKey && !e.metaKey) {
+                            e.preventDefault();
+                            window.location.href = '/support/email/compose-enhanced';
+                        }
+                        break;
+                    case 'r':
+                        if (!e.ctrlKey && !e.metaKey && window.selectedEmailId) {
+                            e.preventDefault();
+                            window.location.href = '/support/email/compose-enhanced?replyTo=' + window.selectedEmailId;
+                        }
+                        break;
+                    case 'Delete':
+                    case 'd':
+                        if (!e.ctrlKey && !e.metaKey && window.selectedEmailId) {
+                            e.preventDefault();
+                            // Trigger delete for selected email
+                        }
+                        break;
+                    case 'a':
+                        if (!e.ctrlKey && !e.metaKey && window.selectedEmailId) {
+                            e.preventDefault();
+                            // Trigger archive for selected email
+                        }
+                        break;
+                    case '/':
+                        e.preventDefault();
+                        // Focus search box
+                        const searchBox = document.querySelector('input[type=""text""][label*=""Search""]');
+                        if (searchBox) searchBox.focus();
+                        break;
+                    case 'F5':
+                    case 'r':
+                        if (e.ctrlKey || e.metaKey) {
+                            // Browser refresh is fine
+                        }
+                        break;
+                }
+            };
+            document.addEventListener('keydown', window.emailKeyboardHandler);
+        ");
+    }
+
+    public void Dispose()
+    {
+        _ = JSRuntime.InvokeVoidAsync("eval", @"
+            if (window.emailKeyboardHandler) {
+                document.removeEventListener('keydown', window.emailKeyboardHandler);
+                delete window.emailKeyboardHandler;
+            }
+        ");
+    }
+}

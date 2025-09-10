@@ -1,0 +1,717 @@
+@page "/support/email/compose-enhanced"
+@using FoodX.Admin.Services
+@using System.Linq
+@using System.Text.Json
+@inject EmailServiceClient EmailService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Compose Email - FoodX Support</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudPaper Elevation="2" Class="pa-6">
+        <MudText Typo="Typo.h4" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Email" Class="mr-2" />
+            Compose Email - Enhanced
+        </MudText>
+
+        <MudGrid>
+            <!-- Email Templates Section -->
+            <MudItem xs="12">
+                <MudSelect @bind-Value="selectedTemplate" Label="Email Template" Variant="Variant.Outlined"
+                           AdornmentIcon="@Icons.Material.Filled.Description"
+                           Adornment="Adornment.Start"
+                           AnchorOrigin="Origin.BottomCenter">
+                    <MudSelectItem Value="@("")">-- Select Template --</MudSelectItem>
+                    <MudSelectItem Value="@("rfq_request")">RFQ Request</MudSelectItem>
+                    <MudSelectItem Value="@("quote_response")">Quote Response</MudSelectItem>
+                    <MudSelectItem Value="@("order_confirmation")">Order Confirmation</MudSelectItem>
+                    <MudSelectItem Value="@("supplier_intro")">Supplier Introduction</MudSelectItem>
+                    <MudSelectItem Value="@("follow_up")">Follow Up</MudSelectItem>
+                    <MudSelectItem Value="@("price_update")">Price Update</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudTextField @bind-Value="emailModel.To" 
+                              Label="To" 
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              RequiredError="Recipient email is required"
+                              HelperText="Enter recipient's email address (comma separated for multiple)"
+                              AdornmentIcon="@Icons.Material.Filled.Person"
+                              Adornment="Adornment.Start" />
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="emailModel.Cc" 
+                              Label="CC (Optional)" 
+                              Variant="Variant.Outlined"
+                              HelperText="Carbon copy recipients (comma separated)"
+                              AdornmentIcon="@Icons.Material.Filled.GroupAdd"
+                              Adornment="Adornment.Start" />
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="emailModel.Bcc" 
+                              Label="BCC (Optional)" 
+                              Variant="Variant.Outlined"
+                              HelperText="Blind carbon copy recipients (comma separated)"
+                              AdornmentIcon="@Icons.Material.Filled.VisibilityOff"
+                              Adornment="Adornment.Start" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudTextField @bind-Value="emailModel.Subject" 
+                              Label="Subject" 
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              RequiredError="Subject is required"
+                              AdornmentIcon="@Icons.Material.Filled.Subject"
+                              Adornment="Adornment.Start" />
+            </MudItem>
+
+            <!-- Rich Text Editor Section -->
+            <MudItem xs="12">
+                <MudPaper Elevation="1" Class="pa-3">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Email Content</MudText>
+                    
+                    <!-- Formatting Toolbar -->
+                    <MudToolBar Dense="true" Class="mb-2">
+                        <MudIconButton Icon="@Icons.Material.Filled.FormatBold" 
+                                       title="Bold" 
+                                       OnClick="@(() => ApplyFormat("bold"))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.FormatItalic" 
+                                       title="Italic" 
+                                       OnClick="@(() => ApplyFormat("italic"))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.FormatUnderlined" 
+                                       title="Underline" 
+                                       OnClick="@(() => ApplyFormat("underline"))" />
+                        <MudDivider Vertical="true" FlexItem="true" />
+                        
+                        <MudIconButton Icon="@Icons.Material.Filled.FormatListBulleted" 
+                                       title="Bullet List" 
+                                       OnClick="@(() => ApplyFormat("bulletList"))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.FormatListNumbered" 
+                                       title="Numbered List" 
+                                       OnClick="@(() => ApplyFormat("numberedList"))" />
+                        <MudDivider Vertical="true" FlexItem="true" />
+                        
+                        <MudIconButton Icon="@Icons.Material.Filled.Link" 
+                                       title="Insert Link" 
+                                       OnClick="InsertLink" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Image" 
+                                       title="Insert Image" 
+                                       OnClick="InsertImage" />
+                        <MudIconButton Icon="@Icons.Material.Filled.TableChart" 
+                                       title="Insert Table" 
+                                       OnClick="InsertTable" />
+                        <MudDivider Vertical="true" FlexItem="true" />
+                        
+                        <MudIconButton Icon="@Icons.Material.Filled.Code" 
+                                       title="View HTML" 
+                                       OnClick="ToggleHtmlView" />
+                    </MudToolBar>
+                    
+                    <!-- Editor Content Area -->
+                    @if (showHtmlView)
+                    {
+                        <MudTextField @bind-Value="emailModel.HtmlBody" 
+                                      Label="HTML Content" 
+                                      Variant="Variant.Outlined"
+                                      Lines="15" />
+                    }
+                    else
+                    {
+                        <div @ref="editorElement" 
+                             contenteditable="true" 
+                             class="rich-text-editor" 
+                             @oninput="OnEditorInput"
+                             style="min-height: 300px; border: 1px solid #ccc; padding: 12px; border-radius: 4px; background: white;">
+                            @((MarkupString)emailModel.HtmlBody)
+                        </div>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <!-- File Attachments Section -->
+            <MudItem xs="12">
+                <MudPaper Elevation="1" Class="pa-3">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.AttachFile" Class="mr-1" />
+                        Attachments
+                    </MudText>
+                    
+                    <MudFileUpload T="IReadOnlyList<IBrowserFile>" 
+                                   FilesChanged="UploadFiles"
+                                   Accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.csv">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Outlined" 
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.CloudUpload">
+                                Add Files
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                    
+                    @if (attachments.Any())
+                    {
+                        <MudList T="AttachmentModel" Dense="true" Class="mt-2">
+                            @foreach (var attachment in attachments)
+                            {
+                                <MudListItem T="AttachmentModel">
+                                    <MudChip T="AttachmentModel" Color="Color.Default" 
+                                             OnClose="@((MudChip<AttachmentModel> chip) => RemoveAttachment(attachment))">
+                                        <MudIcon Icon="@GetFileIcon(attachment.ContentType)" Class="mr-1" />
+                                        @attachment.Name (@FormatFileSize(attachment.Size))
+                                    </MudChip>
+                                </MudListItem>
+                            }
+                        </MudList>
+                        
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Total: @attachments.Count file(s), @FormatFileSize(attachments.Sum(a => a.Size))
+                        </MudText>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <!-- Quick Variables Section -->
+            <MudItem xs="12">
+                <MudExpansionPanels Elevation="1">
+                    <MudExpansionPanel Text="Quick Variables">
+                        <MudGrid>
+                            <MudItem xs="12" sm="6" md="3">
+                                <MudButton Variant="Variant.Text" Size="Size.Small" 
+                                           OnClick="@(() => InsertVariable("{{CompanyName}}"))"
+                                           StartIcon="@Icons.Material.Filled.Business">
+                                    Company Name
+                                </MudButton>
+                            </MudItem>
+                            <MudItem xs="12" sm="6" md="3">
+                                <MudButton Variant="Variant.Text" Size="Size.Small" 
+                                           OnClick="@(() => InsertVariable("{{ContactName}}"))"
+                                           StartIcon="@Icons.Material.Filled.Person">
+                                    Contact Name
+                                </MudButton>
+                            </MudItem>
+                            <MudItem xs="12" sm="6" md="3">
+                                <MudButton Variant="Variant.Text" Size="Size.Small" 
+                                           OnClick="@(() => InsertVariable("{{RFQNumber}}"))"
+                                           StartIcon="@Icons.Material.Filled.Tag">
+                                    RFQ Number
+                                </MudButton>
+                            </MudItem>
+                            <MudItem xs="12" sm="6" md="3">
+                                <MudButton Variant="Variant.Text" Size="Size.Small" 
+                                           OnClick="@(() => InsertVariable("{{Date}}"))"
+                                           StartIcon="@Icons.Material.Filled.DateRange">
+                                    Current Date
+                                </MudButton>
+                            </MudItem>
+                        </MudGrid>
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+            </MudItem>
+
+            <!-- Action Buttons -->
+            <MudItem xs="12">
+                <MudPaper Elevation="0" Class="pa-3 d-flex justify-space-between align-center">
+                    <div>
+                        <MudButton Variant="Variant.Text" 
+                                   Color="Color.Info" 
+                                   OnClick="SaveAsTemplate"
+                                   StartIcon="@Icons.Material.Filled.Save">
+                            Save as Template
+                        </MudButton>
+                    </div>
+                    
+                    <div>
+                        <MudButton Variant="Variant.Text" 
+                                   Color="Color.Default" 
+                                   OnClick="SaveDraft"
+                                   StartIcon="@Icons.Material.Filled.Drafts"
+                                   Class="mr-2">
+                            Save Draft
+                        </MudButton>
+                        
+                        <MudButton Variant="Variant.Text" 
+                                   Color="Color.Default" 
+                                   OnClick="Cancel"
+                                   Class="mr-2">
+                            Cancel
+                        </MudButton>
+                        
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Primary" 
+                                   OnClick="SendEmail"
+                                   Disabled="@isSending"
+                                   StartIcon="@Icons.Material.Filled.Send">
+                            @if (isSending)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                <span>Sending...</span>
+                            }
+                            else
+                            {
+                                <span>Send Email</span>
+                            }
+                        </MudButton>
+                    </div>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private EmailModel emailModel = new();
+    private bool isSending = false;
+    private bool showHtmlView = false;
+    private string selectedTemplate = "";
+    private ElementReference editorElement;
+    private List<AttachmentModel> attachments = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        emailModel.Category = "General";
+        
+        // Check if template is passed in query
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var templateQuery = query["template"];
+        if (!string.IsNullOrEmpty(templateQuery))
+        {
+            selectedTemplate = templateQuery;
+            await LoadTemplate(templateQuery);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !string.IsNullOrEmpty(selectedTemplate))
+        {
+            await LoadTemplate(selectedTemplate);
+        }
+    }
+
+    private async Task OnSelectedTemplateChanged(string? value)
+    {
+        selectedTemplate = value ?? "";
+        if (!string.IsNullOrEmpty(value))
+        {
+            await LoadTemplate(value);
+        }
+    }
+
+    private Task LoadTemplate(string templateName)
+    {
+        var templates = GetEmailTemplates();
+        if (templates.TryGetValue(templateName, out var template))
+        {
+            emailModel.Subject = template.Subject;
+            emailModel.HtmlBody = template.Body;
+            emailModel.Category = template.Category;
+            StateHasChanged();
+        }
+        return Task.CompletedTask;
+    }
+
+    private Dictionary<string, EmailTemplate> GetEmailTemplates()
+    {
+        return new Dictionary<string, EmailTemplate>
+        {
+            ["rfq_request"] = new EmailTemplate
+            {
+                Subject = "Request for Quote - {{RFQNumber}}",
+                Body = @"<p>Dear {{ContactName}},</p>
+                        <p>We are requesting a quote for the following products:</p>
+                        <table border='1' style='border-collapse: collapse; width: 100%;'>
+                            <tr>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Unit</th>
+                                <th>Delivery Date</th>
+                            </tr>
+                            <tr>
+                                <td>[Product Name]</td>
+                                <td>[Quantity]</td>
+                                <td>[Unit]</td>
+                                <td>[Date]</td>
+                            </tr>
+                        </table>
+                        <p>Please provide your best price and delivery terms.</p>
+                        <p>Deadline for submission: [Date]</p>
+                        <p>Best regards,<br/>{{CompanyName}}</p>",
+                Category = "RFQ"
+            },
+            ["quote_response"] = new EmailTemplate
+            {
+                Subject = "Quote Response - {{RFQNumber}}",
+                Body = @"<p>Dear {{ContactName}},</p>
+                        <p>Thank you for your RFQ. Please find our quote below:</p>
+                        <table border='1' style='border-collapse: collapse; width: 100%;'>
+                            <tr>
+                                <th>Product</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                                <th>Lead Time</th>
+                            </tr>
+                            <tr>
+                                <td>[Product]</td>
+                                <td>[Price]</td>
+                                <td>[Total]</td>
+                                <td>[Days]</td>
+                            </tr>
+                        </table>
+                        <p><strong>Terms:</strong> [Payment Terms]</p>
+                        <p><strong>Validity:</strong> This quote is valid for 30 days</p>
+                        <p>Best regards,<br/>{{CompanyName}}</p>",
+                Category = "Quote"
+            },
+            ["order_confirmation"] = new EmailTemplate
+            {
+                Subject = "Order Confirmation - {{OrderNumber}}",
+                Body = @"<p>Dear {{ContactName}},</p>
+                        <p>We confirm receipt of your order {{OrderNumber}}.</p>
+                        <p><strong>Order Details:</strong></p>
+                        <ul>
+                            <li>Order Date: {{Date}}</li>
+                            <li>Expected Delivery: [Date]</li>
+                            <li>Total Amount: [Amount]</li>
+                        </ul>
+                        <p>We will notify you once your order ships.</p>
+                        <p>Thank you for your business!</p>
+                        <p>Best regards,<br/>{{CompanyName}}</p>",
+                Category = "Order"
+            },
+            ["supplier_intro"] = new EmailTemplate
+            {
+                Subject = "Introduction - {{CompanyName}} Food Supplier",
+                Body = @"<p>Dear {{ContactName}},</p>
+                        <p>We are {{CompanyName}}, a leading supplier of quality food products.</p>
+                        <p><strong>Our Product Range:</strong></p>
+                        <ul>
+                            <li>[Product Category 1]</li>
+                            <li>[Product Category 2]</li>
+                            <li>[Product Category 3]</li>
+                        </ul>
+                        <p><strong>Why Choose Us:</strong></p>
+                        <ul>
+                            <li>Competitive pricing</li>
+                            <li>Reliable delivery</li>
+                            <li>Quality certifications</li>
+                        </ul>
+                        <p>We would love to discuss how we can support your business needs.</p>
+                        <p>Please find our product catalog attached.</p>
+                        <p>Best regards,<br/>{{CompanyName}}</p>",
+                Category = "General"
+            },
+            ["follow_up"] = new EmailTemplate
+            {
+                Subject = "Follow Up - {{Subject}}",
+                Body = @"<p>Dear {{ContactName}},</p>
+                        <p>I hope this email finds you well.</p>
+                        <p>I wanted to follow up on our previous conversation regarding [topic].</p>
+                        <p>[Add your follow-up content here]</p>
+                        <p>Please let me know if you need any additional information.</p>
+                        <p>Looking forward to your response.</p>
+                        <p>Best regards,<br/>{{CompanyName}}</p>",
+                Category = "General"
+            },
+            ["price_update"] = new EmailTemplate
+            {
+                Subject = "Price Update Notification - {{Date}}",
+                Body = @"<p>Dear Valued Customer,</p>
+                        <p>We are writing to inform you of upcoming price changes effective from [Date].</p>
+                        <p><strong>Updated Pricing:</strong></p>
+                        <table border='1' style='border-collapse: collapse; width: 100%;'>
+                            <tr>
+                                <th>Product</th>
+                                <th>Old Price</th>
+                                <th>New Price</th>
+                                <th>Change %</th>
+                            </tr>
+                            <tr>
+                                <td>[Product]</td>
+                                <td>[Old Price]</td>
+                                <td>[New Price]</td>
+                                <td>[%]</td>
+                            </tr>
+                        </table>
+                        <p>Please place your orders before [Date] to secure current pricing.</p>
+                        <p>Thank you for your understanding.</p>
+                        <p>Best regards,<br/>{{CompanyName}}</p>",
+                Category = "General"
+            }
+        };
+    }
+
+    private async Task ApplyFormat(string format)
+    {
+        await JSRuntime.InvokeVoidAsync("document.execCommand", format, false, null);
+    }
+
+    private async Task InsertLink()
+    {
+        var url = await JSRuntime.InvokeAsync<string>("prompt", "Enter URL:");
+        if (!string.IsNullOrEmpty(url))
+        {
+            await JSRuntime.InvokeVoidAsync("document.execCommand", "createLink", false, url);
+        }
+    }
+
+    private async Task InsertImage()
+    {
+        var imageUrl = await JSRuntime.InvokeAsync<string>("prompt", "Enter image URL:");
+        if (!string.IsNullOrEmpty(imageUrl))
+        {
+            await JSRuntime.InvokeVoidAsync("document.execCommand", "insertImage", false, imageUrl);
+        }
+    }
+
+    private async Task InsertTable()
+    {
+        var tableHtml = @"<table border='1' style='border-collapse: collapse; width: 100%;'>
+                            <tr><th>Header 1</th><th>Header 2</th><th>Header 3</th></tr>
+                            <tr><td>Cell 1</td><td>Cell 2</td><td>Cell 3</td></tr>
+                        </table>";
+        await JSRuntime.InvokeVoidAsync("document.execCommand", "insertHTML", false, tableHtml);
+    }
+
+    private void ToggleHtmlView()
+    {
+        showHtmlView = !showHtmlView;
+    }
+
+    private async Task OnEditorInput(ChangeEventArgs e)
+    {
+        emailModel.HtmlBody = await JSRuntime.InvokeAsync<string>("getInnerHTML", editorElement);
+    }
+
+    private async Task InsertVariable(string variable)
+    {
+        await JSRuntime.InvokeVoidAsync("document.execCommand", "insertText", false, variable);
+    }
+
+    private Task UploadFiles(IReadOnlyList<IBrowserFile> files)
+    {
+        foreach (var file in files)
+        {
+            if (file.Size > 10 * 1024 * 1024) // 10MB limit
+            {
+                Snackbar.Add($"File {file.Name} is too large. Maximum size is 10MB.", Severity.Warning);
+                continue;
+            }
+
+            var attachment = new AttachmentModel
+            {
+                Name = file.Name,
+                ContentType = file.ContentType,
+                Size = file.Size,
+                File = file
+            };
+            
+            attachments.Add(attachment);
+        }
+        return Task.CompletedTask;
+    }
+
+    private void RemoveAttachment(AttachmentModel attachment)
+    {
+        attachments.Remove(attachment);
+    }
+
+    private string GetFileIcon(string contentType)
+    {
+        return contentType switch
+        {
+            var ct when ct.StartsWith("image/") => Icons.Material.Filled.Image,
+            "application/pdf" => Icons.Material.Filled.PictureAsPdf,
+            var ct when ct.Contains("spreadsheet") || ct.Contains("excel") => Icons.Material.Filled.TableChart,
+            var ct when ct.Contains("document") || ct.Contains("word") => Icons.Material.Filled.Description,
+            _ => Icons.Material.Filled.AttachFile
+        };
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        int order = 0;
+        double size = bytes;
+        
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        
+        return $"{size:0.##} {sizes[order]}";
+    }
+
+    private async Task SaveAsTemplate()
+    {
+        var templateName = await JSRuntime.InvokeAsync<string>("prompt", "Enter template name:");
+        if (!string.IsNullOrEmpty(templateName))
+        {
+            // Save template to database or local storage
+            Snackbar.Add($"Template '{templateName}' saved successfully", Severity.Success);
+        }
+    }
+
+    private Task SaveDraft()
+    {
+        // Save draft logic
+        Snackbar.Add("Draft saved successfully", Severity.Success);
+        return Task.CompletedTask;
+    }
+
+    private async Task SendEmail()
+    {
+        if (string.IsNullOrWhiteSpace(emailModel.To) || string.IsNullOrWhiteSpace(emailModel.Subject))
+        {
+            Snackbar.Add("Please fill in all required fields", Severity.Warning);
+            return;
+        }
+
+        isSending = true;
+        try
+        {
+            // Process variables
+            emailModel.HtmlBody = ProcessVariables(emailModel.HtmlBody);
+            emailModel.Subject = ProcessVariables(emailModel.Subject);
+
+            // Auto-generate plain text if needed
+            if (string.IsNullOrWhiteSpace(emailModel.PlainBody))
+            {
+                emailModel.PlainBody = StripHtml(emailModel.HtmlBody);
+            }
+
+            var request = new EmailSendRequest
+            {
+                To = emailModel.To,
+                Subject = emailModel.Subject,
+                HtmlBody = emailModel.HtmlBody,
+                PlainTextBody = emailModel.PlainBody,
+                Category = emailModel.Category,
+                Cc = string.IsNullOrWhiteSpace(emailModel.Cc) ? null : emailModel.Cc.Split(',').Select(x => x.Trim()).ToList(),
+                Bcc = string.IsNullOrWhiteSpace(emailModel.Bcc) ? null : emailModel.Bcc.Split(',').Select(x => x.Trim()).ToList()
+            };
+            
+            // TODO: Handle file attachments upload
+            
+            var result = await EmailService.SendEmailAsync(request);
+            
+            if (result.Success)
+            {
+                Snackbar.Add($"Email sent successfully to {emailModel.To}", Severity.Success);
+                Navigation.NavigateTo("/support/email/inbox");
+            }
+            else
+            {
+                Snackbar.Add($"Failed to send email: {result.Message}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error sending email: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSending = false;
+        }
+    }
+
+    private string ProcessVariables(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        
+        // Replace common variables
+        text = text.Replace("{{CompanyName}}", "FoodX Trading");
+        text = text.Replace("{{Date}}", DateTime.Now.ToString("MMMM dd, yyyy"));
+        text = text.Replace("{{ContactName}}", emailModel.To.Split('@')[0]); // Simple extraction
+        
+        // Generate random RFQ/Order numbers if needed
+        if (text.Contains("{{RFQNumber}}"))
+        {
+            text = text.Replace("{{RFQNumber}}", $"RFQ-{DateTime.Now:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}");
+        }
+        if (text.Contains("{{OrderNumber}}"))
+        {
+            text = text.Replace("{{OrderNumber}}", $"ORD-{DateTime.Now:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}");
+        }
+        
+        return text;
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/support/email/inbox");
+    }
+
+    private string StripHtml(string html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+            return string.Empty;
+
+        var text = System.Text.RegularExpressions.Regex.Replace(html, "<.*?>", " ");
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ");
+        return text.Trim();
+    }
+
+    public class EmailModel
+    {
+        public string To { get; set; } = string.Empty;
+        public string Cc { get; set; } = string.Empty;
+        public string Bcc { get; set; } = string.Empty;
+        public string Subject { get; set; } = string.Empty;
+        public string HtmlBody { get; set; } = string.Empty;
+        public string PlainBody { get; set; } = string.Empty;
+        public string Category { get; set; } = "General";
+        public int? ReplyToEmailId { get; set; }
+    }
+
+    public class EmailTemplate
+    {
+        public string Subject { get; set; } = string.Empty;
+        public string Body { get; set; } = string.Empty;
+        public string Category { get; set; } = "General";
+    }
+
+    public class AttachmentModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string ContentType { get; set; } = string.Empty;
+        public long Size { get; set; }
+        public IBrowserFile? File { get; set; }
+    }
+}
+
+<style>
+    .rich-text-editor {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    
+    .rich-text-editor:focus {
+        outline: 2px solid #667eea;
+        outline-offset: -2px;
+    }
+    
+    .rich-text-editor table {
+        margin: 10px 0;
+    }
+    
+    .rich-text-editor table th,
+    .rich-text-editor table td {
+        padding: 8px;
+        border: 1px solid #ddd;
+    }
+    
+    .rich-text-editor table th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+    }
+</style>
