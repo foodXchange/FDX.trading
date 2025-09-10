@@ -1,6 +1,9 @@
 @page "/"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @attribute [AllowAnonymous]
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
 
 <PageTitle>FoodX B2B Trading Platform</PageTitle>
 
@@ -67,37 +70,139 @@
     }
 </style>
 
-<div class="hero-section">
-    <div class="hero-content">
-        <MudIcon Icon="@Icons.Material.Filled.Store" Class="logo-icon" />
-        
-        <MudText Typo="Typo.h1" Style="font-weight: bold; font-size: 3.5rem; margin-bottom: 1rem;">
-            FoodX Trading Platform
-        </MudText>
-        
-        <MudText Typo="Typo.h4" Class="subtitle">
-            Premier B2B Food Trading Network
-        </MudText>
-        
-        <MudText Typo="Typo.body1" Class="description">
-            Connect with verified suppliers and buyers. Streamline procurement. 
-            Ensure quality standards. Grow your food business.
-        </MudText>
-        
-        <MudButton Variant="Variant.Filled" 
-                   Size="Size.Large" 
-                   StartIcon="@Icons.Material.Filled.Login"
-                   Href="/Account/MagicLink"
-                   Class="login-button">
-            Sign In to Your Account
-        </MudButton>
-        
-        <MudText Typo="Typo.body2" Style="margin-top: 2rem; opacity: 0.8;">
-            Secure passwordless authentication
-        </MudText>
-    </div>
-</div>
+<AuthorizeView>
+    <Authorized>
+        <!-- Dashboard view for authenticated users -->
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+            <MudText Typo="Typo.h3" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="mr-2" />
+                Dashboard
+            </MudText>
+            
+            <MudGrid>
+                <MudItem xs="12" md="6" lg="3">
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText Typo="Typo.h6" Color="Color.Primary">
+                            <MudIcon Icon="@Icons.Material.Filled.Store" Class="mr-2" />
+                            Suppliers
+                        </MudText>
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Manage supplier relationships and sourcing
+                        </MudText>
+                        <MudButton Href="/suppliers" Color="Color.Primary" Variant="Variant.Text" Class="mt-2">
+                            View Suppliers
+                        </MudButton>
+                    </MudPaper>
+                </MudItem>
+                
+                <MudItem xs="12" md="6" lg="3">
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText Typo="Typo.h6" Color="Color.Secondary">
+                            <MudIcon Icon="@Icons.Material.Filled.Category" Class="mr-2" />
+                            Products
+                        </MudText>
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Browse and manage product catalog
+                        </MudText>
+                        <MudButton Href="/products" Color="Color.Secondary" Variant="Variant.Text" Class="mt-2">
+                            View Products
+                        </MudButton>
+                    </MudPaper>
+                </MudItem>
+                
+                <MudItem xs="12" md="6" lg="3">
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText Typo="Typo.h6" Color="Color.Info">
+                            <MudIcon Icon="@Icons.Material.Filled.Email" Class="mr-2" />
+                            Communication
+                        </MudText>
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Email management and messaging
+                        </MudText>
+                        <MudButton Href="/support/email/inbox" Color="Color.Info" Variant="Variant.Text" Class="mt-2">
+                            View Inbox
+                        </MudButton>
+                    </MudPaper>
+                </MudItem>
+                
+                <MudItem xs="12" md="6" lg="3">
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText Typo="Typo.h6" Color="Color.Success">
+                            <MudIcon Icon="@Icons.Material.Filled.FileUpload" Class="mr-2" />
+                            Data Import
+                        </MudText>
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Import suppliers, buyers, and products
+                        </MudText>
+                        <MudButton Href="/admin/import/suppliers" Color="Color.Success" Variant="Variant.Text" Class="mt-2">
+                            Import Data
+                        </MudButton>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+            
+            <MudText Typo="Typo.h5" Class="mt-6 mb-3">
+                Quick Actions
+            </MudText>
+            
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudText Typo="Typo.h6" Class="mb-2">Recent Activity</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Default">
+                            Welcome to the FoodX Trading Platform! Start by exploring suppliers or managing your products.
+                        </MudText>
+                    </MudPaper>
+                </MudItem>
+                
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="1">
+                        <MudText Typo="Typo.h6" Class="mb-2">System Status</MudText>
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
+                            All Systems Operational
+                        </MudChip>
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Email service and database are running normally.
+                        </MudText>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <div class="hero-section">
+            <div class="hero-content">
+                <MudIcon Icon="@Icons.Material.Filled.Store" Class="logo-icon" />
+                
+                <MudText Typo="Typo.h1" Style="font-weight: bold; font-size: 3.5rem; margin-bottom: 1rem;">
+                    FoodX Trading Platform
+                </MudText>
+                
+                <MudText Typo="Typo.h4" Class="subtitle">
+                    Premier B2B Food Trading Network
+                </MudText>
+                
+                <MudText Typo="Typo.body1" Class="description">
+                    Connect with verified suppliers and buyers. Streamline procurement. 
+                    Ensure quality standards. Grow your food business.
+                </MudText>
+                
+                <MudButton Variant="Variant.Filled" 
+                           Size="Size.Large" 
+                           StartIcon="@Icons.Material.Filled.Login"
+                           Href="/Account/MagicLink"
+                           Class="login-button">
+                    Sign In to Your Account
+                </MudButton>
+                
+                <MudText Typo="Typo.body2" Style="margin-top: 2rem; opacity: 0.8;">
+                    Secure passwordless authentication
+                </MudText>
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
 
 @code {
-    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+    
 }

@@ -12,6 +12,8 @@ using Azure.Identity;
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +44,12 @@ builder.Services.AddApplicationInsightsTelemetry(options =>
     options.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"]
         ?? builder.Configuration["ApplicationInsights--ConnectionString"];
 });
+
+// Add custom metrics service
+builder.Services.AddSingleton<FoodX.Admin.Services.IMetricsService, FoodX.Admin.Services.MetricsService>();
+
+// Add API Key service
+builder.Services.AddScoped<FoodX.Admin.Services.IApiKeyService, FoodX.Admin.Services.ApiKeyService>();
 
 // Configure Globalization (Israel/Jerusalem timezone)
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.GetCultureInfo("en-US");
@@ -106,6 +114,77 @@ builder.Services.AddOutputCache(options =>
     options.AddPolicy("StaticAssets", builder => builder.Expire(TimeSpan.FromHours(24)));
 });
 
+// Add Rate Limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.Identity?.Name ?? httpContext.Request.Headers.Host.ToString(),
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 100,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    // Specific rate limit for authentication endpoints
+    options.AddPolicy("Authentication", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 5,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    // API rate limit
+    options.AddPolicy("Api", httpContext =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: httpContext.User.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: partition => new SlidingWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 30,
+                QueueLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                SegmentsPerWindow = 4
+            }));
+
+    // Strict rate limit for sensitive operations
+    options.AddPolicy("Strict", httpContext =>
+        RateLimitPartition.GetTokenBucketLimiter(
+            partitionKey: httpContext.User.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: partition => new TokenBucketRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                TokenLimit = 10,
+                QueueLimit = 0,
+                ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                TokensPerPeriod = 10
+            }));
+
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            await context.HttpContext.Response.WriteAsync(
+                $"Too many requests. Please retry after {retryAfter.TotalSeconds} second(s).", 
+                cancellationToken);
+        }
+        else
+        {
+            await context.HttpContext.Response.WriteAsync(
+                "Too many requests. Please retry later.", 
+                cancellationToken);
+        }
+    };
+});
+
 // Add FoodX Core services (caching, email, etc.)
 builder.Services.AddFoodXCore(builder.Configuration);
 
@@ -150,6 +229,7 @@ builder.Services.AddScoped<FoodX.Admin.Services.IAIRequestAnalyzer, FoodX.Admin.
 builder.Services.AddScoped<FoodX.Admin.Services.SupplierSearchService>();
 
 // Add Caching Services
+builder.Services.AddScoped<FoodX.Admin.Services.ICacheService, FoodX.Admin.Services.MemoryCacheService>();
 builder.Services.AddScoped<FoodX.Admin.Services.ICacheInvalidationService, FoodX.Admin.Services.CacheInvalidationService>();
 builder.Services.AddScoped<FoodX.Admin.Services.ICachedProductService, FoodX.Admin.Services.CachedProductService>();
 
@@ -172,6 +252,13 @@ builder.Services.AddAuthentication(options =>
         options.DefaultScheme = IdentityConstants.ApplicationScheme;
         options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
     })
+    .AddScheme<FoodX.Admin.Services.ApiKeyAuthenticationOptions, FoodX.Admin.Services.ApiKeyAuthenticationHandler>(
+        FoodX.Admin.Services.ApiKeyAuthenticationOptions.DefaultScheme, 
+        options => 
+        {
+            options.HeaderName = "X-Api-Key";
+            options.QueryParameterName = "api_key";
+        })
     .AddIdentityCookies();
 
 // Configure cookie policy for security
@@ -269,8 +356,8 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 
         // User settings
         options.User.RequireUniqueEmail = true;
-        options.SignIn.RequireConfirmedAccount = false; // Set to true in production
-        options.SignIn.RequireConfirmedEmail = false; // Set to true in production
+        options.SignIn.RequireConfirmedAccount = !builder.Environment.IsDevelopment(); // True in production
+        options.SignIn.RequireConfirmedEmail = !builder.Environment.IsDevelopment(); // True in production
     })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -335,6 +422,9 @@ builder.Services.AddHttpClient<FoodX.Admin.Services.EmailServiceClient>(client =
     client.BaseAddress = new Uri(builder.Configuration["EmailService:BaseUrl"] ?? "http://localhost:5257");
     client.DefaultRequestHeaders.Add("Accept", "application/json");
 });
+
+// Add CSV Import Service
+builder.Services.AddScoped<FoodX.Admin.Services.ICsvImportService, FoodX.Admin.Services.CsvImportService>();
 
 // Add health checks
 builder.Services.AddHealthChecks()
@@ -428,6 +518,9 @@ app.Use(async (context, next) =>
 
 // Use CORS if configured
 app.UseCors("AllowSpecificOrigins");
+
+// Use Rate Limiting (must be before authentication)
+app.UseRateLimiter();
 
 // Use authentication and authorization
 app.UseAuthentication();
