@@ -149,6 +149,10 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<FoodX.Admin.Services.IAIRequestAnalyzer, FoodX.Admin.Services.AIRequestAnalyzer>();
 builder.Services.AddScoped<FoodX.Admin.Services.SupplierSearchService>();
 
+// Add Caching Services
+builder.Services.AddScoped<FoodX.Admin.Services.ICacheInvalidationService, FoodX.Admin.Services.CacheInvalidationService>();
+builder.Services.AddScoped<FoodX.Admin.Services.ICachedProductService, FoodX.Admin.Services.CachedProductService>();
+
 // Add Email Service Client
 builder.Services.AddHttpClient<FoodX.Admin.Services.IEmailServiceClient, FoodX.Admin.Services.EmailServiceClient>(client =>
 {
