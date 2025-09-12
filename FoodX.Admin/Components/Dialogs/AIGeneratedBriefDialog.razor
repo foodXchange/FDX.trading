@@ -1,0 +1,271 @@
+@using FoodX.Admin.Models
+@using FoodX.Admin.Data
+@using Microsoft.EntityFrameworkCore
+@using MudBlazor
+@inject FoodXDbContext DbContext
+@inject ILogger<AIGeneratedBriefDialog> Logger
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudGrid>
+            <!-- Image Preview and AI Analysis Section -->
+            <MudItem xs="12" md="5">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.h6" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Psychology" Class="mr-2" />
+                        AI Analysis Results
+                    </MudText>
+                    
+                    @if (ImageData != null)
+                    {
+                        <MudImage Src="@GetImageSource()" Alt="@ImageName" Elevation="3" Class="mb-3 rounded-lg" 
+                                Style="width: 100%; height: auto; max-height: 300px; object-fit: contain;" />
+                        <MudText Typo="Typo.caption" Class="mb-3">
+                            <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Small" />
+                            @ImageName
+                        </MudText>
+                    }
+                    
+                    @if (Analysis != null)
+                    {
+                        <MudAlert Severity="Severity.Success" Class="mb-3">
+                            <MudText Typo="Typo.subtitle2">
+                                <strong>Detected Product:</strong> @(Analysis.ProductIdentification?.DetectedProduct ?? "Unknown")
+                            </MudText>
+                            @if (Analysis.ProductIdentification?.Confidence > 0)
+                            {
+                                <MudText Typo="Typo.caption">
+                                    Confidence: @((Analysis.ProductIdentification.Confidence * 100).ToString("F0"))%
+                                </MudText>
+                            }
+                        </MudAlert>
+                        
+                        <MudDivider Class="my-3" />
+                        
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">AI-Generated Description:</MudText>
+                        <MudPaper Elevation="0" Class="pa-3 mud-background-gray" Style="background-color: #f5f5f5;">
+                            <MudText Typo="Typo.body2">
+                                @(Analysis.DetailedDescription?.Summary ?? "No detailed description available")
+                            </MudText>
+                        </MudPaper>
+                        
+                        @if (Analysis.DetailedDescription?.KeyCharacteristics?.Any() == true)
+                        {
+                            <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2">Key Features:</MudText>
+                            <MudList T="string" Dense="true">
+                                @foreach (var feature in Analysis.DetailedDescription.KeyCharacteristics)
+                                {
+                                    <MudListItem T="string" Text="@feature" Icon="@Icons.Material.Filled.Check" />
+                                }
+                            </MudList>
+                        }
+                        
+                        @if (Analysis.CategoryClassification != null)
+                        {
+                            <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2">Categories:</MudText>
+                            <MudChip T="string" Color="Color.Primary" Size="Size.Small">
+                                @Analysis.CategoryClassification.PrimaryCategory
+                            </MudChip>
+                            @if (!string.IsNullOrEmpty(Analysis.CategoryClassification.SecondaryCategory))
+                            {
+                                <MudChip T="string" Color="Color.Secondary" Size="Size.Small">
+                                    @Analysis.CategoryClassification.SecondaryCategory
+                                </MudChip>
+                            }
+                        }
+                    }
+                </MudPaper>
+            </MudItem>
+            
+            <!-- Editable Brief Form Section -->
+            <MudItem xs="12" md="7">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.h6" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" />
+                        Edit Product Brief
+                    </MudText>
+                    
+                    <MudForm @ref="form" @bind-IsValid="@success" @bind-Errors="@errors">
+                        <MudTextField @bind-Value="Brief.Title" Label="Brief Title" Required="true" 
+                                    RequiredError="Brief title is required" Variant="Variant.Outlined"
+                                    HelperText="You can modify the auto-generated title" Class="mb-3" />
+                        
+                        <MudTextField @bind-Value="Brief.ProductName" Label="Product Name" Required="true"
+                                    RequiredError="Product name is required" Variant="Variant.Outlined"
+                                    HelperText="Edit if the AI detection needs correction" Class="mb-3" />
+                        
+                        <MudTextField @bind-Value="Brief.Description" Label="Description" 
+                                    Lines="3" Variant="Variant.Outlined"
+                                    HelperText="Add any additional context or requirements" Class="mb-3" />
+                        
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="Brief.Category" Label="Category" Required="true"
+                                            RequiredError="Category is required" Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="Brief.Subcategory" Label="Subcategory" 
+                                            Variant="Variant.Outlined" />
+                            </MudItem>
+                        </MudGrid>
+                        
+                        <MudGrid Class="mt-3">
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="Brief.BrandPreference" Label="Brand Preference" 
+                                            Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="Brief.CountryOfOrigin" Label="Country of Origin" 
+                                            Variant="Variant.Outlined" />
+                            </MudItem>
+                        </MudGrid>
+                        
+                        <MudGrid Class="mt-3">
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="Brief.PackageSize" Label="Package Size" 
+                                            Variant="Variant.Outlined"
+                                            HelperText="e.g., 1kg, 500ml" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="Brief.PackageWeight" Label="Package Weight" 
+                                            Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudNumericField @bind-Value="Brief.UnitsPerCase" Label="Units/Case" 
+                                               Variant="Variant.Outlined" />
+                            </MudItem>
+                        </MudGrid>
+                        
+                        <!-- Certifications detected by AI -->
+                        @if (Analysis?.ProductAttributes != null)
+                        {
+                            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Detected Certifications:</MudText>
+                            <MudGrid>
+                                <MudItem xs="6" md="4">
+                                    <MudCheckBox @bind-Value="Brief.RequiresKosher" Label="Kosher" Color="Color.Primary" />
+                                </MudItem>
+                                <MudItem xs="6" md="4">
+                                    <MudCheckBox @bind-Value="Brief.RequiresHalal" Label="Halal" Color="Color.Primary" />
+                                </MudItem>
+                                <MudItem xs="6" md="4">
+                                    <MudCheckBox @bind-Value="Brief.RequiresOrganic" Label="Organic" Color="Color.Primary" />
+                                </MudItem>
+                                <MudItem xs="6" md="4">
+                                    <MudCheckBox @bind-Value="Brief.RequiresGlutenFree" Label="Gluten-Free" Color="Color.Primary" />
+                                </MudItem>
+                                <MudItem xs="6" md="4">
+                                    <MudCheckBox @bind-Value="Brief.RequiresNonGMO" Label="Non-GMO" Color="Color.Primary" />
+                                </MudItem>
+                                <MudItem xs="6" md="4">
+                                    <MudCheckBox @bind-Value="Brief.RequiresFairTrade" Label="Fair Trade" Color="Color.Primary" />
+                                </MudItem>
+                            </MudGrid>
+                        }
+                        
+                        
+                        @if (!success)
+                        {
+                            <MudPaper Class="pa-3 mt-3" Elevation="0" Style="background-color: #ffebee;">
+                                <MudText Color="Color.Error" Typo="Typo.body2">Please fill in all required fields</MudText>
+                            </MudPaper>
+                        }
+                    </MudForm>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Discard</MudButton>
+        <MudButton Color="Color.Secondary" Variant="Variant.Outlined" OnClick="UploadMoreImages"
+                 StartIcon="@Icons.Material.Filled.AddPhotoAlternate">
+            Upload More Images
+        </MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAndActivate"
+                 StartIcon="@Icons.Material.Filled.Save">
+            Save & Activate Brief
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public AIRequestBrief Brief { get; set; } = new();
+    [Parameter] public ProductAnalysis? Analysis { get; set; }
+    [Parameter] public byte[]? ImageData { get; set; }
+    [Parameter] public string? ImageName { get; set; }
+    
+    private MudForm form = null!;
+    private bool success;
+    private string[] errors = { };
+    
+    protected override void OnInitialized()
+    {
+        // Set default values for product identification
+        if (string.IsNullOrWhiteSpace(Brief.QuantityNeeded))
+        {
+            Brief.QuantityNeeded = "To be determined";
+        }
+    }
+    
+    private string GetImageSource()
+    {
+        if (ImageData != null && ImageData.Length > 0)
+        {
+            var base64 = Convert.ToBase64String(ImageData);
+            var mimeType = GetMimeType(ImageName ?? "image.jpg");
+            return $"data:{mimeType};base64,{base64}";
+        }
+        return "";
+    }
+    
+    private string GetMimeType(string fileName)
+    {
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        return extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            _ => "image/jpeg"
+        };
+    }
+    
+    private async Task SaveAndActivate()
+    {
+        await form.Validate();
+        
+        // Basic validation for product identification
+        if (string.IsNullOrWhiteSpace(Brief.ProductName))
+        {
+            Snackbar.Add("Product name is required", Severity.Warning);
+            return;
+        }
+        
+        if (string.IsNullOrWhiteSpace(Brief.Category))
+        {
+            Snackbar.Add("Category is required", Severity.Warning);
+            return;
+        }
+        
+        // Set default quantity for product identification briefs
+        if (string.IsNullOrWhiteSpace(Brief.QuantityNeeded))
+        {
+            Brief.QuantityNeeded = "To be determined";
+        }
+        
+        Brief.UpdatedAt = DateTime.UtcNow;
+        MudDialog.Close(DialogResult.Ok(Brief));
+    }
+    
+    private void UploadMoreImages()
+    {
+        MudDialog.Close(DialogResult.Ok("upload_more"));
+    }
+    
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}
