@@ -24,22 +24,37 @@ var builder = WebApplication.CreateBuilder(args);
 // Enable static web assets for MudBlazor and other libraries
 builder.WebHost.UseStaticWebAssets();
 
-// Configure Azure Key Vault (optional in Development)
-try
+// Configure Azure Key Vault (only when enabled)
+var useKeyVault = builder.Configuration.GetValue<bool>("AzureKeyVault:UseKeyVault", true);
+if (useKeyVault)
 {
-    const string keyVaultName = "fdx-kv-poland";
-    var keyVaultUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
-    builder.Configuration.AddAzureKeyVault(keyVaultUri, new DefaultAzureCredential());
-    Console.WriteLine("[INFO] Azure Key Vault configured successfully");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"[WARNING] Could not connect to Azure Key Vault: {ex.Message}");
-    if (builder.Environment.IsProduction())
+    try
     {
-        throw; // Re-throw in production - Key Vault is required
+        const string keyVaultName = "fdx-kv-poland";
+        var keyVaultUri = new Uri($"https://{keyVaultName}.vault.azure.net/");
+        var tenantId = builder.Configuration["AzureKeyVault:TenantId"];
+
+        // Use tenant-specific credential if provided
+        var credential = !string.IsNullOrEmpty(tenantId)
+            ? new DefaultAzureCredential(new DefaultAzureCredentialOptions { TenantId = tenantId })
+            : new DefaultAzureCredential();
+
+        builder.Configuration.AddAzureKeyVault(keyVaultUri, credential);
+        Console.WriteLine("[INFO] Azure Key Vault configured successfully");
     }
-    Console.WriteLine("[INFO] Continuing without Key Vault in Development mode");
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[WARNING] Could not connect to Azure Key Vault: {ex.Message}");
+        if (builder.Environment.IsProduction())
+        {
+            throw; // Re-throw in production - Key Vault is required
+        }
+        Console.WriteLine("[INFO] Continuing without Key Vault in Development mode");
+    }
+}
+else
+{
+    Console.WriteLine("[INFO] Azure Key Vault disabled - using direct configuration");
 }
 
 // Add Application Insights
