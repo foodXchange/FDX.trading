@@ -115,6 +115,147 @@
                     </MudSimpleTable>
                 </MudItem>
 
+                @* AI Intelligence Section *@
+                @if (Company.EngagementReadinessScore.HasValue || Company.PurchasingPowerScore.HasValue || Company.DataCompletenessScore.HasValue)
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.h6" Class="mt-3">AI Intelligence Metrics</MudText>
+                        <MudGrid Class="mt-2">
+                            @if (Company.EngagementReadinessScore.HasValue)
+                            {
+                                <MudItem xs="12" sm="4">
+                                    <MudCard>
+                                        <MudCardContent Class="pa-2">
+                                            <MudText Typo="Typo.caption">Engagement Readiness</MudText>
+                                            <MudProgressLinear Color="@GetScoreColor(Company.EngagementReadinessScore.Value)" 
+                                                             Value="Company.EngagementReadinessScore.Value" 
+                                                             Max="100" 
+                                                             Class="my-2" />
+                                            <MudText Typo="Typo.h6" Align="Align.Center">@Company.EngagementReadinessScore%</MudText>
+                                        </MudCardContent>
+                                    </MudCard>
+                                </MudItem>
+                            }
+                            @if (Company.PurchasingPowerScore.HasValue)
+                            {
+                                <MudItem xs="12" sm="4">
+                                    <MudCard>
+                                        <MudCardContent Class="pa-2">
+                                            <MudText Typo="Typo.caption">Purchasing Power</MudText>
+                                            <MudProgressLinear Color="@GetScoreColor(Company.PurchasingPowerScore.Value)" 
+                                                             Value="Company.PurchasingPowerScore.Value" 
+                                                             Max="100" 
+                                                             Class="my-2" />
+                                            <MudText Typo="Typo.h6" Align="Align.Center">@Company.PurchasingPowerScore%</MudText>
+                                        </MudCardContent>
+                                    </MudCard>
+                                </MudItem>
+                            }
+                            @if (Company.DataCompletenessScore.HasValue)
+                            {
+                                <MudItem xs="12" sm="4">
+                                    <MudCard>
+                                        <MudCardContent Class="pa-2">
+                                            <MudText Typo="Typo.caption">Data Completeness</MudText>
+                                            <MudProgressLinear Color="@GetScoreColor((int)Company.DataCompletenessScore.Value)" 
+                                                             Value="(int)Company.DataCompletenessScore.Value" 
+                                                             Max="100" 
+                                                             Class="my-2" />
+                                            <MudText Typo="Typo.h6" Align="Align.Center">@((int)Company.DataCompletenessScore.Value)%</MudText>
+                                        </MudCardContent>
+                                    </MudCard>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                        
+                        @if (Company.AiReady == true)
+                        {
+                            <MudAlert Severity="Severity.Success" Dense="true" Class="mt-2">
+                                <MudText Typo="Typo.body2">✅ AI-Ready Buyer - Optimized for automated engagement</MudText>
+                            </MudAlert>
+                        }
+                    </MudItem>
+                }
+
+                @* Business Intelligence Section *@
+                @if (!string.IsNullOrEmpty(Company.FoodFocus) || Company.EmployeeCount.HasValue || Company.StoreCount.HasValue || !string.IsNullOrEmpty(Company.AnnualRevenue))
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.h6" Class="mt-3">Business Intelligence</MudText>
+                        <MudSimpleTable Hover="true" Dense="true" Class="mt-2">
+                            <tbody>
+                                @if (!string.IsNullOrEmpty(Company.FoodFocus))
+                                {
+                                    <tr>
+                                        <td><strong>Food Focus:</strong></td>
+                                        <td>@Company.FoodFocus</td>
+                                    </tr>
+                                }
+                                @if (Company.FoundedYear.HasValue)
+                                {
+                                    <tr>
+                                        <td><strong>Founded:</strong></td>
+                                        <td>@Company.FoundedYear (Operating for @(DateTime.Now.Year - Company.FoundedYear.Value) years)</td>
+                                    </tr>
+                                }
+                                @if (!string.IsNullOrEmpty(Company.AnnualRevenue))
+                                {
+                                    <tr>
+                                        <td><strong>Annual Revenue:</strong></td>
+                                        <td>@Company.AnnualRevenue</td>
+                                    </tr>
+                                }
+                                @if (Company.EmployeeCount.HasValue)
+                                {
+                                    <tr>
+                                        <td><strong>Employees:</strong></td>
+                                        <td>@Company.EmployeeCount.Value.ToString("N0")</td>
+                                    </tr>
+                                }
+                                @if (Company.StoreCount.HasValue)
+                                {
+                                    <tr>
+                                        <td><strong>Store Locations:</strong></td>
+                                        <td>@Company.StoreCount.Value.ToString("N0")</td>
+                                    </tr>
+                                }
+                                @if (!string.IsNullOrEmpty(Company.MinimumOrderValue))
+                                {
+                                    <tr>
+                                        <td><strong>Minimum Order:</strong></td>
+                                        <td>@Company.MinimumOrderValue</td>
+                                    </tr>
+                                }
+                                @if (!string.IsNullOrEmpty(Company.PaymentTerms))
+                                {
+                                    <tr>
+                                        <td><strong>Payment Terms:</strong></td>
+                                        <td>@Company.PaymentTerms</td>
+                                    </tr>
+                                }
+                                @if (!string.IsNullOrEmpty(Company.CertificationsRequired))
+                                {
+                                    <tr>
+                                        <td><strong>Required Certifications:</strong></td>
+                                        <td>@Company.CertificationsRequired</td>
+                                    </tr>
+                                }
+                                @if (!string.IsNullOrEmpty(Company.VerificationStatus))
+                                {
+                                    <tr>
+                                        <td><strong>Verification:</strong></td>
+                                        <td>
+                                            <MudChip T="string" Color="@(Company.VerificationStatus == "Verified" ? Color.Success : Color.Default)" Size="Size.Small">
+                                                @Company.VerificationStatus
+                                            </MudChip>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    </MudItem>
+                }
+
                 <MudItem xs="12">
                     <MudText Typo="Typo.h6" Class="mt-3">Additional Details</MudText>
                     <MudSimpleTable Hover="true" Dense="true" Class="mt-2">
@@ -234,6 +375,17 @@
     private void Cancel()
     {
         MudDialog?.Cancel();
+    }
+
+    private Color GetScoreColor(int score)
+    {
+        return score switch
+        {
+            >= 80 => Color.Success,
+            >= 60 => Color.Info,
+            >= 40 => Color.Warning,
+            _ => Color.Error
+        };
     }
 
     private async Task CopyEmails()

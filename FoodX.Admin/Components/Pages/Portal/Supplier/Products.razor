@@ -1,5 +1,9 @@
 @page "/portal/supplier/products"
 @using Microsoft.AspNetCore.Authorization
+@using FoodX.Admin.Components.Dialogs
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
 @attribute [Authorize(Roles = "SuperAdmin,Admin,Supplier")]
 @rendermode InteractiveServer
 
@@ -120,13 +124,16 @@
                         </MudTd>
                         <MudTd>@context.LastUpdated.ToString("MMM dd")</MudTd>
                         <MudTd>
-                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary">
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary"
+                                       OnClick="@(() => EditProduct(context))">
                                 Edit
                             </MudButton>
-                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary">
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary"
+                                       OnClick="@(() => ViewProduct(context))">
                                 View
                             </MudButton>
-                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Error">
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Error"
+                                       OnClick="@(() => ArchiveProduct(context))">
                                 Archive
                             </MudButton>
                         </MudTd>
@@ -184,6 +191,43 @@
         "Archived" => Color.Default,
         _ => Color.Default
     };
+    
+    private void EditProduct(ProductItem product)
+    {
+        Navigation.NavigateTo($"/portal/supplier/products/edit/{product.Id}");
+    }
+    
+    private async Task ViewProduct(ProductItem product)
+    {
+        var parameters = new DialogParameters<ProductDetailsDialog>
+        {
+            { x => x.Product, product }
+        };
+        
+        var options = new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<ProductDetailsDialog>($"Product Details - {product.Name}", parameters, options);
+    }
+    
+    private async Task ArchiveProduct(ProductItem product)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Archive Product",
+            $"Are you sure you want to archive {product.Name}?",
+            yesText: "Archive", cancelText: "Cancel");
+            
+        if (result == true)
+        {
+            product.Status = "Archived";
+            Snackbar.Add($"{product.Name} has been archived", Severity.Success);
+            StateHasChanged();
+        }
+    }
     
     private class ProductItem
     {

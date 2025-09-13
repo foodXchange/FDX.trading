@@ -217,16 +217,6 @@ public class EmailAttachmentDto
     public string? ContentId { get; set; }
 }
 
-public class EmailSendResponse
-{
-    public bool Success { get; set; }
-    public int EmailId { get; set; }
-    public int? ThreadId { get; set; }
-    public string Status { get; set; } = string.Empty;
-    public DateTime? SentAt { get; set; }
-    public string Message { get; set; } = string.Empty;
-}
-
 public class EmailInboxResponse
 {
     public bool Success { get; set; }

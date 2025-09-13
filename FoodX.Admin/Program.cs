@@ -5,6 +5,7 @@ using MudBlazor.Services;
 using FoodX.Admin.Components;
 using FoodX.Admin.Components.Account;
 using FoodX.Admin.Data;
+using FoodX.Admin.Services;
 using FoodX.Core.Extensions;
 using System.Globalization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
@@ -14,6 +15,9 @@ using System.IO.Compression;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using Hangfire;
+using Polly;
+using Polly.Extensions.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,8 +62,13 @@ CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.GetCultureInfo("en-US");
 // Add MudBlazor services
 builder.Services.AddMudServices();
 
-// Add memory cache for performance optimization
-builder.Services.AddMemoryCache();
+// Add memory cache with optimized settings
+builder.Services.AddMemoryCache(options =>
+{
+    options.SizeLimit = 1024 * 1024 * 100; // 100MB
+    options.CompactionPercentage = 0.25;
+    options.ExpirationScanFrequency = TimeSpan.FromMinutes(5);
+});
 
 // Configure distributed caching (Redis if available, in-memory as fallback)
 var redisConnection = builder.Configuration.GetConnectionString("Redis") 
@@ -83,19 +92,8 @@ else
 
 // Cache service is already registered in FoodXCore
 
-// Add response compression for better performance
-builder.Services.AddResponseCompression(options =>
-{
-    options.EnableForHttps = true;
-    options.Providers.Add<BrotliCompressionProvider>();
-    options.Providers.Add<GzipCompressionProvider>();
-    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] 
-    {
-        "application/octet-stream",
-        "image/svg+xml",
-        "application/font-woff2"
-    });
-});
+// Use optimized compression configuration
+builder.Services.AddOptimizedCompression();
 
 builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
 {
@@ -107,12 +105,8 @@ builder.Services.Configure<GzipCompressionProviderOptions>(options =>
     options.Level = CompressionLevel.Optimal;
 });
 
-// Add output caching for static content
-builder.Services.AddOutputCache(options =>
-{
-    options.AddBasePolicy(builder => builder.Expire(TimeSpan.FromSeconds(60)));
-    options.AddPolicy("StaticAssets", builder => builder.Expire(TimeSpan.FromHours(24)));
-});
+// Use optimized caching configuration
+builder.Services.AddOptimizedCaching();
 
 // Add Rate Limiting
 builder.Services.AddRateLimiter(options =>
@@ -198,15 +192,30 @@ builder.Services.AddRazorComponents()
 // Add controllers for API endpoints
 builder.Services.AddControllers();
 
+// Use optimized Hangfire configuration
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ??
+                       builder.Configuration.GetConnectionString("FdxDb") ??
+                       throw new InvalidOperationException("Connection string not found");
+
+builder.Services.AddOptimizedHangfire(connectionString);
+
+// Register services
+builder.Services.AddScoped<IOrderWorkflowService, OrderWorkflowService>();
+builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+
+// Register background jobs
+builder.Services.AddScoped<FoodX.Admin.Services.BackgroundJobs.IInvoiceGenerationJob, FoodX.Admin.Services.BackgroundJobs.InvoiceGenerationJob>();
+builder.Services.AddScoped<FoodX.Admin.Services.BackgroundJobs.IWorkflowAutomationJob, FoodX.Admin.Services.BackgroundJobs.WorkflowAutomationJob>();
+
 // Configure Blazor Server with optimized circuit options
 builder.Services.AddServerSideBlazor()
     .AddCircuitOptions(options =>
     {
         options.DetailedErrors = builder.Environment.IsDevelopment();
-        options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(1); // Reduced from 3
-        options.DisconnectedCircuitMaxRetained = 20; // Reduced from 100
-        options.JSInteropDefaultCallTimeout = TimeSpan.FromSeconds(30); // Reduced from 1 minute
-        options.MaxBufferedUnacknowledgedRenderBatches = 5; // Reduced from 10 for faster response
+        options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(30); // Further optimized
+        options.DisconnectedCircuitMaxRetained = 10; // Further reduced
+        options.JSInteropDefaultCallTimeout = TimeSpan.FromSeconds(10); // Further optimized
+        options.MaxBufferedUnacknowledgedRenderBatches = 2; // Optimized for performance
     })
     .AddHubOptions(options =>
     {
@@ -216,6 +225,7 @@ builder.Services.AddServerSideBlazor()
         options.KeepAliveInterval = TimeSpan.FromSeconds(15);
         options.MaximumReceiveMessageSize = 32 * 1024; // 32KB
         options.StreamBufferCapacity = 10;
+        options.MaximumParallelInvocationsPerClient = 2; // Added optimization
     });
 
 // Add Vector Search Services
@@ -225,13 +235,36 @@ builder.Services.AddScoped<FoodX.Admin.Services.TestUserService>();
 
 // Add AI Request Analyzer Service
 builder.Services.AddHttpClient();
+
+// Add RFQ and Product Sourcing Services
+builder.Services.AddScoped<FoodX.Admin.Services.IRFQManagementService, FoodX.Admin.Services.RFQManagementService>();
+builder.Services.AddScoped<FoodX.Admin.Services.ISupplierMatchingService, FoodX.Admin.Services.SupplierMatchingService>();
+builder.Services.AddScoped<FoodX.Admin.Services.IEmailCampaignService, FoodX.Admin.Services.EmailCampaignService>();
+// builder.Services.AddScoped<IProductCatalogImportService, ProductCatalogImportService>(); // Removed service
 builder.Services.AddScoped<FoodX.Admin.Services.IAIRequestAnalyzer, FoodX.Admin.Services.AIRequestAnalyzer>();
 builder.Services.AddScoped<FoodX.Admin.Services.SupplierSearchService>();
 
-// Add Caching Services
-builder.Services.AddScoped<FoodX.Admin.Services.ICacheService, FoodX.Admin.Services.MemoryCacheService>();
+// Add Billing System Services
+builder.Services.AddScoped<FoodX.Admin.Services.ICommissionCalculator, FoodX.Admin.Services.CommissionCalculator>();
+// builder.Services.AddScoped<FoodX.Admin.Services.IInvoiceService, FoodX.Admin.Services.InvoiceService>();
+builder.Services.AddScoped<FoodX.Admin.Services.IOrderService, FoodX.Admin.Services.OrderService>();
+// builder.Services.AddScoped<FoodX.Admin.Services.IShipmentService, FoodX.Admin.Services.ShipmentService>();
+// builder.Services.AddScoped<FoodX.Admin.Services.IPaymentProcessor, FoodX.Admin.Services.PaymentProcessor>();
+builder.Services.AddScoped<FoodX.Admin.Services.RecurringOrderService>();
+builder.Services.AddScoped<FoodX.Admin.Services.IPerformanceAnalyticsService, FoodX.Admin.Services.PerformanceAnalyticsService>();
+
+// Add Workflow and Domain Event Services
+builder.Services.AddSingleton<FoodX.Admin.Services.DomainEvents.IDomainEventService, FoodX.Admin.Services.DomainEvents.DomainEventService>();
+// builder.Services.AddScoped<FoodX.Admin.Services.IOrderWorkflowService, FoodX.Admin.Services.OrderWorkflowService>();
+
+// Add other caching services
+builder.Services.AddScoped<FoodX.Admin.Services.ICacheService, FoodX.Admin.Services.CacheService>();
 builder.Services.AddScoped<FoodX.Admin.Services.ICacheInvalidationService, FoodX.Admin.Services.CacheInvalidationService>();
 builder.Services.AddScoped<FoodX.Admin.Services.ICachedProductService, FoodX.Admin.Services.CachedProductService>();
+
+// Add Database Consolidation Services
+builder.Services.AddScoped<FoodX.Admin.Services.IDatabaseConsolidationService, FoodX.Admin.Services.DatabaseConsolidationService>();
+builder.Services.AddScoped<FoodX.Admin.Services.IEntityBridgeService, FoodX.Admin.Services.EntityBridgeService>();
 
 // Add Email Service Client
 builder.Services.AddHttpClient<FoodX.Admin.Services.IEmailServiceClient, FoodX.Admin.Services.EmailServiceClient>(client =>
@@ -240,6 +273,14 @@ builder.Services.AddHttpClient<FoodX.Admin.Services.IEmailServiceClient, FoodX.A
     client.BaseAddress = new Uri(emailServiceUrl);
     client.DefaultRequestHeaders.Add("Accept", "application/json");
 });
+
+// Use optimized SignalR configuration
+builder.Services.AddOptimizedSignalR(redisConnection);
+// builder.Services.AddScoped<FoodX.Admin.Services.INotificationService, FoodX.Admin.Services.NotificationService>();
+// builder.Services.AddSingleton<FoodX.Admin.Services.IUserConnectionManager, FoodX.Admin.Services.UserConnectionManager>();
+// Navigation and search services
+builder.Services.AddScoped<FoodX.Admin.Services.IRoleNavigationService, FoodX.Admin.Services.RoleNavigationService>();
+// builder.Services.AddScoped<FoodX.Admin.Services.IGlobalSearchService, FoodX.Admin.Services.GlobalSearchService>();
 
 // Add Authentication
 builder.Services.AddCascadingAuthenticationState();
@@ -285,20 +326,21 @@ builder.Services.ConfigureApplicationCookie(options =>
     }
 });
 
+// Connection string was already retrieved earlier for Hangfire
 // Get connection string from configuration (Key Vault in Production, appsettings in Development)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+var dbConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? builder.Configuration["DefaultConnection"]
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found in configuration.");
+    ?? connectionString;
 
 // Log the connection string for debugging (remove sensitive parts)
-var passwordIndex = connectionString.IndexOf("Password=", StringComparison.OrdinalIgnoreCase);
+var passwordIndex = dbConnectionString.IndexOf("Password=", StringComparison.OrdinalIgnoreCase);
 var debugConnStr = passwordIndex >= 0
-    ? $"{connectionString[..passwordIndex]}Password=***"
-    : connectionString;
+    ? $"{dbConnectionString[..passwordIndex]}Password=***"
+    : dbConnectionString;
 Console.WriteLine($"[DEBUG] Using connection string: {debugConnStr}");
 
 // Optimize connection string
-var optimizedConnectionString = FoodX.Admin.Data.DatabaseConfiguration.OptimizeConnectionString(connectionString);
+var optimizedConnectionString = FoodX.Admin.Data.DatabaseConfiguration.OptimizeConnectionString(dbConnectionString);
 
 // Create performance interceptor
 builder.Services.AddSingleton<FoodX.Admin.Data.PerformanceInterceptor>();
@@ -367,8 +409,8 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 // Register email sender (replace with real implementation in production)
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
-// Register role navigation service
-builder.Services.AddScoped<FoodX.Admin.Services.IRoleNavigationService, FoodX.Admin.Services.RoleNavigationService>();
+// Register role navigation service - commented out temporarily
+// builder.Services.AddScoped<FoodX.Admin.Services.IRoleNavigationService, FoodX.Admin.Services.RoleNavigationService>();
 
 // Register Portal Context Service for SuperAdmin portal switching
 builder.Services.AddScoped<FoodX.Admin.Services.IPortalContextService, FoodX.Admin.Services.PortalContextService>();
@@ -426,6 +468,20 @@ builder.Services.AddHttpClient<FoodX.Admin.Services.EmailServiceClient>(client =
 // Add CSV Import Service
 builder.Services.AddScoped<FoodX.Admin.Services.ICsvImportService, FoodX.Admin.Services.CsvImportService>();
 
+// Add Enhanced File Reading and Validation Services
+builder.Services.AddScoped<FoodX.Admin.Services.IFileReaderService, FoodX.Admin.Services.FileReaderService>();
+// Advanced validation service commented out temporarily
+// builder.Services.AddScoped<FoodX.Admin.Services.IAdvancedValidationService, FoodX.Admin.Services.AdvancedValidationService>();
+builder.Services.AddScoped<FoodX.Admin.Services.IImportHistoryService, FoodX.Admin.Services.ImportHistoryService>();
+// builder.Services.AddScoped<FoodX.Admin.Services.IImportProgressService, FoodX.Admin.Services.ImportProgressService>();
+
+// Add SignalR for real-time import progress
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    options.MaximumReceiveMessageSize = 100 * 1024; // 100KB
+});
+
 // Add health checks
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ApplicationDbContext>("identity-db")
@@ -463,7 +519,33 @@ builder.Services.AddCors(options =>
         });
 });
 
+// Add comprehensive health checks
+builder.Services.AddFoodXHealthChecks(builder.Configuration);
+
 var app = builder.Build();
+
+// Create missing database tables if needed
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Checking for missing database tables...");
+        
+        // Execute table creation
+        await FoodX.Admin.CreateMissingTables.ExecuteMigration();
+
+        // Apply RFQId migration
+        await FoodX.Admin.RFQIdMigrationExtensions.ApplyRFQIdMigrationAsync(scope.ServiceProvider);
+
+        logger.LogInformation("Database tables check completed.");
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogWarning(ex, "Could not create missing tables. They may already exist or will be created on first use.");
+    }
+}
 
 // Enable response compression (must be before other middleware)
 app.UseResponseCompression();
@@ -531,7 +613,50 @@ app.UseAntiforgery();
 // Map API controllers
 app.MapControllers();
 
-// Map health checks endpoint
+// Configure Hangfire Dashboard
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new FoodX.Admin.Services.HangfireAuthorizationFilter() }
+});
+
+// Schedule recurring jobs
+var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IInvoiceGenerationJob>(
+    "process-pending-invoices",
+    job => job.ProcessPendingInvoices(),
+    Cron.Hourly);
+
+recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IInvoiceGenerationJob>(
+    "generate-monthly-statements",
+    job => job.GenerateMonthlyStatements(),
+    Cron.Monthly(1, 9)); // First day of month at 9 AM
+
+recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IInvoiceGenerationJob>(
+    "send-payment-reminders",
+    job => job.SendPaymentReminders(),
+    Cron.Daily(10)); // Daily at 10 AM
+
+recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IWorkflowAutomationJob>(
+    "process-workflow-rules",
+    job => job.ProcessWorkflowRules(),
+    "*/15 * * * *"); // Every 15 minutes
+
+recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IWorkflowAutomationJob>(
+    "auto-confirm-orders",
+    job => job.AutoConfirmOrders(),
+    Cron.Hourly(30)); // Every hour at 30 minutes
+
+recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IWorkflowAutomationJob>(
+    "update-shipment-statuses",
+    job => job.UpdateShipmentStatuses(),
+    "*/30 * * * *"); // Every 30 minutes
+
+recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IWorkflowAutomationJob>(
+    "process-delayed-shipments",
+    job => job.ProcessDelayedShipments(),
+    Cron.Daily(8)); // Daily at 8 AM
+
+// Map health checks endpoints
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
@@ -542,12 +667,19 @@ app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthC
     Predicate = _ => false
 });
 
+// Map health checks UI
+app.MapHealthChecksUI(options => options.UIPath = "/health-ui");
+
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
+
+// Map SignalR hub for import progress - commented out temporarily
+// app.MapHub<FoodX.Admin.Hubs.ImportProgressHub>("/hubs/import-progress");
+// app.MapHub<FoodX.Admin.Hubs.NotificationHub>("/hubs/notifications");
 
 // Temporary endpoint to reset test passwords (REMOVE IN PRODUCTION)
 if (app.Environment.IsDevelopment())
@@ -588,6 +720,18 @@ if (app.Environment.IsDevelopment())
 
         return string.Join("\n", results);
     });
+}
+
+// Apply buyer columns migration if needed
+try
+{
+    Console.WriteLine("[INFO] Checking FoodXBuyers table schema...");
+    FoodX.Admin.ApplyBuyerColumns.ExecuteMigration();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[WARNING] Could not apply buyer columns migration: {ex.Message}");
+    // Continue startup even if migration fails
 }
 
 // Seed roles on startup

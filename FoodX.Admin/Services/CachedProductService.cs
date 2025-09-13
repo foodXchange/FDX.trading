@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using FoodX.Admin.Data;
 using FoodX.Admin.Models;
+using FoodX.Core.Services;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -103,10 +104,10 @@ namespace FoodX.Admin.Services
         private readonly ICacheInvalidationService _cacheInvalidation;
         private readonly ILogger<CachedProductService> _logger;
 
-        // Cache expiration times
-        private static readonly TimeSpan ProductCacheExpiration = TimeSpan.FromMinutes(30);
-        private static readonly TimeSpan ListCacheExpiration = TimeSpan.FromMinutes(15);
-        private static readonly TimeSpan SearchCacheExpiration = TimeSpan.FromMinutes(10);
+        // Cache expiration times - optimized for performance
+        private static readonly TimeSpan ProductCacheExpiration = TimeSpan.FromHours(1); // Increased for better performance
+        private static readonly TimeSpan ListCacheExpiration = TimeSpan.FromMinutes(30); // Increased
+        private static readonly TimeSpan SearchCacheExpiration = TimeSpan.FromMinutes(15); // Increased
 
         public CachedProductService(
             FoodXDbContext context,
@@ -137,6 +138,7 @@ namespace FoodX.Admin.Services
             var product = await _context.Products
                 .Include(p => p.Supplier)
                 .Include(p => p.Company)
+                .AsSplitQuery() // Optimize for multiple includes
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
@@ -167,6 +169,7 @@ namespace FoodX.Admin.Services
                 .Include(p => p.Supplier)
                 .Include(p => p.Company)
                 .Where(p => p.IsAvailable)
+                .AsSplitQuery() // Optimize for multiple includes
                 .AsNoTracking();
 
             if (!string.IsNullOrEmpty(category))
@@ -208,12 +211,13 @@ namespace FoodX.Admin.Services
                 .Include(p => p.Supplier)
                 .Include(p => p.Company)
                 .Where(p => p.IsAvailable &&
-                    (p.Name.ToLower().Contains(searchQuery) ||
-                     (p.Description != null && p.Description.ToLower().Contains(searchQuery)) ||
-                     p.Category.ToLower().Contains(searchQuery)))
+                    (EF.Functions.Like(p.Name, $"%{searchQuery}%") ||
+                     (p.Description != null && EF.Functions.Like(p.Description, $"%{searchQuery}%")) ||
+                     EF.Functions.Like(p.Category, $"%{searchQuery}%"))) // Use EF.Functions for better SQL
                 .OrderBy(p => p.Name)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
+                .AsSplitQuery() // Optimize for multiple includes
                 .AsNoTracking()
                 .ToListAsync(cancellationToken);
 

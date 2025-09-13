@@ -91,9 +91,68 @@ namespace FoodX.Admin.Models
         [MaxLength(100)]
         public string? PreferredSuppliers { get; set; }
 
+        // AI-Enhanced Fields
+        public int? BusinessTypeScore { get; set; }
+        
+        public int? PurchasingPowerScore { get; set; }
+        
+        public int? PriceSensitivityIndex { get; set; }
+        
+        [MaxLength(100)]
+        public string? MinimumOrderValue { get; set; }
+        
+        [MaxLength(200)]
+        public string? PaymentTerms { get; set; }
+        
+        public float? DataCompletenessScore { get; set; }
+        
+        public int? EngagementReadinessScore { get; set; }
+        
+        public bool? AiReady { get; set; }
+        
+        [MaxLength(50)]
+        public string? VerificationStatus { get; set; }
+        
+        public int? FoundedYear { get; set; }
+        
+        [MaxLength(100)]
+        public string? AnnualRevenue { get; set; }
+        
+        public int? EmployeeCount { get; set; }
+        
+        public int? StoreCount { get; set; }
+        
+        [MaxLength(200)]
+        public string? FoodFocus { get; set; }
+        
+        public string? AboutCompany { get; set; }
+        
+        [MaxLength(500)]
+        public string? CertificationsRequired { get; set; }
+        
+        public string? ProductCategories { get; set; }
+        
+        [MaxLength(100)]
+        public string? HqCity { get; set; }
+        
+        [MaxLength(200)]
+        public string? PrimaryContactName { get; set; }
+        
+        [MaxLength(200)]
+        public string? PrimaryContactTitle { get; set; }
+        
+        [MaxLength(200)]
+        public string? PrimaryContactEmail { get; set; }
+        
+        [MaxLength(20)]
+        public string? BuyerId { get; set; }
+
         // Computed properties for display
         [NotMapped]
         public string DisplayName => Company ?? "Unknown Company";
+
+        [NotMapped]
+        public string? Email => ContactEmail; // Alias for compatibility
 
         [NotMapped]
         public string ContactInfo => string.IsNullOrEmpty(ProcurementEmail) ? ContactEmail ?? "" : ProcurementEmail;

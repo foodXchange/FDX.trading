@@ -13,6 +13,8 @@ public class EmailDbContext : DbContext
     public DbSet<Email> Emails { get; set; }
     public DbSet<EmailThread> EmailThreads { get; set; }
     public DbSet<EmailAttachment> EmailAttachments { get; set; }
+    public DbSet<EmailTemplate> EmailTemplates { get; set; }
+    public DbSet<EmailTemplateUsage> EmailTemplateUsages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,6 +61,28 @@ public class EmailDbContext : DbContext
                 .WithMany(e => e.Attachments)
                 .HasForeignKey(a => a.EmailId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // EmailTemplate entity configuration
+        modelBuilder.Entity<EmailTemplate>(entity =>
+        {
+            entity.HasIndex(e => e.Name).IsUnique();
+            entity.HasIndex(e => e.Category);
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => new { e.Category, e.IsActive });
+        });
+
+        // EmailTemplateUsage entity configuration
+        modelBuilder.Entity<EmailTemplateUsage>(entity =>
+        {
+            entity.HasIndex(e => e.TemplateId);
+            entity.HasIndex(e => e.EmailId);
+            entity.HasIndex(e => e.UsedAt);
+            
+            entity.HasOne(u => u.Template)
+                .WithMany(t => t.Usages)
+                .HasForeignKey(u => u.TemplateId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

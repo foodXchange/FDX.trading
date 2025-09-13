@@ -79,6 +79,7 @@ else
 builder.Services.AddScoped<IEmailSendingService, EmailSendingService>();
 builder.Services.AddScoped<IEmailReceivingService, EmailReceivingService>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
 // Register Background Services
 builder.Services.AddHostedService<EmailCleanupService>();

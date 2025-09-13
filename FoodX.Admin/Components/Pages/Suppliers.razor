@@ -6,6 +6,7 @@
 @inject IDbContextFactory<FoodXDbContext> DbFactory
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject NavigationManager Navigation
 @rendermode InteractiveServer
 
 <PageTitle>Suppliers</PageTitle>
@@ -41,10 +42,10 @@
     {
         @if (showFoodXSuppliers && foodXSuppliers.Any())
         {
-            <MudText Typo="Typo.h6" Class="mb-3">Total Suppliers: @foodXSuppliers.Count</MudText>
+            <MudText Typo="Typo.h6" Class="mb-3">Total Suppliers: @foodXSuppliers.Count.ToString("N0")</MudText>
             <MudDataGrid T="FoodXSupplier" Items="@foodXSuppliers" SortMode="SortMode.Multiple" 
                          Filterable="true" QuickFilter="@_quickFilter"
-                         Hideable="true" RowsPerPage="25">
+                         Hideable="true" RowsPerPage="50" Virtualize="true">
                 <ToolBarContent>
                     <MudText Typo="Typo.h6">FoodX Suppliers Database</MudText>
                     <MudSpacer />
@@ -87,6 +88,25 @@
                                 {
                                     <MudChip T="string" Size="Size.Small" Color="Color.Primary">Organic</MudChip>
                                 }
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Actions" Sortable="false">
+                        <CellTemplate>
+                            <MudStack Row="true" Spacing="1">
+                                @if (!string.IsNullOrEmpty(context.Item.CompanyEmail))
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Email" 
+                                                   Color="Color.Primary" 
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => EmailSupplier(context.Item))"
+                                                   Title="Email Supplier" />
+                                }
+                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" 
+                                               Color="Color.Info" 
+                                               Size="Size.Small"
+                                               OnClick="@(() => ViewSupplier(context.Item))"
+                                               Title="View Details" />
                             </MudStack>
                         </CellTemplate>
                     </TemplateColumn>
@@ -235,18 +255,33 @@
                         (s.CompanyEmail != null && s.CompanyEmail.Contains(searchTerm)));
                 }
                 
-                foodXSuppliers = await foodXQuery
-                    .OrderBy(s => s.SupplierName)
-                    .Take(100) // Limit for performance
-                    .ToListAsync();
+                // Count total suppliers first
+                var totalCount = await foodXQuery.CountAsync();
+                
+                // For performance, load in batches if count is large
+                if (totalCount > 5000)
+                {
+                    // Load first 5000 for initial display
+                    foodXSuppliers = await foodXQuery
+                        .OrderBy(s => s.SupplierName)
+                        .Take(5000)
+                        .ToListAsync();
+                    
+                    Snackbar.Add($"Loaded {foodXSuppliers.Count:N0} of {totalCount:N0} total suppliers (showing first 5,000 for performance)", Severity.Info);
+                }
+                else
+                {
+                    // Load all if reasonable count
+                    foodXSuppliers = await foodXQuery
+                        .OrderBy(s => s.SupplierName)
+                        .ToListAsync();
+                    
+                    Snackbar.Add($"Loaded {foodXSuppliers.Count:N0} suppliers from FoodX database", Severity.Success);
+                }
                     
                 showFoodXSuppliers = true;
                 
-                if (foodXSuppliers.Any())
-                {
-                    Snackbar.Add($"Loaded {foodXSuppliers.Count} suppliers from FoodX database", Severity.Success);
-                }
-                else
+                if (!foodXSuppliers.Any())
                 {
                     Snackbar.Add("No suppliers found in the database", Severity.Info);
                 }
@@ -296,5 +331,39 @@
     private void OnDialogCancel()
     {
         // Dialog cancelled
+    }
+    
+    private void EmailSupplier(FoodXSupplier supplier)
+    {
+        var emailParameters = new Dictionary<string, string>
+        {
+            ["to"] = supplier.CompanyEmail ?? "",
+            ["subject"] = $"Business Inquiry - {supplier.SupplierName}",
+            ["template"] = "supplier-inquiry",
+            ["supplierName"] = supplier.SupplierName ?? "",
+            ["category"] = supplier.ProductCategory ?? ""
+        };
+        
+        var queryString = string.Join("&", emailParameters.Select(kvp => $"{kvp.Key}={Uri.EscapeDataString(kvp.Value)}"));
+        Navigation.NavigateTo($"/support/email-compose?{queryString}");
+    }
+    
+    private async Task ViewSupplier(FoodXSupplier supplier)
+    {
+        var parameters = new DialogParameters
+        {
+            { "Supplier", supplier }
+        };
+        
+        var options = new DialogOptions 
+        { 
+            CloseButton = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<SupplierDetailsDialog>("Supplier Details", parameters, options);
+        await dialog.Result;
     }
 }

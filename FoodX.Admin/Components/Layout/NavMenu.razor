@@ -27,12 +27,55 @@
                 <MudNavLink Href="supplier-database" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Storage">
                     Supplier Database
                 </MudNavLink>
+                <MudNavLink Href="supplier-catalog" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Inventory2">
+                    Product Catalog
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Class="ml-2">140</MudChip>
+                </MudNavLink>
                 <MudNavLink Href="buyers" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ShoppingCart">
                     Buyers
                 </MudNavLink>
                 <MudNavLink Href="request-analysis" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Psychology">
                     AI Request Analysis
                 </MudNavLink>
+                <MudNavLink Href="portal/buyer/ai-search-improved" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.SmartToy">
+                    AI Smart Search
+                    <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Class="ml-2">New</MudChip>
+                </MudNavLink>
+            </MudNavGroup>
+            
+            <!-- Orders & Automation -->
+            <MudNavGroup Title="Orders & Automation" Icon="@Icons.Material.Filled.Autorenew" Expanded="false">
+                <MudNavLink Href="orders" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Receipt">
+                    Orders
+                </MudNavLink>
+                <MudNavLink Href="portal/recurring-orders" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Schedule">
+                    Recurring Orders
+                </MudNavLink>
+                <MudNavLink Href="shipments" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocalShipping">
+                    Shipments
+                </MudNavLink>
+                <MudNavLink Href="invoices" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Receipt">
+                    Invoices
+                </MudNavLink>
+            </MudNavGroup>
+            
+            <!-- Email & Communications -->
+            <MudNavGroup Title="Email & Communications" Icon="@Icons.Material.Filled.Email" Expanded="false">
+                <MudNavLink Href="/support/email-inbox" Icon="@Icons.Material.Filled.Inbox">
+                    Email Inbox
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-2">15</MudChip>
+                </MudNavLink>
+                <MudNavLink Href="/support/email-compose" Icon="@Icons.Material.Filled.Edit">
+                    Compose Email
+                </MudNavLink>
+                <AuthorizeView Roles="Admin,SuperAdmin" Context="emailAdminContext">
+                    <MudNavLink Href="/admin/email-templates" Icon="@Icons.Material.Filled.Description">
+                        Email Templates
+                    </MudNavLink>
+                    <MudNavLink Href="/admin/email-analytics" Icon="@Icons.Material.Filled.Analytics">
+                        Email Analytics
+                    </MudNavLink>
+                </AuthorizeView>
             </MudNavGroup>
             
             <!-- SuperAdmin Only -->
@@ -59,6 +102,27 @@
                 </MudNavGroup>
             </AuthorizeView>
             
+            <!-- Data Import Section -->
+            <AuthorizeView Roles="Admin,SuperAdmin" Context="importContext">
+                <MudNavGroup Title="Data Import" Icon="@Icons.Material.Filled.CloudUpload" Expanded="false">
+                    <MudNavLink Href="data-import" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Upload">
+                        Import Center
+                    </MudNavLink>
+                    <MudNavLink Href="admin/import/suppliers" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocalShipping">
+                        Import Suppliers
+                    </MudNavLink>
+                    <MudNavLink Href="admin/import/buyers" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ShoppingCart">
+                        Import Buyers
+                    </MudNavLink>
+                    <MudNavLink Href="admin/import/products" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Category">
+                        Import Products
+                    </MudNavLink>
+                    <MudNavLink Href="admin/import/orders" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Receipt">
+                        Import Orders
+                    </MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+            
             <!-- Admin Only -->
             <AuthorizeView Roles="Admin,SuperAdmin" Context="adminContext">
                 <MudNavGroup Title="Administration" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
@@ -67,6 +131,9 @@
                     </MudNavLink>
                     <MudNavLink Href="buyer-companies" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Store">
                         Buyer Companies Database
+                    </MudNavLink>
+                    <MudNavLink Href="admin/database-consolidation" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Storage">
+                        Database Consolidation
                     </MudNavLink>
                     <MudNavLink Href="settings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Settings">
                         Settings
@@ -86,6 +153,9 @@
                     <MudNavLink Href="orders" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Receipt">
                         My Orders
                     </MudNavLink>
+                    <MudNavLink Href="portal/recurring-orders" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Schedule">
+                        My Recurring Orders
+                    </MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             
@@ -96,6 +166,9 @@
                     </MudNavLink>
                     <MudNavLink Href="quotes/respond" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Reply">
                         Quote Requests
+                    </MudNavLink>
+                    <MudNavLink Href="portal/recurring-orders" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Schedule">
+                        Recurring Orders
                     </MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>

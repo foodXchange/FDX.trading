@@ -1,24 +1,15 @@
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
-using FoodX.Admin.Data;
 using System.Security.Claims;
 
 namespace FoodX.Admin.Services
 {
-    public interface IRoleNavigationService
-    {
-        Task<string> GetRoleBasedDashboardUrl(ClaimsPrincipal user);
-        Task<string> GetDefaultDashboardForRole(string role);
-        Task<List<string>> GetUserRoles(ClaimsPrincipal user);
-    }
-
     public class RoleNavigationService : IRoleNavigationService
     {
-        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly UserManager<Data.ApplicationUser> _userManager;
         private readonly ILogger<RoleNavigationService> _logger;
 
         public RoleNavigationService(
-            UserManager<ApplicationUser> userManager,
+            UserManager<Data.ApplicationUser> userManager,
             ILogger<RoleNavigationService> logger)
         {
             _userManager = userManager;
@@ -27,94 +18,203 @@ namespace FoodX.Admin.Services
 
         public async Task<string> GetRoleBasedDashboardUrl(ClaimsPrincipal user)
         {
-            if (user?.Identity?.IsAuthenticated != true)
-            {
-                return "/";
-            }
-
             var roles = await GetUserRoles(user);
-
-            // Priority order for multiple roles
-            if (roles.Contains("SuperAdmin") || roles.Contains("Admin"))
-            {
-                return "/dashboard/admin";
-            }
-            else if (roles.Contains("Agent"))
-            {
-                return "/dashboard/agent";
-            }
-            else if (roles.Contains("Expert"))
-            {
-                return "/dashboard/expert";
-            }
+            
+            if (roles.Contains("Admin") || roles.Contains("SystemAdmin"))
+                return "/admin/dashboard";
             else if (roles.Contains("Supplier"))
-            {
-                return "/dashboard/supplier";
-            }
+                return "/portal/supplier/dashboard";
             else if (roles.Contains("Buyer"))
-            {
-                return "/dashboard/buyer";
-            }
-
-            // Default fallback
-            return "/";
-        }
-
-        public Task<string> GetDefaultDashboardForRole(string role)
-        {
-            var dashboard = role?.ToLower() switch
-            {
-                "admin" or "superadmin" => "/dashboard/admin",
-                "buyer" => "/dashboard/buyer",
-                "supplier" => "/dashboard/supplier",
-                "expert" => "/dashboard/expert",
-                "agent" => "/dashboard/agent",
-                _ => "/"
-            };
-
-            return Task.FromResult(dashboard);
+                return "/portal/buyer/dashboard";
+            else if (roles.Contains("Agent"))
+                return "/portal/agent/dashboard";
+            else
+                return "/dashboard";
         }
 
         public async Task<List<string>> GetUserRoles(ClaimsPrincipal user)
         {
             if (user?.Identity?.IsAuthenticated != true)
-            {
-                return [];
-            }
+                return new List<string>();
 
-            // Try to get roles from claims first (faster)
-            var rolesFromClaims = user.Claims
-                .Where(c => c.Type == ClaimTypes.Role)
-                .Select(c => c.Value)
-                .ToList();
+            var appUser = await _userManager.GetUserAsync(user);
+            if (appUser == null)
+                return new List<string>();
 
-            if (rolesFromClaims.Any())
-            {
-                return rolesFromClaims;
-            }
+            var roles = await _userManager.GetRolesAsync(appUser);
+            return roles.ToList();
+        }
 
-            // If no roles in claims, get from UserManager
-            var email = user.Identity.Name;
-            if (string.IsNullOrEmpty(email))
-            {
-                return [];
-            }
+        public async Task<Dictionary<string, List<NavigationItem>>> GetNavigationMenuForUser(ClaimsPrincipal user)
+        {
+            var roles = await GetUserRoles(user);
+            var menu = new Dictionary<string, List<NavigationItem>>();
 
-            try
+            // Main menu items
+            var mainItems = new List<NavigationItem>();
+            
+            if (roles.Contains("Admin") || roles.Contains("SystemAdmin"))
             {
-                var appUser = await _userManager.FindByEmailAsync(email);
-                if (appUser != null)
+                mainItems.Add(new NavigationItem
                 {
-                    var roles = await _userManager.GetRolesAsync(appUser);
-                    return roles.ToList();
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting user roles for {Email}", email);
+                    Title = "Dashboard",
+                    Url = "/admin/dashboard",
+                    Icon = "Dashboard"
+                });
+                mainItems.Add(new NavigationItem
+                {
+                    Title = "Users",
+                    Url = "/admin/users",
+                    Icon = "People"
+                });
+                mainItems.Add(new NavigationItem
+                {
+                    Title = "Import",
+                    Url = "/admin/import",
+                    Icon = "FileUpload",
+                    Children = new List<NavigationItem>
+                    {
+                        new NavigationItem { Title = "Suppliers", Url = "/admin/import/suppliers", Icon = "Store" },
+                        new NavigationItem { Title = "Buyers", Url = "/admin/import/buyers", Icon = "Business" },
+                        new NavigationItem { Title = "Products", Url = "/admin/import/products", Icon = "Category" }
+                    }
+                });
             }
 
-            return [];
+            if (roles.Contains("Supplier"))
+            {
+                mainItems.Add(new NavigationItem
+                {
+                    Title = "Dashboard",
+                    Url = "/portal/supplier/dashboard",
+                    Icon = "Dashboard"
+                });
+                mainItems.Add(new NavigationItem
+                {
+                    Title = "Products",
+                    Url = "/portal/supplier/products",
+                    Icon = "Category"
+                });
+                mainItems.Add(new NavigationItem
+                {
+                    Title = "RFQs",
+                    Url = "/portal/supplier/rfqs",
+                    Icon = "RequestQuote"
+                });
+                mainItems.Add(new NavigationItem
+                {
+                    Title = "Orders",
+                    Url = "/portal/orders",
+                    Icon = "ShoppingCart"
+                });
+            }
+
+            if (roles.Contains("Buyer"))
+            {
+                mainItems.Add(new NavigationItem
+                {
+                    Title = "Dashboard",
+                    Url = "/portal/buyer/dashboard",
+                    Icon = "Dashboard"
+                });
+                mainItems.Add(new NavigationItem
+                {
+                    Title = "AI Search",
+                    Url = "/portal/buyer/ai-search",
+                    Icon = "Search"
+                });
+                mainItems.Add(new NavigationItem
+                {
+                    Title = "RFQs",
+                    Url = "/portal/buyer/rfqs",
+                    Icon = "RequestQuote"
+                });
+                mainItems.Add(new NavigationItem
+                {
+                    Title = "Orders",
+                    Url = "/portal/orders",
+                    Icon = "ShoppingCart"
+                });
+            }
+
+            // Common items for all authenticated users
+            mainItems.Add(new NavigationItem
+            {
+                Title = "Messages",
+                Url = "/support/email/inbox",
+                Icon = "Email"
+            });
+
+            menu["main"] = mainItems;
+            return menu;
+        }
+
+        public async Task<List<QuickAction>> GetQuickActionsForUser(ClaimsPrincipal user)
+        {
+            var roles = await GetUserRoles(user);
+            var actions = new List<QuickAction>();
+
+            if (roles.Contains("Admin") || roles.Contains("SystemAdmin"))
+            {
+                actions.Add(new QuickAction
+                {
+                    Title = "Import Data",
+                    Icon = "FileUpload",
+                    Url = "/admin/import/suppliers",
+                    Color = "success",
+                    Description = "Import suppliers, buyers, or products"
+                });
+                actions.Add(new QuickAction
+                {
+                    Title = "Manage Users",
+                    Icon = "People",
+                    Url = "/admin/users",
+                    Color = "primary",
+                    Description = "Add or manage user accounts"
+                });
+            }
+
+            if (roles.Contains("Supplier"))
+            {
+                actions.Add(new QuickAction
+                {
+                    Title = "Add Product",
+                    Icon = "Add",
+                    Url = "/portal/supplier/products/new",
+                    Color = "success",
+                    Description = "Add a new product to your catalog"
+                });
+                actions.Add(new QuickAction
+                {
+                    Title = "View RFQs",
+                    Icon = "RequestQuote",
+                    Url = "/portal/supplier/rfqs",
+                    Color = "info",
+                    Description = "Check new RFQ requests"
+                });
+            }
+
+            if (roles.Contains("Buyer"))
+            {
+                actions.Add(new QuickAction
+                {
+                    Title = "Search Products",
+                    Icon = "Search",
+                    Url = "/portal/buyer/ai-search",
+                    Color = "primary",
+                    Description = "Find products using AI search"
+                });
+                actions.Add(new QuickAction
+                {
+                    Title = "Create RFQ",
+                    Icon = "Add",
+                    Url = "/portal/buyer/rfq/new",
+                    Color = "success",
+                    Description = "Request quotes from suppliers"
+                });
+            }
+
+            return actions;
         }
     }
 }

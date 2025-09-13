@@ -1,7 +1,12 @@
 @page "/portal/supplier/products/import"
 @using Microsoft.AspNetCore.Authorization
+@using FoodX.Admin.Services
+@using FoodX.Admin.Models
 @attribute [Authorize(Roles = "SuperAdmin,Admin,Supplier")]
 @inject ISnackbar Snackbar
+@inject ICsvImportService CsvImportService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JSRuntime
 @rendermode InteractiveServer
 
 <PageTitle>Import Products - FoodX Supplier Portal</PageTitle>
@@ -114,18 +119,18 @@
         </MudItem>
 
         <!-- Import Results -->
-        @if (_importResults.Any())
+        @if (_importSummary != null)
         {
             <MudItem xs="12">
                 <MudPaper Class="pa-4" Elevation="2">
-                    <MudText Typo="Typo.h6" Class="mb-4">Import Results</MudText>
+                    <MudText Typo="Typo.h6" Class="mb-4">Import Results - @_importSummary.ImportType</MudText>
                     
                     <MudGrid>
                         <MudItem xs="12" sm="3">
                             <MudCard>
                                 <MudCardContent>
                                     <MudText Typo="Typo.caption">Total Records</MudText>
-                                    <MudText Typo="Typo.h4">@_importResults.Count</MudText>
+                                    <MudText Typo="Typo.h4">@_importSummary.TotalRecords</MudText>
                                 </MudCardContent>
                             </MudCard>
                         </MudItem>
@@ -134,7 +139,7 @@
                             <MudCard>
                                 <MudCardContent>
                                     <MudText Typo="Typo.caption">Successful</MudText>
-                                    <MudText Typo="Typo.h4" Color="Color.Success">@_importResults.Count(r => r.IsSuccess)</MudText>
+                                    <MudText Typo="Typo.h4" Color="Color.Success">@_importSummary.SuccessfulRecords</MudText>
                                 </MudCardContent>
                             </MudCard>
                         </MudItem>
@@ -143,7 +148,7 @@
                             <MudCard>
                                 <MudCardContent>
                                     <MudText Typo="Typo.caption">Failed</MudText>
-                                    <MudText Typo="Typo.h4" Color="Color.Error">@_importResults.Count(r => !r.IsSuccess)</MudText>
+                                    <MudText Typo="Typo.h4" Color="Color.Error">@_importSummary.FailedRecords</MudText>
                                 </MudCardContent>
                             </MudCard>
                         </MudItem>
@@ -152,44 +157,75 @@
                             <MudCard>
                                 <MudCardContent>
                                     <MudText Typo="Typo.caption">Warnings</MudText>
-                                    <MudText Typo="Typo.h4" Color="Color.Warning">@_importResults.Count(r => r.HasWarnings)</MudText>
+                                    <MudText Typo="Typo.h4" Color="Color.Warning">@_importSummary.WarningRecords</MudText>
                                 </MudCardContent>
                             </MudCard>
                         </MudItem>
                     </MudGrid>
+
+                    <MudText Typo="Typo.body2" Class="mt-4 mb-2">
+                        Processing Time: @_importSummary.ProcessingTime.TotalSeconds.ToString("F2") seconds
+                    </MudText>
                     
-                    <MudTable Items="@_importResults" Hover="true" Dense="true" Class="mt-4">
-                        <HeaderContent>
-                            <MudTh>Row</MudTh>
-                            <MudTh>Product Name</MudTh>
-                            <MudTh>SKU</MudTh>
-                            <MudTh>Status</MudTh>
-                            <MudTh>Message</MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd>@context.RowNumber</MudTd>
-                            <MudTd>@context.ProductName</MudTd>
-                            <MudTd>@context.Sku</MudTd>
-                            <MudTd>
-                                <MudChip T="string" Size="Size.Small" Color="@(context.IsSuccess ? Color.Success : Color.Error)">
-                                    @(context.IsSuccess ? "Success" : "Failed")
-                                </MudChip>
-                            </MudTd>
-                            <MudTd>
-                                <MudText Typo="Typo.body2" Color="@(context.IsSuccess ? Color.Success : Color.Error)">
-                                    @context.Message
-                                </MudText>
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
+                    @if (_importSummary.Results.Any())
+                    {
+                        <MudTable Items="@_importSummary.Results" Hover="true" Dense="true" Class="mt-4" Height="400px" FixedHeader="true">
+                            <HeaderContent>
+                                <MudTh>Row</MudTh>
+                                <MudTh>Status</MudTh>
+                                <MudTh>Message</MudTh>
+                                <MudTh>Errors</MudTh>
+                                <MudTh>Warnings</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.RowNumber</MudTd>
+                                <MudTd>
+                                    <MudChip T="string" Size="Size.Small" Color="@(context.IsSuccess ? Color.Success : Color.Error)">
+                                        @(context.IsSuccess ? "Success" : "Failed")
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd>
+                                    <MudText Typo="Typo.body2" Color="@(context.IsSuccess ? Color.Success : Color.Error)">
+                                        @context.Message
+                                    </MudText>
+                                </MudTd>
+                                <MudTd>
+                                    @if (context.Errors.Any())
+                                    {
+                                        <MudList T="string" Dense="true">
+                                            @foreach (var error in context.Errors)
+                                            {
+                                                <MudListItem T="string">
+                                                    <MudText Typo="Typo.caption" Color="Color.Error">@error</MudText>
+                                                </MudListItem>
+                                            }
+                                        </MudList>
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    @if (context.Warnings.Any())
+                                    {
+                                        <MudList T="string" Dense="true">
+                                            @foreach (var warning in context.Warnings)
+                                            {
+                                                <MudListItem T="string">
+                                                    <MudText Typo="Typo.caption" Color="Color.Warning">@warning</MudText>
+                                                </MudListItem>
+                                            }
+                                        </MudList>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
                     
                     <div class="mt-4">
                         <MudButton Variant="Variant.Filled" 
                                    Color="Color.Primary" 
                                    StartIcon="@Icons.Material.Filled.Check"
                                    OnClick="ConfirmImport"
-                                   Disabled="@(!_importResults.Any(r => r.IsSuccess))">
-                            Confirm Import (@_importResults.Count(r => r.IsSuccess) products)
+                                   Disabled="@(_importSummary.SuccessfulRecords == 0)">
+                            Confirm Import (@_importSummary.SuccessfulRecords products)
                         </MudButton>
                         <MudButton Variant="Variant.Text" 
                                    Color="Color.Secondary" 
@@ -241,8 +277,9 @@
 @code {
     private IBrowserFile? _selectedFile;
     private bool _isUploading = false;
-    private List<ImportResult> _importResults = new();
+    private ImportSummary? _importSummary;
     private List<ImportHistoryItem> _importHistory = new();
+    private string _currentUserId = "";
     
     private List<BreadcrumbItem> _breadcrumbs = new List<BreadcrumbItem>
     {
@@ -251,9 +288,16 @@
         new BreadcrumbItem("Import Products", href: null, disabled: true)
     };
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        LoadImportHistory();
+        await LoadCurrentUser();
+        await LoadImportHistory();
+    }
+
+    private async Task LoadCurrentUser()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _currentUserId = authState.User?.Identity?.Name ?? "Anonymous";
     }
 
     private void OnInputFileChanged(IBrowserFile file)
@@ -267,28 +311,32 @@
         if (_selectedFile == null) return;
 
         _isUploading = true;
-        _importResults.Clear();
+        _importSummary = null;
 
         try
         {
-            // Simulate file processing
-            await Task.Delay(3000);
+            using var stream = _selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB limit
             
-            // Mock import results
-            _importResults = new List<ImportResult>
+            var settings = new ImportValidationSettings
             {
-                new ImportResult { RowNumber = 1, ProductName = "Organic Milk", Sku = "MILK-001", IsSuccess = true, Message = "Product imported successfully" },
-                new ImportResult { RowNumber = 2, ProductName = "Free Range Eggs", Sku = "EGG-002", IsSuccess = true, Message = "Product imported successfully", HasWarnings = true },
-                new ImportResult { RowNumber = 3, ProductName = "Fresh Bread", Sku = "", IsSuccess = false, Message = "SKU is required" },
-                new ImportResult { RowNumber = 4, ProductName = "Cheddar Cheese", Sku = "CHE-003", IsSuccess = true, Message = "Product imported successfully" },
-                new ImportResult { RowNumber = 5, ProductName = "", Sku = "VEG-004", IsSuccess = false, Message = "Product name is required" },
+                AllowDuplicates = false,
+                ValidateReferences = true,
+                PreviewMode = true, // First run as preview
+                MaxRecords = 1000
             };
             
-            Snackbar.Add($"Import completed: {_importResults.Count(r => r.IsSuccess)} successful, {_importResults.Count(r => !r.IsSuccess)} failed");
+            _importSummary = await CsvImportService.ImportProductsAsync(stream, _selectedFile.Name, _currentUserId, null, settings);
+            
+            var successCount = _importSummary.SuccessfulRecords;
+            var failCount = _importSummary.FailedRecords;
+            var warnCount = _importSummary.WarningRecords;
+            
+            Snackbar.Add($"Import preview completed: {successCount} successful, {failCount} failed, {warnCount} warnings", 
+                failCount > 0 ? Severity.Warning : Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Import failed: {ex.Message}");
+            Snackbar.Add($"Import failed: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -298,74 +346,119 @@
 
     private async Task ConfirmImport()
     {
-        // Simulate confirmation
-        await Task.Delay(1000);
-        
-        var successfulCount = _importResults.Count(r => r.IsSuccess);
-        
-        // Add to history
-        _importHistory.Insert(0, new ImportHistoryItem
+        if (_selectedFile == null || _importSummary == null) return;
+
+        _isUploading = true;
+
+        try
         {
-            ImportDate = DateTime.Now,
-            Filename = _selectedFile?.Name ?? "Unknown",
-            TotalRecords = _importResults.Count,
-            SuccessfulRecords = successfulCount,
-            FailedRecords = _importResults.Count - successfulCount,
-            Status = "Completed"
-        });
-        
-        Snackbar.Add($"Successfully imported {successfulCount} products!");
-        ClearResults();
-        _selectedFile = null;
+            using var stream = _selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            
+            var settings = new ImportValidationSettings
+            {
+                AllowDuplicates = false,
+                ValidateReferences = true,
+                PreviewMode = false, // Actual import
+                MaxRecords = 1000
+            };
+            
+            var finalSummary = await CsvImportService.ImportProductsAsync(stream, _selectedFile.Name, _currentUserId, null, settings);
+            
+            // Add to history
+            _importHistory.Insert(0, new ImportHistoryItem
+            {
+                Id = _importHistory.Count + 1,
+                ImportDate = finalSummary.ImportDate,
+                Filename = finalSummary.Filename,
+                ImportType = finalSummary.ImportType,
+                TotalRecords = finalSummary.TotalRecords,
+                SuccessfulRecords = finalSummary.SuccessfulRecords,
+                FailedRecords = finalSummary.FailedRecords,
+                WarningRecords = finalSummary.WarningRecords,
+                Status = finalSummary.FailedRecords > 0 ? "Completed with Errors" : "Completed",
+                ImportedBy = _currentUserId,
+                ProcessingTime = finalSummary.ProcessingTime
+            });
+            
+            Snackbar.Add($"Successfully imported {finalSummary.SuccessfulRecords} products!", Severity.Success);
+            ClearResults();
+            _selectedFile = null;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Import confirmation failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUploading = false;
+        }
     }
 
     private void ClearResults()
     {
-        _importResults.Clear();
+        _importSummary = null;
     }
 
-    private void DownloadTemplate()
+    private async Task DownloadTemplate()
     {
-        // In real implementation, generate and download CSV template
-        Snackbar.Add("Template download started");
+        try
+        {
+            var templateBytes = await CsvImportService.GenerateTemplateAsync(ImportDataType.Products);
+            
+            // Download the template
+            var fileName = "product_import_template.csv";
+            var base64 = Convert.ToBase64String(templateBytes);
+            var dataUrl = $"data:text/csv;base64,{base64}";
+            
+            await JSRuntime.InvokeVoidAsync("downloadFileFromUrl", dataUrl, fileName);
+            Snackbar.Add("Template download started", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Template download failed: {ex.Message}", Severity.Error);
+        }
     }
 
-    private void LoadImportHistory()
+    private async Task LoadImportHistory()
     {
-        // Mock import history
+        // For now, use mock data. In real implementation, load from database
         _importHistory = new List<ImportHistoryItem>
         {
-            new ImportHistoryItem { ImportDate = DateTime.Now.AddDays(-2), Filename = "products_batch_1.csv", TotalRecords = 45, SuccessfulRecords = 43, FailedRecords = 2, Status = "Completed" },
-            new ImportHistoryItem { ImportDate = DateTime.Now.AddDays(-7), Filename = "seasonal_products.xlsx", TotalRecords = 28, SuccessfulRecords = 28, FailedRecords = 0, Status = "Completed" },
-            new ImportHistoryItem { ImportDate = DateTime.Now.AddDays(-14), Filename = "dairy_products.csv", TotalRecords = 67, SuccessfulRecords = 60, FailedRecords = 7, Status = "Completed" },
+            new ImportHistoryItem { 
+                Id = 1, 
+                ImportDate = DateTime.Now.AddDays(-2), 
+                Filename = "products_batch_1.csv", 
+                ImportType = "Products",
+                TotalRecords = 45, 
+                SuccessfulRecords = 43, 
+                FailedRecords = 2, 
+                WarningRecords = 0,
+                Status = "Completed with Errors",
+                ImportedBy = _currentUserId,
+                ProcessingTime = TimeSpan.FromSeconds(12)
+            },
+            new ImportHistoryItem { 
+                Id = 2,
+                ImportDate = DateTime.Now.AddDays(-7), 
+                Filename = "seasonal_products.csv", 
+                ImportType = "Products",
+                TotalRecords = 28, 
+                SuccessfulRecords = 28, 
+                FailedRecords = 0,
+                WarningRecords = 3,
+                Status = "Completed",
+                ImportedBy = _currentUserId,
+                ProcessingTime = TimeSpan.FromSeconds(8)
+            }
         };
     }
 
     private Color GetStatusColor(string status) => status switch
     {
         "Completed" => Color.Success,
+        "Completed with Errors" => Color.Warning,
         "Processing" => Color.Info,
         "Failed" => Color.Error,
         _ => Color.Default
     };
-
-    private class ImportResult
-    {
-        public int RowNumber { get; set; }
-        public string ProductName { get; set; } = "";
-        public string Sku { get; set; } = "";
-        public bool IsSuccess { get; set; }
-        public bool HasWarnings { get; set; }
-        public string Message { get; set; } = "";
-    }
-
-    private class ImportHistoryItem
-    {
-        public DateTime ImportDate { get; set; }
-        public string Filename { get; set; } = "";
-        public int TotalRecords { get; set; }
-        public int SuccessfulRecords { get; set; }
-        public int FailedRecords { get; set; }
-        public string Status { get; set; } = "";
-    }
 }

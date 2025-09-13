@@ -154,3 +154,36 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }, 500);
 });
+
+// File download utility functions for CSV import
+window.downloadFileFromUrl = function(dataUrl, fileName) {
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+window.downloadCsvTemplate = function(csvContent, fileName) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Clean up the URL object
+    URL.revokeObjectURL(url);
+};
+
+// Helper function to trigger file input click for AI Search
+window.triggerFileInput = function(inputId) {
+    const fileInput = document.getElementById(inputId);
+    if (fileInput) {
+        fileInput.click();
+    }
+};

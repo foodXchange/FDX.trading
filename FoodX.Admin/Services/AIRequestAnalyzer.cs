@@ -76,31 +76,7 @@ namespace FoodX.Admin.Services
         {
             try
             {
-                // Check if any vision API is configured
-                bool hasVisionApi = _useAzureOpenAI || !string.IsNullOrEmpty(_openAiApiKey);
-                
-                if (!hasVisionApi)
-                {
-                    _logger.LogWarning("No Vision API configured. Returning demo analysis for UI display.");
-                    
-                    // Return a demo response with proper structure
-                    return new ProductAnalysis
-                    {
-                        ProductIdentification = new ProductIdentification
-                        {
-                            DetectedProduct = "Vision API not configured",
-                            Confidence = 0.0,
-                            GenericName = "Please use text-based search instead"
-                        },
-                        DetailedDescription = new DetailedDescription
-                        {
-                            Summary = "Image analysis requires OpenAI or Azure Vision API configuration.",
-                            KeyCharacteristics = new List<string> { "Use text search", "Or paste product URLs" }
-                        }
-                    };
-                }
-
-                _logger.LogInformation("Analyzing image request with GPT-4 Vision");
+                _logger.LogInformation("Analyzing image request with Azure OpenAI GPT-4 Vision");
 
                 // Convert image to base64 for GPT-4 Vision
                 var base64Image = Convert.ToBase64String(imageData);
@@ -111,7 +87,19 @@ namespace FoodX.Admin.Services
 
                 if (!string.IsNullOrEmpty(analysisJson))
                 {
-                    var analysis = JsonSerializer.Deserialize<ProductAnalysis>(analysisJson);
+                    // Clean the response before parsing
+                    analysisJson = CleanJsonResponse(analysisJson);
+                    
+                    // Log the cleaned JSON for debugging
+                    _logger.LogInformation($"Cleaned JSON response (first 1000 chars): {analysisJson.Substring(0, Math.Min(1000, analysisJson.Length))}");
+                    
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                    };
+                    
+                    var analysis = JsonSerializer.Deserialize<ProductAnalysis>(analysisJson, options);
                     if (analysis != null)
                     {
                         _logger.LogInformation("Successfully analyzed image with GPT-4 Vision");
@@ -173,51 +161,159 @@ namespace FoodX.Admin.Services
             }
         }
 
+        private string CleanJsonResponse(string response)
+        {
+            if (string.IsNullOrWhiteSpace(response))
+                return "{}";
+            
+            // Remove markdown code blocks
+            if (response.Contains("```"))
+            {
+                // Extract JSON content from markdown code blocks
+                var startIndex = response.IndexOf("```json");
+                if (startIndex >= 0)
+                {
+                    startIndex += 7; // Move past ```json
+                    var endIndex = response.IndexOf("```", startIndex);
+                    if (endIndex > startIndex)
+                    {
+                        response = response.Substring(startIndex, endIndex - startIndex).Trim();
+                    }
+                }
+                else
+                {
+                    // Try without json marker
+                    startIndex = response.IndexOf("```");
+                    if (startIndex >= 0)
+                    {
+                        startIndex += 3; // Move past ```
+                        var endIndex = response.IndexOf("```", startIndex);
+                        if (endIndex > startIndex)
+                        {
+                            response = response.Substring(startIndex, endIndex - startIndex).Trim();
+                        }
+                    }
+                }
+            }
+            
+            // Ensure it's valid JSON
+            response = response.Trim();
+            if (!response.StartsWith("{") && !response.StartsWith("["))
+            {
+                // If it's not JSON, wrap it or return empty object
+                _logger.LogWarning($"Response doesn't look like JSON: {response.Substring(0, Math.Min(100, response.Length))}");
+                return "{}";
+            }
+            
+            return response;
+        }
+
         private string GenerateImageAnalysisPrompt(string extractedText = "")
         {
             return $@"
-Analyze this product image and extract EVERY visible detail from the packaging.
+Analyze this food product image with EXTREME precision and extract every detail visible on the packaging.
 {(string.IsNullOrEmpty(extractedText) ? "" : $"Additional context: {extractedText}")}
 
-Provide EXHAUSTIVE analysis in JSON format including:
+You must return a valid JSON response matching the ProductAnalysis schema with these exact fields:
 
-1. Extract ALL visible text including:
-   - Product name (exact spelling)
-   - Brand name and logo
-   - Net weight/volume (ALL units shown)
-   - Ingredients list (complete)
-   - Nutritional information (all values)
-   - Manufacturer details and website
-   - Certifications (Kosher, Halal, etc.)
-   - Barcodes and product codes
-   - Marketing text (""Original"", ""4x"", etc.)
-   - Languages used on package
-   - Any warnings or instructions
+{{
+  ""productIdentification"": {{
+    ""detectedProduct"": ""exact product name visible on package (e.g., 'Oreo Original')"",
+    ""confidence"": 0.95,
+    ""brandReference"": ""brand name (e.g., 'Oreo', 'Nabisco')"",
+    ""genericName"": ""generic product type (e.g., 'sandwich cookies', 'cream-filled cookies')"",
+    ""productVariant"": ""specific variant (e.g., 'Original', 'Double Stuf', 'Golden')""
+  }},
+  ""categoryClassification"": {{
+    ""primaryCategory"": ""main category (e.g., 'Cookies', 'Snacks', 'Biscuits')"",
+    ""secondaryCategory"": ""sub-category (e.g., 'Sandwich Cookies', 'Cream Cookies')"",
+    ""marketSegment"": ""target market (e.g., 'Consumer', 'Retail', 'Food Service')""
+  }},
+  ""packagingDetails"": {{
+    ""packageType"": ""type of packaging (e.g., 'Box', 'Pack', 'Wrapper')"",
+    ""material"": ""packaging material (e.g., 'Cardboard', 'Plastic', 'Paper')"",
+    ""netWeight"": ""weight shown (e.g., '176g', '6.2oz')"",
+    ""unitsPerPackage"": ""number of units (e.g., '4 packs', '16 cookies')"",
+    ""servingSize"": ""serving size from nutrition label"",
+    ""servingsPerContainer"": ""number of servings""
+  }},
+  ""labelingInformation"": {{
+    ""ingredients"": [""list"", ""all"", ""ingredients"", ""visible""],
+    ""allergens"": [""wheat"", ""soy"", ""milk"", ""eggs"", ""nuts""],
+    ""nutritionalInfo"": {{
+      ""calories"": ""per serving"",
+      ""fat"": ""grams"",
+      ""sugar"": ""grams"",
+      ""protein"": ""grams""
+    }},
+    ""manufacturerInfo"": ""company name and location"",
+    ""countryOfOrigin"": ""manufacturing country if visible"",
+    ""bestBeforeDate"": ""expiry or best before date format"",
+    ""barcodes"": [""barcode numbers if visible""]
+  }},
+  ""productAttributes"": {{
+    ""isKosher"": true/false,
+    ""kosherCertification"": ""certification symbol (OU, OK, Star-K, etc.)"",
+    ""isHalal"": true/false,
+    ""halalCertification"": ""certification body if visible"",
+    ""isOrganic"": true/false,
+    ""organicCertification"": ""USDA Organic, EU Organic, etc."",
+    ""isGlutenFree"": true/false,
+    ""isVegan"": true/false,
+    ""isVegetarian"": true/false,
+    ""containsNuts"": true/false,
+    ""containsDairy"": true/false,
+    ""isSugarFree"": false,
+    ""isLactoseFree"": false,
+    ""otherCertifications"": [""list any other certifications""]
+  }},
+  ""visualElements"": {{
+    ""dominantColors"": [""blue"", ""white"", ""brown""],
+    ""logoPresent"": true/false,
+    ""productImageShown"": true/false,
+    ""designStyle"": ""modern, traditional, minimalist, etc.""
+  }},
+  ""detailedDescription"": {{
+    ""summary"": ""Brief description of what you see (e.g., 'Oreo Original cookies in a blue package showing 4 individual packs')"",
+    ""keyCharacteristics"": [
+      ""Chocolate sandwich cookies"",
+      ""Cream filling"",
+      ""Multi-pack format"",
+      ""Hebrew text indicates Israeli market""
+    ],
+    ""targetMarket"": ""intended market based on language and labeling"",
+    ""qualityIndicators"": [""premium"", ""standard"", ""economy""],
+    ""shelfLife"": ""estimated shelf life based on product type""
+  }},
+  ""marketingClaims"": {{
+    ""claims"": [""Original"", ""4x packs"", ""any other marketing text""],
+    ""promotions"": ""any promotional text or offers"",
+    ""brandSlogans"": ""any slogans or taglines visible""
+  }},
+  ""supplierSearchTerms"": {{
+    ""recommendedSearchTerms"": [
+      ""cookies"",
+      ""sandwich cookies"",
+      ""chocolate cookies"",
+      ""cream-filled cookies"",
+      ""Oreo"",
+      ""biscuits""
+    ],
+    ""supplierCategories"": [
+      ""Cookies & Biscuits"",
+      ""Snack Foods"",
+      ""Confectionery"",
+      ""Bakery Products""
+    ],
+    ""potentialSuppliers"": [
+      ""Cookie manufacturers"",
+      ""Snack distributors"",
+      ""Confectionery suppliers""
+    ]
+  }}
+}}
 
-2. Describe packaging in detail:
-   - Material (cardboard, plastic, etc.)
-   - Shape and structure
-   - Dimensions if visible
-   - Number of units (e.g., ""4x"")
-   - Color scheme
-   - Special features (resealable, window, etc.)
-
-3. Visual elements:
-   - Logo design
-   - Product images
-   - Color palette
-   - Design style
-
-4. Product Attributes (CRITICAL - analyze all text and symbols):
-   - Dietary certifications: Kosher (OU, OK, Star-K symbols), Halal certification
-   - Allergen information: Gluten-free, nut-free, dairy-free claims
-   - Sugar content: Sugar-free, no sugar added, diabetic friendly claims
-   - Nutritional enhancements: Vitamin enriched, protein enriched, fiber added
-   - Dietary preferences: Vegan, vegetarian, plant-based, organic, non-GMO
-   - Special attributes: All natural, no preservatives, no artificial colors/flavors
-
-Return complete JSON with all sections including packagingDetails, labelingInformation, visualElements, and productAttributes.
-Be EXTREMELY specific about measurements, quantities, certifications, and all text visible on the package.";
+CRITICAL: Focus on extracting actual visible text and details from the package. For Hebrew/Arabic text, note the presence but focus on English text and universal symbols. Be extremely accurate with product names, weights, and certifications visible on the package.";
         }
 
         public async Task<ProductAnalysis> AnalyzeUrlRequest(string url)
@@ -393,7 +489,18 @@ Be EXTREMELY specific about measurements, quantities, certifications, and all te
                 if (response.Value != null && response.Value.Content.Count > 0)
                 {
                     _logger.LogInformation("Successfully received response from Azure OpenAI Vision");
-                    return response.Value.Content[0].Text ?? "{}";
+                    var responseText = response.Value.Content[0].Text ?? "{}";
+                    
+                    // Log the raw response for debugging
+                    _logger.LogInformation($"Raw response from Azure OpenAI (first 500 chars): {responseText.Substring(0, Math.Min(500, responseText.Length))}");
+                    
+                    // Clean the response - remove markdown code blocks if present
+                    responseText = CleanJsonResponse(responseText);
+                    
+                    // Log the cleaned response
+                    _logger.LogInformation($"Cleaned JSON response (first 500 chars): {responseText.Substring(0, Math.Min(500, responseText.Length))}");
+                    
+                    return responseText;
                 }
             }
             catch (Exception ex)

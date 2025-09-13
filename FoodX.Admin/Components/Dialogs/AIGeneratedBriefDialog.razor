@@ -2,9 +2,12 @@
 @using FoodX.Admin.Data
 @using Microsoft.EntityFrameworkCore
 @using MudBlazor
+@using System.Net.Http.Json
 @inject FoodXDbContext DbContext
 @inject ILogger<AIGeneratedBriefDialog> Logger
 @inject ISnackbar Snackbar
+@inject HttpClient HttpClient
+@inject NavigationManager Navigation
 
 <MudDialog>
     <DialogContent>
@@ -41,15 +44,6 @@
                             }
                         </MudAlert>
                         
-                        <MudDivider Class="my-3" />
-                        
-                        <MudText Typo="Typo.subtitle2" Class="mb-2">AI-Generated Description:</MudText>
-                        <MudPaper Elevation="0" Class="pa-3 mud-background-gray" Style="background-color: #f5f5f5;">
-                            <MudText Typo="Typo.body2">
-                                @(Analysis.DetailedDescription?.Summary ?? "No detailed description available")
-                            </MudText>
-                        </MudPaper>
-                        
                         @if (Analysis.DetailedDescription?.KeyCharacteristics?.Any() == true)
                         {
                             <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2">Key Features:</MudText>
@@ -82,24 +76,65 @@
             <MudItem xs="12" md="7">
                 <MudPaper Elevation="2" Class="pa-4">
                     <MudText Typo="Typo.h6" Class="mb-3">
-                        <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" />
-                        Edit Product Brief
+                        <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" />
+                        Product Information & Requirements
                     </MudText>
                     
+                    <!-- AI Generated Description Display -->
+                    @if (!string.IsNullOrWhiteSpace(Analysis?.DetailedDescription?.Summary))
+                    {
+                        <MudPaper Elevation="1" Class="pa-3 mb-4" Style="background-color: #e3f2fd;">
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Psychology" Size="Size.Small" Class="mr-1" />
+                                AI-Generated Product Description
+                            </MudText>
+                            <MudText Typo="Typo.body1" Class="mb-2">
+                                @Analysis.DetailedDescription.Summary
+                            </MudText>
+                            @if (Analysis.DetailedDescription.KeyCharacteristics?.Any() == true)
+                            {
+                                <MudDivider Class="my-2" />
+                                <MudText Typo="Typo.subtitle2" Class="mb-1">Key Characteristics:</MudText>
+                                <MudChipSet T="string">
+                                    @foreach (var characteristic in Analysis.DetailedDescription.KeyCharacteristics)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text">
+                                            @characteristic
+                                        </MudChip>
+                                    }
+                                </MudChipSet>
+                            }
+                        </MudPaper>
+                    }
+                    
                     <MudForm @ref="form" @bind-IsValid="@success" @bind-Errors="@errors">
-                        <MudTextField @bind-Value="Brief.Title" Label="Brief Title" Required="true" 
-                                    RequiredError="Brief title is required" Variant="Variant.Outlined"
-                                    HelperText="You can modify the auto-generated title" Class="mb-3" />
-                        
-                        <MudTextField @bind-Value="Brief.ProductName" Label="Product Name" Required="true"
-                                    RequiredError="Product name is required" Variant="Variant.Outlined"
-                                    HelperText="Edit if the AI detection needs correction" Class="mb-3" />
-                        
-                        <MudTextField @bind-Value="Brief.Description" Label="Description" 
-                                    Lines="3" Variant="Variant.Outlined"
-                                    HelperText="Add any additional context or requirements" Class="mb-3" />
-                        
                         <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="Brief.ProductName" Label="Product Name" Required="true"
+                                            RequiredError="Product name is required" Variant="Variant.Outlined"
+                                            HelperText="Verified product name" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="Brief.Title" Label="Brief Title" Required="true" 
+                                            RequiredError="Brief title is required" Variant="Variant.Outlined"
+                                            HelperText="Title for this request" />
+                            </MudItem>
+                        </MudGrid>
+                        
+                        <!-- Buyer's Additional Notes Section -->
+                        <MudPaper Elevation="0" Class="pa-3 mt-3 mb-3" Style="background-color: #fff3e0; border: 1px dashed #ff9800;">
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">
+                                <MudIcon Icon="@Icons.Material.Filled.NoteAdd" Size="Size.Small" Class="mr-1" Color="Color.Warning" />
+                                Buyer's Additional Requirements & Notes
+                            </MudText>
+                            <MudTextField @bind-Value="Brief.Description" 
+                                        Label="Add your specific requirements, preferences, or additional details" 
+                                        Lines="4" Variant="Variant.Outlined"
+                                        Placeholder="Example: We need this product in bulk packaging of 25kg bags. Prefer suppliers from EU region. Must have ISO certification..."
+                                        HelperText="This will be included in your RFQ to suppliers" />
+                        </MudPaper>
+                        
+                        <MudGrid Class="mt-3">
                             <MudItem xs="12" md="6">
                                 <MudTextField @bind-Value="Brief.Category" Label="Category" Required="true"
                                             RequiredError="Category is required" Variant="Variant.Outlined" />
@@ -164,11 +199,21 @@
                         }
                         
                         
-                        @if (!success)
+                        @if (!success || errors.Any())
                         {
-                            <MudPaper Class="pa-3 mt-3" Elevation="0" Style="background-color: #ffebee;">
-                                <MudText Color="Color.Error" Typo="Typo.body2">Please fill in all required fields</MudText>
-                            </MudPaper>
+                            <MudAlert Severity="Severity.Error" Class="mt-3" Icon="@Icons.Material.Filled.Error">
+                                @if (errors.Any())
+                                {
+                                    @foreach (var error in errors)
+                                    {
+                                        <MudText Typo="Typo.body2">@error</MudText>
+                                    }
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2">Please fill in all required fields marked with *</MudText>
+                                }
+                            </MudAlert>
                         }
                     </MudForm>
                 </MudPaper>
@@ -181,9 +226,13 @@
                  StartIcon="@Icons.Material.Filled.AddPhotoAlternate">
             Upload More Images
         </MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAndActivate"
+        <MudButton Color="Color.Info" Variant="Variant.Outlined" OnClick="SaveAndActivate"
                  StartIcon="@Icons.Material.Filled.Save">
-            Save & Activate Brief
+            Save as Brief
+        </MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAsRFQ"
+                 StartIcon="@Icons.Material.Filled.RequestQuote">
+            Save as RFQ
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -235,28 +284,109 @@
     private async Task SaveAndActivate()
     {
         await form.Validate();
-        
-        // Basic validation for product identification
+
+        // Collect all missing required fields
+        var missingFields = new List<string>();
+
+        // Check required fields and collect missing ones
+        if (string.IsNullOrWhiteSpace(Brief.Title))
+        {
+            missingFields.Add("Brief Title");
+        }
+
         if (string.IsNullOrWhiteSpace(Brief.ProductName))
         {
-            Snackbar.Add("Product name is required", Severity.Warning);
-            return;
+            missingFields.Add("Product Name");
         }
-        
+
         if (string.IsNullOrWhiteSpace(Brief.Category))
         {
-            Snackbar.Add("Category is required", Severity.Warning);
-            return;
+            missingFields.Add("Category");
         }
-        
-        // Set default quantity for product identification briefs
+
         if (string.IsNullOrWhiteSpace(Brief.QuantityNeeded))
         {
+            // Set default quantity for product identification briefs
             Brief.QuantityNeeded = "To be determined";
         }
-        
-        Brief.UpdatedAt = DateTime.UtcNow;
-        MudDialog.Close(DialogResult.Ok(Brief));
+
+        // If there are missing fields, show specific error message
+        if (missingFields.Any())
+        {
+            var fieldsList = string.Join(", ", missingFields);
+            Snackbar.Add($"Please fill in the following required fields: {fieldsList}", Severity.Warning, config =>
+            {
+                config.VisibleStateDuration = 5000;
+                config.ShowCloseIcon = true;
+            });
+
+            // Also update the error message in the form
+            errors = new[] { $"Required fields missing: {fieldsList}" };
+            StateHasChanged();
+            return;
+        }
+
+        // Save the brief and automatically create RFQ
+        try
+        {
+            // First save the brief to database
+            Brief.Status = "Active";
+            Brief.UpdatedAt = DateTime.UtcNow;
+
+            if (Brief.Id == 0)
+            {
+                DbContext.AIRequestBriefs.Add(Brief);
+            }
+            else
+            {
+                DbContext.Update(Brief);
+            }
+
+            await DbContext.SaveChangesAsync();
+
+            // Now automatically create RFQ from the brief
+            var response = await HttpClient.PostAsync($"/api/rfq/create-from-brief/{Brief.Id}", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<RFQCreationResult>();
+
+                if (result != null && result.Success)
+                {
+                    // Return the brief and RFQ information
+                    var briefToRfqResult = new BriefToRFQResult
+                    {
+                        Brief = Brief,
+                        RFQId = result.RfqId,
+                        RFQNumber = result.RfqNumber
+                    };
+
+                    MudDialog.Close(DialogResult.Ok(briefToRfqResult));
+
+                    // Navigate to the newly created RFQ
+                    Navigation.NavigateTo($"/rfq/{result.RfqId}");
+                }
+                else
+                {
+                    // If RFQ creation failed, still return the brief
+                    Snackbar.Add("Brief saved but RFQ creation failed. You can create it manually.", Severity.Warning);
+                    MudDialog.Close(DialogResult.Ok(Brief));
+                }
+            }
+            else
+            {
+                // If RFQ creation failed, still return the brief
+                var error = await response.Content.ReadAsStringAsync();
+                Logger.LogError($"Failed to create RFQ: {error}");
+                Snackbar.Add("Brief saved but RFQ creation failed. You can create it manually.", Severity.Warning);
+                MudDialog.Close(DialogResult.Ok(Brief));
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving brief and creating RFQ");
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
     }
     
     private void UploadMoreImages()
@@ -267,5 +397,108 @@
     private void Cancel()
     {
         MudDialog.Cancel();
+    }
+
+    private async Task SaveAsRFQ()
+    {
+        await form.Validate();
+
+        // Validate required fields
+        var missingFields = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(Brief.Title))
+            missingFields.Add("Brief Title");
+
+        if (string.IsNullOrWhiteSpace(Brief.ProductName))
+            missingFields.Add("Product Name");
+
+        if (string.IsNullOrWhiteSpace(Brief.Category))
+            missingFields.Add("Category");
+
+        if (string.IsNullOrWhiteSpace(Brief.QuantityNeeded))
+            missingFields.Add("Quantity");
+
+        if (missingFields.Any())
+        {
+            var fieldsList = string.Join(", ", missingFields);
+            Snackbar.Add($"Please fill in required fields: {fieldsList}", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            // First save the brief to database
+            Brief.Status = "Active";
+            Brief.UpdatedAt = DateTime.UtcNow;
+
+            if (Brief.Id == 0)
+            {
+                DbContext.AIRequestBriefs.Add(Brief);
+            }
+            else
+            {
+                DbContext.Update(Brief);
+            }
+
+            await DbContext.SaveChangesAsync();
+
+            // Now create RFQ from the brief
+            var response = await HttpClient.PostAsync($"/api/rfq/create-from-brief/{Brief.Id}", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<RFQCreationResult>();
+
+                if (result != null && result.Success)
+                {
+                    Snackbar.Add($"RFQ {result.RfqNumber} created successfully!", Severity.Success);
+
+                    // Close dialog with RFQ result
+                    MudDialog.Close(DialogResult.Ok(new BriefToRFQResult
+                    {
+                        Brief = Brief,
+                        RFQId = result.RfqId,
+                        RFQNumber = result.RfqNumber,
+                        IsRFQ = true
+                    }));
+
+                    // Navigate to RFQ details page
+                    Navigation.NavigateTo($"/rfq/{result.RfqId}");
+                }
+                else
+                {
+                    Snackbar.Add("Failed to create RFQ. Please try again.", Severity.Error);
+                }
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Logger.LogError($"Failed to create RFQ: {error}");
+                Snackbar.Add($"Error creating RFQ: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving brief as RFQ");
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // Response classes
+    private class RFQCreationResult
+    {
+        public bool Success { get; set; }
+        public int RfqId { get; set; }
+        public string RfqNumber { get; set; } = "";
+        public int BuyerId { get; set; }
+        public string Message { get; set; } = "";
+    }
+
+    public class BriefToRFQResult
+    {
+        public AIRequestBrief Brief { get; set; } = new();
+        public int RFQId { get; set; }
+        public string RFQNumber { get; set; } = "";
+        public bool IsRFQ { get; set; }
     }
 }

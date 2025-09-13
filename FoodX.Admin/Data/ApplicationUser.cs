@@ -8,6 +8,8 @@ public class ApplicationUser : IdentityUser
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
     public string? CompanyName { get; set; }
+    public string? Company => CompanyName; // Alias for compatibility
+    public string? ContactEmail => Email; // Alias for compatibility
     public string? Department { get; set; }
     public string? JobTitle { get; set; }
     public string? Country { get; set; } // Country code (e.g., "US", "IL", "GB")

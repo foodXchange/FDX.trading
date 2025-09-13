@@ -46,6 +46,9 @@ namespace FoodX.Admin.Models
         [NotMapped]
         public string FullName => $"{Title} {FirstName} {LastName}".Trim();
 
+        [NotMapped]
+        public string? Company => CompanyName; // Alias for compatibility
+
         // Navigation properties
         public ICollection<UserEmployment> UserEmployments { get; } = [];
         public ICollection<UserPhone> UserPhones { get; } = [];

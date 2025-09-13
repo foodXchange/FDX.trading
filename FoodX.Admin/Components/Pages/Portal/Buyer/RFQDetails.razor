@@ -1,7 +1,9 @@
 @page "/portal/buyer/rfq/{RfqId}"
 @using Microsoft.AspNetCore.Authorization
+@using FoodX.Admin.Components.Dialogs
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @attribute [Authorize(Roles = "SuperAdmin,Admin,Buyer")]
 @rendermode InteractiveServer
 
@@ -283,10 +285,81 @@
         // Navigate to order creation or show confirmation dialog
     }
     
-    private void ViewSupplier(QuoteResponse quote)
+    private async void ViewSupplier(QuoteResponse quote)
     {
-        // Navigate to supplier profile
-        Snackbar.Add($"Viewing supplier: {quote.SupplierName}", Severity.Info);
+        var parameters = new DialogParameters<SupplierDetailsDialog>
+        {
+            { x => x.Supplier, GetSupplierDetails(quote) }
+        };
+        
+        var options = new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<SupplierDetailsDialog>($"Supplier Details - {quote.SupplierName}", parameters, options);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled && result.Data is bool contactSupplier && contactSupplier)
+        {
+            // Handle contact supplier action
+            Snackbar.Add($"Opening communication channel with {quote.SupplierName}", Severity.Success);
+        }
+    }
+    
+    private SupplierDetailsDialog.SupplierDetails GetSupplierDetails(QuoteResponse quote)
+    {
+        // Mock supplier details - in production, this would come from database
+        return new SupplierDetailsDialog.SupplierDetails
+        {
+            Name = quote.SupplierName,
+            Rating = quote.SupplierRating,
+            RegistrationNumber = $"REG-{Random.Shared.Next(100000, 999999)}",
+            EstablishedYear = Random.Shared.Next(1990, 2020).ToString(),
+            Location = quote.SupplierName switch
+            {
+                "Fresh Farms Ltd" => "California, USA",
+                "Green Valley Produce" => "Ontario, Canada",
+                "Nature's Best" => "Texas, USA",
+                "Mediterranean Oils" => "Tuscany, Italy",
+                _ => "New York, USA"
+            },
+            CompanySize = quote.SupplierName switch
+            {
+                "Fresh Farms Ltd" => "50-200 employees",
+                "Green Valley Produce" => "10-50 employees",
+                _ => "200+ employees"
+            },
+            Email = $"sales@{quote.SupplierName.Replace(" ", "").ToLower()}.com",
+            Phone = $"+1 555-{Random.Shared.Next(100, 999)}-{Random.Shared.Next(1000, 9999)}",
+            Website = $"https://www.{quote.SupplierName.Replace(" ", "").ToLower()}.com",
+            ContactPerson = quote.SupplierName switch
+            {
+                "Fresh Farms Ltd" => "John Smith",
+                "Green Valley Produce" => "Sarah Johnson",
+                "Nature's Best" => "Michael Brown",
+                _ => "David Wilson"
+            },
+            Categories = quote.SupplierName switch
+            {
+                "Fresh Farms Ltd" => new List<string> { "Organic Vegetables", "Fresh Fruits", "Herbs" },
+                "Green Valley Produce" => new List<string> { "Vegetables", "Dairy", "Local Produce" },
+                "Mediterranean Oils" => new List<string> { "Olive Oil", "Specialty Oils", "Vinegars" },
+                _ => new List<string> { "General Produce", "Organic", "Specialty Items" }
+            },
+            Certifications = quote.SupplierName switch
+            {
+                "Fresh Farms Ltd" => new List<string> { "USDA Organic", "GlobalGAP", "ISO 9001", "Fair Trade" },
+                "Green Valley Produce" => new List<string> { "Canada Organic", "HACCP", "ISO 22000" },
+                _ => new List<string> { "ISO 9001", "HACCP", "FDA Approved" }
+            },
+            CompletedOrders = Random.Shared.Next(50, 500),
+            OnTimeDelivery = Random.Shared.Next(85, 100),
+            ResponseTime = $"{Random.Shared.Next(1, 24)}h",
+            MemberSince = Random.Shared.Next(2018, 2023).ToString()
+        };
     }
     
     private class RFQDetail

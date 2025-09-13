@@ -112,9 +112,9 @@ public class FoodXSupplier
 
     public int? DistanceToSeaPort { get; set; }
 
-    public string? SupplierCode { get; set; }
+    public int? SupplierCode { get; set; }
 
-    public string? SupplierVATNumber { get; set; }
+    public int? SupplierVATNumber { get; set; }
 
     public int? YearFounded { get; set; }
 
@@ -128,9 +128,9 @@ public class FoodXSupplier
 
     public string? ExtractionStatus { get; set; }
 
-    public int? ProductsFound { get; set; }
+    public string? ProductsFound { get; set; }
 
-    public int? BrandsFound { get; set; }
+    public string? BrandsFound { get; set; }
 
     public string? DataSource { get; set; }
 

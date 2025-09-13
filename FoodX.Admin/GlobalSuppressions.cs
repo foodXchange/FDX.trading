@@ -26,3 +26,16 @@ using System.Diagnostics.CodeAnalysis;
 
 // Suppress CA1056 for URL string properties (database compatibility)
 [assembly: SuppressMessage("Design", "CA1056:URI-like properties should not be strings", Justification = "String URLs for database compatibility", Scope = "member", Target = "~P:FoodX.Admin.Models.Company.LogoUrl")]
+
+// Suppress BL0007 for MudBlazor component parameters
+[assembly: SuppressMessage("Usage", "BL0007:Component parameters should be auto properties", Justification = "MudBlazor components", Scope = "namespaceanddescendants", Target = "~N:FoodX.Admin.Components")]
+
+// Suppress CS8618 for nullable references in Entity Framework models
+[assembly: SuppressMessage("Nullable", "CS8618:Non-nullable field must contain a non-null value when exiting constructor", Justification = "Entity Framework models", Scope = "namespaceanddescendants", Target = "~N:FoodX.Admin.Models")]
+[assembly: SuppressMessage("Nullable", "CS8618:Non-nullable field must contain a non-null value when exiting constructor", Justification = "Entity Framework models", Scope = "namespaceanddescendants", Target = "~N:FoodX.Admin.Data")]
+
+// Suppress CS1998 for async methods without await (used for interface compatibility)
+[assembly: SuppressMessage("Async", "CS1998:Async method lacks 'await' operators and will run synchronously", Justification = "Interface implementation", Scope = "namespaceanddescendants", Target = "~N:FoodX.Admin.Services")]
+
+// Suppress CS0162 for unreachable code (used for debugging)
+[assembly: SuppressMessage("Code Quality", "CS0162:Unreachable code detected", Justification = "Debugging code", Scope = "namespaceanddescendants", Target = "~N:FoodX.Admin")]

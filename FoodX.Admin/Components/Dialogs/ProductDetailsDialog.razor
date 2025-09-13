@@ -1,26 +1,55 @@
-@using FoodX.Admin.Models
 @using MudBlazor
 
 <MudDialog>
     <DialogContent>
         <MudGrid>
-            @if (!string.IsNullOrEmpty(Product.ImageUrl))
-            {
-                <MudItem xs="12" md="4">
-                    <MudImage Src="@Product.ImageUrl" Alt="@Product.Name" Style="width: 100%; border-radius: 8px;" />
-                </MudItem>
-                <MudItem xs="12" md="8">
-                    <MudStack Spacing="3">
-                        @DetailSection
-                    </MudStack>
-                </MudItem>
-            }
-            else
-            {
-                <MudItem xs="12">
-                    @DetailSection
-                </MudItem>
-            }
+            <MudItem xs="12">
+                <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                    <div class="d-flex align-center mb-3">
+                        <MudAvatar Size="Size.Large" Color="Color.Primary" Class="mr-3">
+                            <MudIcon Icon="@Icons.Material.Filled.Inventory2" />
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.h5">@Product?.Name</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">SKU: @Product?.Sku</MudText>
+                        </div>
+                    </div>
+                    
+                    <MudDivider Class="my-3" />
+                    
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.caption">Category</MudText>
+                            <MudText Typo="Typo.body1">@Product?.Category</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.caption">Price per Unit</MudText>
+                            <MudText Typo="Typo.body1">€@Product?.Price.ToString("N2")/@Product?.Unit</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="6" Class="mt-3">
+                            <MudText Typo="Typo.caption">Current Stock</MudText>
+                            <MudText Typo="Typo.body1" Color="@GetStockColor()">@Product?.Stock @Product?.Unit</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="6" Class="mt-3">
+                            <MudText Typo="Typo.caption">Status</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor()">
+                                @Product?.Status
+                            </MudChip>
+                        </MudItem>
+                        <MudItem xs="12" Class="mt-3">
+                            <MudText Typo="Typo.caption">Last Updated</MudText>
+                            <MudText Typo="Typo.body1">@Product?.LastUpdated.ToString("MMMM dd, yyyy")</MudText>
+                        </MudItem>
+                        @if (!string.IsNullOrEmpty(Product?.Description))
+                        {
+                            <MudItem xs="12" Class="mt-3">
+                                <MudText Typo="Typo.caption">Description</MudText>
+                                <MudText Typo="Typo.body1">@Product?.Description</MudText>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
         </MudGrid>
     </DialogContent>
     <DialogActions>
@@ -31,126 +60,35 @@
 
 @code {
     [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = null!;
-    [Parameter] public Product Product { get; set; } = null!;
+    [Parameter] public dynamic Product { get; set; } = null!;
     [Inject] private IDialogService DialogService { get; set; } = null!;
 
     void Cancel() => MudDialog.Cancel();
     
-    async Task EditProduct()
+    void EditProduct()
     {
-        MudDialog.Close();
-        
-        var parameters = new DialogParameters
-        {
-            { "Product", Product },
-            { "IsEdit", true }
-        };
-        
-        var dialog = await DialogService.ShowAsync<EditProductDialog>("Edit Product", parameters);
-        MudDialog.Close();
+        MudDialog.Close(DialogResult.Ok(true));
     }
-    
-    private RenderFragment DetailSection => __builder =>
-    {
-        <MudGrid>
-            <MudItem xs="12">
-                <MudText Typo="Typo.h5" GutterBottom="true">@Product.Name</MudText>
-                @if (!string.IsNullOrEmpty(Product.Description))
-                {
-                    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">@Product.Description</MudText>
-                }
-            </MudItem>
-            
-            <MudItem xs="6">
-                <MudText Typo="Typo.subtitle2">Category</MudText>
-                <MudText Typo="Typo.body1">@Product.Category</MudText>
-            </MudItem>
-            
-            <MudItem xs="6">
-                <MudText Typo="Typo.subtitle2">SKU</MudText>
-                <MudText Typo="Typo.body1">@(Product.SKU ?? "N/A")</MudText>
-            </MudItem>
-            
-            <MudItem xs="6">
-                <MudText Typo="Typo.subtitle2">Price</MudText>
-                <MudText Typo="Typo.h6" Color="Color.Primary">$@Product.Price.ToString("F2")</MudText>
-            </MudItem>
-            
-            <MudItem xs="6">
-                <MudText Typo="Typo.subtitle2">Unit</MudText>
-                <MudText Typo="Typo.body1">@(Product.Unit ?? "unit")</MudText>
-            </MudItem>
-            
-            <MudItem xs="6">
-                <MudText Typo="Typo.subtitle2">Stock Quantity</MudText>
-                <MudChip T="string" Color="@GetStockColor()" Size="Size.Small">
-                    @if (Product.StockQuantity > 0)
-                    {
-                        @Product.StockQuantity.ToString()
-                    }
-                    else
-                    {
-                        @("Out of Stock")
-                    }
-                </MudChip>
-            </MudItem>
-            
-            <MudItem xs="6">
-                <MudText Typo="Typo.subtitle2">Status</MudText>
-                <MudChip T="string" Color="@(Product.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
-                    @(Product.IsActive ? "Active" : "Inactive")
-                </MudChip>
-            </MudItem>
-            
-            <MudItem xs="6">
-                <MudText Typo="Typo.subtitle2">Min Order Quantity</MudText>
-                <MudText Typo="Typo.body1">@(Product.MinOrderQuantity > 0 ? Product.MinOrderQuantity.ToString() : "No minimum")</MudText>
-            </MudItem>
-            
-            <MudItem xs="6">
-                <MudText Typo="Typo.subtitle2">Availability</MudText>
-                <MudChip T="string" Color="@(Product.IsAvailable ? Color.Success : Color.Warning)" Size="Size.Small">
-                    @(Product.IsAvailable ? "Available" : "Not Available")
-                </MudChip>
-            </MudItem>
-            
-            @if (!string.IsNullOrEmpty(Product.Origin))
-            {
-                <MudItem xs="6">
-                    <MudText Typo="Typo.subtitle2">Origin</MudText>
-                    <MudText Typo="Typo.body1">@Product.Origin</MudText>
-                </MudItem>
-            }
-            
-            @if (Product.IsOrganic)
-            {
-                <MudItem xs="6">
-                    <MudText Typo="Typo.subtitle2">Certification</MudText>
-                    <MudChip T="string" Color="Color.Success" Size="Size.Small">
-                        Organic
-                    </MudChip>
-                </MudItem>
-            }
-            
-            <MudItem xs="12">
-                <MudDivider Class="my-2" />
-                <MudText Typo="Typo.subtitle2">Additional Information</MudText>
-                <MudText Typo="Typo.body2" Class="mt-2">
-                    Created: @Product.CreatedAt.ToString("MMM dd, yyyy")
-                    <br />
-                    @($"Last Updated: {Product.UpdatedAt.ToString("MMM dd, yyyy")}")
-                </MudText>
-            </MudItem>
-        </MudGrid>
-    };
     
     private Color GetStockColor()
     {
-        if (Product.StockQuantity > 10)
+        if (Product?.Stock > 50)
             return Color.Success;
-        else if (Product.StockQuantity > 0)
+        else if (Product?.Stock > 0)
             return Color.Warning;
         else
             return Color.Error;
+    }
+    
+    private Color GetStatusColor()
+    {
+        return Product?.Status switch
+        {
+            "Active" => Color.Success,
+            "Low Stock" => Color.Warning,
+            "Out of Stock" => Color.Error,
+            "Archived" => Color.Default,
+            _ => Color.Default
+        };
     }
 }

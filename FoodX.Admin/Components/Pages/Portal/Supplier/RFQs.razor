@@ -88,7 +88,7 @@
                     </MudButton>
                 </div>
                 
-                <MudTable Items="@filteredRFQs" Hover="true" Dense="true" Filter="new Func<RFQItem,bool>(FilterFunc)">
+                <MudTable Items="@filteredRFQs" Hover="true" Dense="true" Filter="new Func<RFQItem,bool>(FilterFunc)" Striped="true" Bordered="false" Elevation="0">
                     <HeaderContent>
                         <MudTh><MudTableSortLabel SortBy="new Func<RFQItem, object>(x=>x.RFQNumber)">RFQ #</MudTableSortLabel></MudTh>
                         <MudTh><MudTableSortLabel SortBy="new Func<RFQItem, object>(x=>x.BuyerCompany)">Buyer</MudTableSortLabel></MudTh>
@@ -101,65 +101,103 @@
                         <MudTh>Actions</MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd>
-                            <MudText Typo="Typo.body2" Color="Color.Primary">@context.RFQNumber</MudText>
+                        <MudTd DataLabel="RFQ #">
+                            <MudLink Typo="Typo.body2" Color="Color.Primary" OnClick="() => ViewDetails(context)" Style="cursor: pointer; font-weight: 500;">@context.RFQNumber</MudLink>
                         </MudTd>
-                        <MudTd>
+                        <MudTd DataLabel="Buyer">
                             <div>
-                                <MudText Typo="Typo.body2">@context.BuyerCompany</MudText>
+                                <MudText Typo="Typo.body2" Style="font-weight: 500;">@context.BuyerCompany</MudText>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@context.ContactPerson</MudText>
                             </div>
                         </MudTd>
-                        <MudTd>
-                            <MudText Typo="Typo.body2">@context.Title</MudText>
+                        <MudTd DataLabel="Title">
+                            <MudTooltip Text="@context.Description" Arrow="true" Placement="Placement.Top">
+                                <MudText Typo="Typo.body2" Style="@($"max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;")">@context.Title</MudText>
+                            </MudTooltip>
                         </MudTd>
-                        <MudTd>
-                            <MudChip T="string" Size="Size.Small" Color="Color.Default">
+                        <MudTd DataLabel="Category">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Text">
+                                <MudIcon Icon="@GetCategoryIcon(context.Category)" Size="Size.Small" Class="mr-1" />
                                 @context.Category
                             </MudChip>
                         </MudTd>
-                        <MudTd>@context.Quantity @context.Unit</MudTd>
-                        <MudTd>
-                            <MudText Color="@(context.DeadlineDate < DateTime.Now.AddDays(2) ? Color.Error : Color.Default)">
-                                @context.DeadlineDate.ToString("MMM dd")
-                            </MudText>
-                            @if (context.DeadlineDate < DateTime.Now.AddDays(2))
-                            {
-                                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Color="Color.Warning" />
-                            }
+                        <MudTd DataLabel="Quantity">
+                            <MudText Typo="Typo.body2" Style="font-weight: 500;">@context.Quantity.ToString("N0")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Unit</MudText>
                         </MudTd>
-                        <MudTd>
-                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                        <MudTd DataLabel="Deadline">
+                            <div class="d-flex align-center gap-1">
+                                <MudText Color="@(context.DeadlineDate < DateTime.Now.AddDays(2) ? Color.Error : Color.Default)" Typo="Typo.body2">
+                                    @context.DeadlineDate.ToString("MMM dd")
+                                </MudText>
+                                @if (context.DeadlineDate < DateTime.Now.AddDays(2))
+                                {
+                                    <MudTooltip Text="Deadline approaching!">
+                                        <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Color="Color.Warning" />
+                                    </MudTooltip>
+                                }
+                            </div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@GetTimeRemaining(context.DeadlineDate)</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Status">
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)" Variant="Variant.Filled">
+                                <MudIcon Icon="@GetStatusIcon(context.Status)" Size="Size.Small" Class="mr-1" />
                                 @context.Status
                             </MudChip>
                         </MudTd>
-                        <MudTd>
-                            <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(context.Priority)">
+                        <MudTd DataLabel="Priority">
+                            <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(context.Priority)" Variant="Variant.Outlined">
                                 @context.Priority
                             </MudChip>
                         </MudTd>
                         <MudTd>
-                            @if (context.Status == "Open")
-                            {
-                                <MudButton Size="Size.Small" 
-                                         Variant="Variant.Filled" 
-                                         Color="Color.Primary"
-                                         OnClick="() => CreateQuote(context)">
-                                    Quote
-                                </MudButton>
-                            }
-                            else
-                            {
-                                <MudButton Size="Size.Small" 
-                                         Variant="Variant.Text" 
-                                         Color="Color.Primary"
-                                         OnClick="() => ViewDetails(context)">
-                                    View
-                                </MudButton>
-                            }
-                            <MudIconButton Size="Size.Small" 
-                                         Icon="@Icons.Material.Filled.MoreVert" 
-                                         Color="Color.Default" />
+                            <div class="d-flex gap-1">
+                                @if (context.Status == "Open")
+                                {
+                                    <MudTooltip Text="Create Quote">
+                                        <MudIconButton Size="Size.Small" 
+                                                     Icon="@Icons.Material.Filled.RequestQuote" 
+                                                     Color="Color.Primary"
+                                                     Variant="Variant.Filled"
+                                                     OnClick="() => CreateQuote(context)" />
+                                    </MudTooltip>
+                                }
+                                <MudTooltip Text="View Details">
+                                    <MudIconButton Size="Size.Small" 
+                                                 Icon="@Icons.Material.Filled.Visibility" 
+                                                 Color="Color.Info"
+                                                 OnClick="() => ViewDetails(context)" />
+                                </MudTooltip>
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true">
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Info" OnClick="() => ViewDetails(context)">
+                                        View Details
+                                    </MudMenuItem>
+                                    @if (context.Status == "Open")
+                                    {
+                                        <MudMenuItem Icon="@Icons.Material.Filled.RequestQuote" OnClick="() => CreateQuote(context)">
+                                            Create Quote
+                                        </MudMenuItem>
+                                    }
+                                    @if (context.Status == "Quoted")
+                                    {
+                                        <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="() => EditQuote(context)">
+                                            Edit Quote
+                                        </MudMenuItem>
+                                    }
+                                    <MudMenuItem Icon="@Icons.Material.Filled.ContentCopy" OnClick="() => DuplicateRFQ(context)">
+                                        Duplicate RFQ
+                                    </MudMenuItem>
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Download" OnClick="() => DownloadRFQ(context)">
+                                        Download PDF
+                                    </MudMenuItem>
+                                    @if (context.Status == "Open")
+                                    {
+                                        <MudMenuItem Icon="@Icons.Material.Filled.NotInterested" OnClick="() => DeclineRFQ(context)">
+                                            Decline RFQ
+                                        </MudMenuItem>
+                                    }
+                                </MudMenu>
+                            </div>
                         </MudTd>
                     </RowTemplate>
                 </MudTable>
@@ -355,6 +393,84 @@
     {
         // Navigate to quote creation page
         Navigation.NavigateTo($"/portal/supplier/quotes/create?rfqId={rfq.Id}");
+    }
+    
+    private void EditQuote(RFQItem rfq)
+    {
+        Navigation.NavigateTo($"/portal/supplier/quotes/edit/{rfq.Id}");
+    }
+    
+    private void DuplicateRFQ(RFQItem rfq)
+    {
+        var duplicatedRfq = new RFQItem
+        {
+            Id = _rfqs.Max(r => r.Id) + 1,
+            RFQNumber = $"RFQ-2024-{(_rfqs.Count + 1):D3}",
+            BuyerCompany = rfq.BuyerCompany,
+            ContactPerson = rfq.ContactPerson,
+            Email = rfq.Email,
+            Phone = rfq.Phone,
+            Title = $"{rfq.Title} (Copy)",
+            Category = rfq.Category,
+            Quantity = rfq.Quantity,
+            Unit = rfq.Unit,
+            DeadlineDate = DateTime.Now.AddDays(7),
+            Status = "Open",
+            Priority = rfq.Priority,
+            Description = rfq.Description,
+            Requirements = new List<string>(rfq.Requirements)
+        };
+        _rfqs.Add(duplicatedRfq);
+        Snackbar.Add($"RFQ duplicated successfully: {duplicatedRfq.RFQNumber}", Severity.Success);
+        StateHasChanged();
+    }
+    
+    private void DownloadRFQ(RFQItem rfq)
+    {
+        Snackbar.Add($"Downloading PDF for {rfq.RFQNumber}...", Severity.Info);
+        // In a real application, this would generate and download a PDF
+    }
+    
+    private void DeclineRFQ(RFQItem rfq)
+    {
+        rfq.Status = "Declined";
+        Snackbar.Add($"RFQ {rfq.RFQNumber} has been declined", Severity.Warning);
+        StateHasChanged();
+    }
+    
+    private string GetCategoryIcon(string category) => category switch
+    {
+        "Dairy" => Icons.Material.Filled.LocalDrink,
+        "Meat" => Icons.Material.Filled.Restaurant,
+        "Vegetables" => Icons.Material.Filled.Grass,
+        "Beverages" => Icons.Material.Filled.LocalBar,
+        _ => Icons.Material.Filled.Category
+    };
+    
+    private string GetStatusIcon(string status) => status switch
+    {
+        "Open" => Icons.Material.Filled.Schedule,
+        "Quoted" => Icons.Material.Filled.Send,
+        "Won" => Icons.Material.Filled.CheckCircle,
+        "Lost" => Icons.Material.Filled.Cancel,
+        "Expired" => Icons.Material.Filled.EventBusy,
+        "Declined" => Icons.Material.Filled.NotInterested,
+        _ => Icons.Material.Filled.HelpOutline
+    };
+    
+    private string GetTimeRemaining(DateTime deadline)
+    {
+        var timeSpan = deadline - DateTime.Now;
+        if (timeSpan.TotalDays > 7)
+            return $"{(int)timeSpan.TotalDays} days";
+        else if (timeSpan.TotalDays > 1)
+            return $"{(int)timeSpan.TotalDays} days left";
+        else if (timeSpan.TotalHours > 1)
+            return $"{(int)timeSpan.TotalHours} hours left";
+        else if (timeSpan.TotalMinutes > 0)
+            return $"{(int)timeSpan.TotalMinutes} minutes left";
+        else
+            return "Expired";
     }
     
     private class RFQItem

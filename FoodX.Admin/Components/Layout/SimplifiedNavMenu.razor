@@ -6,21 +6,27 @@
 <MudNavMenu>
     <!-- Primary Actions - Always visible -->
     <MudNavLink Href="/" Icon="@Icons.Material.Filled.Dashboard" Match="NavLinkMatch.All">
-        Dashboard
+        <MudText Typo="Typo.subtitle2" Class="font-weight-bold">Dashboard</MudText>
     </MudNavLink>
 
     @if (PortalContext.CurrentMode == PortalMode.Buyer || PortalContext.CurrentMode == PortalMode.Admin)
     {
         <!-- Procurement Section -->
-        <MudNavGroup Title="Procurement" Icon="@Icons.Material.Filled.ShoppingCart" Expanded="false">
+        <MudNavGroup Title="Procurement" Icon="@Icons.Material.Filled.ShoppingCart" Expanded="true">
+            <MudNavLink Href="/portal/buyer/ai-search" Icon="@Icons.Material.Filled.Search">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudText>Find Products</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Class="pa-1">AI</MudChip>
+                </MudStack>
+            </MudNavLink>
             <MudNavLink Href="/portal/buyer/rfqs" Icon="@Icons.Material.Filled.RequestQuote">
-                RFQs
+                <MudText>My RFQs</MudText>
             </MudNavLink>
             <MudNavLink Href="/portal/buyer/quotes" Icon="@Icons.Material.Filled.Receipt">
-                Quotes
+                <MudText>Received Quotes</MudText>
             </MudNavLink>
             <MudNavLink Href="/portal/buyer/orders" Icon="@Icons.Material.Filled.ShoppingBag">
-                Orders
+                <MudText>Purchase Orders</MudText>
             </MudNavLink>
         </MudNavGroup>
     }
@@ -68,6 +74,19 @@
         Analytics
     </MudNavLink>
 
+    <!-- Email & Communication -->
+    <MudNavGroup Title="Communication" Icon="@Icons.Material.Filled.Email" Expanded="false">
+        <MudNavLink Href="/support/email/inbox" Icon="@Icons.Material.Filled.Inbox">
+            Inbox
+        </MudNavLink>
+        <MudNavLink Href="/support/email/compose" Icon="@Icons.Material.Filled.Create">
+            Compose
+        </MudNavLink>
+        <MudNavLink Href="/support/email/sent" Icon="@Icons.Material.Filled.Send">
+            Sent Mail
+        </MudNavLink>
+    </MudNavGroup>
+
     <!-- Admin Section - Only for Admin/SuperAdmin -->
     <AuthorizeView Roles="Admin,SuperAdmin">
         <MudDivider Class="my-2" />
@@ -80,6 +99,19 @@
             </MudNavLink>
             <MudNavLink Href="/settings" Icon="@Icons.Material.Filled.Settings">
                 Settings
+            </MudNavLink>
+        </MudNavGroup>
+        
+        <!-- Data Import Section -->
+        <MudNavGroup Title="Data Import" Icon="@Icons.Material.Filled.FileUpload" Expanded="false">
+            <MudNavLink Href="/admin/import/suppliers" Icon="@Icons.Material.Filled.Store">
+                Import Suppliers
+            </MudNavLink>
+            <MudNavLink Href="/admin/import/buyers" Icon="@Icons.Material.Filled.Business">
+                Import Buyers
+            </MudNavLink>
+            <MudNavLink Href="/portal/supplier/products/import" Icon="@Icons.Material.Filled.Category">
+                Import Products
             </MudNavLink>
         </MudNavGroup>
     </AuthorizeView>
@@ -96,13 +128,19 @@
         </MudNavGroup>
     </AuthorizeView>
 
-    <!-- Help & Support - Bottom -->
-    <div style="position: absolute; bottom: 0; width: 100%;">
-        <MudDivider Class="my-2" />
-        <MudNavLink Href="/help" Icon="@Icons.Material.Filled.Help">
-            Help & Support
+    <!-- Help & Support -->
+    <MudDivider Class="my-2" />
+    <MudNavGroup Title="Help & Support" Icon="@Icons.Material.Filled.Help" Expanded="false">
+        <MudNavLink Href="/support/email/inbox-preview" Icon="@Icons.Material.Filled.Email">
+            Email Inbox
         </MudNavLink>
-    </div>
+        <MudNavLink Href="/help" Icon="@Icons.Material.Filled.HelpOutline">
+            Help Center
+        </MudNavLink>
+        <MudNavLink Href="/support/report-issue" Icon="@Icons.Material.Filled.BugReport">
+            Report Issue
+        </MudNavLink>
+    </MudNavGroup>
 </MudNavMenu>
 
 @code {

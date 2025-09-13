@@ -135,9 +135,16 @@
                                                  Style="@(email.ReadAt == null && email.Direction == "Inbound" ? "font-weight: bold;" : "")">
                                             @(email.Direction == "Inbound" ? email.From : $"To: {email.To}")
                                         </MudText>
-                                        <MudText Typo="Typo.caption">
-                                            @GetRelativeTime(email.CreatedAt)
-                                        </MudText>
+                                        <div class="d-flex align-center gap-2">
+                                            <EmailStatusBadge Status="@email.Status" 
+                                                              SentAt="@email.SentAt" 
+                                                              ReadAt="@email.ReadAt" 
+                                                              ShowText="false" 
+                                                              Size="Size.Small" />
+                                            <MudText Typo="Typo.caption">
+                                                @GetRelativeTime(email.CreatedAt)
+                                            </MudText>
+                                        </div>
                                     </div>
                                     <MudText Typo="Typo.body2" 
                                              Style="@(email.ReadAt == null ? "font-weight: bold;" : "")">

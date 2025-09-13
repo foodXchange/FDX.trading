@@ -82,6 +82,20 @@
                 <PropertyColumn Property="x => x.Categories" Title="Categories" />
                 <PropertyColumn Property="x => x.Region" Title="Region" Sortable="true" />
                 <PropertyColumn Property="x => x.Markets" Title="Markets" />
+                <TemplateColumn Title="AI Score">
+                    <CellTemplate>
+                        @if (context.Item.EngagementReadinessScore.HasValue)
+                        {
+                            <MudTooltip Text="@($"Engagement: {context.Item.EngagementReadinessScore}%, Purchasing Power: {context.Item.PurchasingPowerScore ?? 0}%")">
+                                <MudChip T="string" Size="Size.Small" 
+                                        Color="@GetAIScoreColor(context.Item.EngagementReadinessScore.Value)"
+                                        Icon="@Icons.Material.Filled.AutoAwesome">
+                                    @context.Item.EngagementReadinessScore%
+                                </MudChip>
+                            </MudTooltip>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
                 <TemplateColumn Title="Contact">
                     <CellTemplate>
                         @if (!string.IsNullOrEmpty(context.Item.ProcurementEmail))
@@ -302,6 +316,17 @@
         // Clear filter-based cache entries
         var cacheKey = $"buyers_{searchTerm}_{selectedType}_{selectedRegion}";
         MemoryCache.Remove(cacheKey);
+    }
+    
+    private Color GetAIScoreColor(int score)
+    {
+        return score switch
+        {
+            >= 80 => Color.Success,
+            >= 60 => Color.Info,
+            >= 40 => Color.Warning,
+            _ => Color.Default
+        };
     }
     
     public void Dispose()

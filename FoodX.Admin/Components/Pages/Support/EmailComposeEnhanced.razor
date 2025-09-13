@@ -20,14 +20,17 @@
             <!-- Email Templates Section -->
             <MudItem xs="12">
                 <MudSelect @bind-Value="selectedTemplate" Label="Email Template" Variant="Variant.Outlined"
-                           AdornmentIcon="@Icons.Material.Filled.Description"
-                           Adornment="Adornment.Start"
                            AnchorOrigin="Origin.BottomCenter">
                     <MudSelectItem Value="@("")">-- Select Template --</MudSelectItem>
                     <MudSelectItem Value="@("rfq_request")">RFQ Request</MudSelectItem>
                     <MudSelectItem Value="@("quote_response")">Quote Response</MudSelectItem>
                     <MudSelectItem Value="@("order_confirmation")">Order Confirmation</MudSelectItem>
                     <MudSelectItem Value="@("supplier_intro")">Supplier Introduction</MudSelectItem>
+                    <MudSelectItem Value="@("supplier_inquiry")">Supplier Inquiry</MudSelectItem>
+                    <MudSelectItem Value="@("product_catalog")">Product Catalog Request</MudSelectItem>
+                    <MudSelectItem Value="@("quality_inquiry")">Quality & Certification Inquiry</MudSelectItem>
+                    <MudSelectItem Value="@("bulk_pricing")">Bulk Pricing Request</MudSelectItem>
+                    <MudSelectItem Value="@("partnership_proposal")">Partnership Proposal</MudSelectItem>
                     <MudSelectItem Value="@("follow_up")">Follow Up</MudSelectItem>
                     <MudSelectItem Value="@("price_update")">Price Update</MudSelectItem>
                 </MudSelect>
@@ -39,27 +42,21 @@
                               Variant="Variant.Outlined"
                               Required="true"
                               RequiredError="Recipient email is required"
-                              HelperText="Enter recipient's email address (comma separated for multiple)"
-                              AdornmentIcon="@Icons.Material.Filled.Person"
-                              Adornment="Adornment.Start" />
+                              HelperText="Enter recipient's email address (comma separated for multiple)" />
             </MudItem>
 
             <MudItem xs="12" md="6">
                 <MudTextField @bind-Value="emailModel.Cc" 
                               Label="CC (Optional)" 
                               Variant="Variant.Outlined"
-                              HelperText="Carbon copy recipients (comma separated)"
-                              AdornmentIcon="@Icons.Material.Filled.GroupAdd"
-                              Adornment="Adornment.Start" />
+                              HelperText="Carbon copy recipients (comma separated)" />
             </MudItem>
 
             <MudItem xs="12" md="6">
                 <MudTextField @bind-Value="emailModel.Bcc" 
                               Label="BCC (Optional)" 
                               Variant="Variant.Outlined"
-                              HelperText="Blind carbon copy recipients (comma separated)"
-                              AdornmentIcon="@Icons.Material.Filled.VisibilityOff"
-                              Adornment="Adornment.Start" />
+                              HelperText="Blind carbon copy recipients (comma separated)" />
             </MudItem>
 
             <MudItem xs="12">
@@ -67,9 +64,7 @@
                               Label="Subject" 
                               Variant="Variant.Outlined"
                               Required="true"
-                              RequiredError="Subject is required"
-                              AdornmentIcon="@Icons.Material.Filled.Subject"
-                              Adornment="Adornment.Start" />
+                              RequiredError="Subject is required" />
             </MudItem>
 
             <!-- Rich Text Editor Section -->
@@ -444,6 +439,171 @@
                         <p>Thank you for your understanding.</p>
                         <p>Best regards,<br/>{{CompanyName}}</p>",
                 Category = "General"
+            },
+            ["supplier_inquiry"] = new EmailTemplate
+            {
+                Subject = "Business Inquiry - {{CompanyName}} Product Sourcing",
+                Body = @"<p>Dear {{ContactName}},</p>
+                        <p>I hope this message finds you well. My name is [Your Name] from {{CompanyName}}, and we are interested in your {{ProductCategory}} products.</p>
+                        <p><strong>About Our Company:</strong></p>
+                        <p>[Brief description of your business and requirements]</p>
+                        <p><strong>We are looking for:</strong></p>
+                        <ul>
+                            <li>Product specifications and quality standards</li>
+                            <li>Minimum order quantities and pricing</li>
+                            <li>Delivery timelines and logistics options</li>
+                            <li>Payment terms and conditions</li>
+                            <li>Available certifications (ISO, FDA, Organic, etc.)</li>
+                        </ul>
+                        <p>Could you please provide us with:</p>
+                        <ol>
+                            <li>Your current product catalog</li>
+                            <li>Price list for bulk orders</li>
+                            <li>Company credentials and certifications</li>
+                            <li>Sample availability</li>
+                        </ol>
+                        <p>We look forward to establishing a mutually beneficial business relationship.</p>
+                        <p>Best regards,<br/>[Your Name]<br/>{{CompanyName}}<br/>[Contact Information]</p>",
+                Category = "Supplier"
+            },
+            ["product_catalog"] = new EmailTemplate
+            {
+                Subject = "Product Catalog Request - {{CompanyName}}",
+                Body = @"<p>Dear {{ContactName}},</p>
+                        <p>We are interested in your product offerings and would like to request your latest catalog.</p>
+                        <p><strong>Specific Categories of Interest:</strong></p>
+                        <ul>
+                            <li>{{ProductCategory}}</li>
+                            <li>[Additional categories as needed]</li>
+                        </ul>
+                        <p><strong>Please include information on:</strong></p>
+                        <ul>
+                            <li>Product specifications and variations</li>
+                            <li>Packaging options and sizes</li>
+                            <li>Shelf life and storage requirements</li>
+                            <li>Wholesale pricing structure</li>
+                            <li>Available certifications</li>
+                        </ul>
+                        <p>We are a {{CompanyDescription}} and are looking for reliable suppliers for long-term partnerships.</p>
+                        <p>Thank you for your time and consideration.</p>
+                        <p>Best regards,<br/>{{CompanyName}}</p>",
+                Category = "Catalog"
+            },
+            ["quality_inquiry"] = new EmailTemplate
+            {
+                Subject = "Quality Standards & Certification Inquiry - {{ProductCategory}}",
+                Body = @"<p>Dear Quality Assurance Team,</p>
+                        <p>We are evaluating potential suppliers for {{ProductCategory}} and would like to understand your quality standards.</p>
+                        <p><strong>Please provide information on:</strong></p>
+                        <ul>
+                            <li><strong>Quality Certifications:</strong>
+                                <ul>
+                                    <li>ISO 22000 / HACCP</li>
+                                    <li>FDA Registration</li>
+                                    <li>Organic Certifications</li>
+                                    <li>Halal/Kosher certifications (if applicable)</li>
+                                </ul>
+                            </li>
+                            <li><strong>Quality Control Processes:</strong>
+                                <ul>
+                                    <li>Raw material sourcing standards</li>
+                                    <li>Production monitoring procedures</li>
+                                    <li>Testing protocols and frequency</li>
+                                    <li>Traceability systems</li>
+                                </ul>
+                            </li>
+                            <li><strong>Documentation:</strong>
+                                <ul>
+                                    <li>Certificate of Analysis (CoA) samples</li>
+                                    <li>Audit reports from third parties</li>
+                                    <li>Quality management system documentation</li>
+                                </ul>
+                            </li>
+                        </ul>
+                        <p>We maintain strict quality standards for our customers and need suppliers who share our commitment to excellence.</p>
+                        <p>Could we schedule a call to discuss your quality processes in detail?</p>
+                        <p>Best regards,<br/>{{CompanyName}}<br/>Quality Assurance Department</p>",
+                Category = "Quality"
+            },
+            ["bulk_pricing"] = new EmailTemplate
+            {
+                Subject = "Bulk Pricing Inquiry - Large Volume Orders",
+                Body = @"<p>Dear Sales Team,</p>
+                        <p>We are interested in establishing a regular supply agreement for {{ProductCategory}} and would like to discuss bulk pricing options.</p>
+                        <p><strong>Our Requirements:</strong></p>
+                        <ul>
+                            <li>Monthly Volume: [Specify quantity]</li>
+                            <li>Annual Commitment: [Specify annual volume]</li>
+                            <li>Delivery Frequency: [Weekly/Monthly]</li>
+                            <li>Delivery Locations: [Specify cities/regions]</li>
+                        </ul>
+                        <p><strong>Please provide pricing for:</strong></p>
+                        <table border='1' style='border-collapse: collapse; width: 100%;'>
+                            <tr>
+                                <th>Volume Tier</th>
+                                <th>Unit Price</th>
+                                <th>Discount %</th>
+                                <th>Payment Terms</th>
+                            </tr>
+                            <tr>
+                                <td>1,000 - 5,000 units</td>
+                                <td>$[Price]</td>
+                                <td>[%]</td>
+                                <td>[Terms]</td>
+                            </tr>
+                            <tr>
+                                <td>5,001 - 10,000 units</td>
+                                <td>$[Price]</td>
+                                <td>[%]</td>
+                                <td>[Terms]</td>
+                            </tr>
+                            <tr>
+                                <td>10,000+ units</td>
+                                <td>$[Price]</td>
+                                <td>[%]</td>
+                                <td>[Terms]</td>
+                            </tr>
+                        </table>
+                        <p><strong>Additional Questions:</strong></p>
+                        <ul>
+                            <li>Volume commitment discounts available?</li>
+                            <li>Flexible payment terms for large orders?</li>
+                            <li>Dedicated account management support?</li>
+                            <li>Custom packaging options?</li>
+                        </ul>
+                        <p>We are looking for a long-term partnership and value competitive pricing combined with reliable service.</p>
+                        <p>Best regards,<br/>{{CompanyName}}<br/>Procurement Department</p>",
+                Category = "Pricing"
+            },
+            ["partnership_proposal"] = new EmailTemplate
+            {
+                Subject = "Strategic Partnership Proposal - {{CompanyName}}",
+                Body = @"<p>Dear {{ContactName}},</p>
+                        <p>I hope this email finds you well. I am reaching out to explore a potential strategic partnership between {{CompanyName}} and your organization.</p>
+                        <p><strong>About {{CompanyName}}:</strong></p>
+                        <p>[Brief company description, market position, and key strengths]</p>
+                        <p><strong>Partnership Opportunity:</strong></p>
+                        <p>We believe there are significant synergies between our companies that could benefit both organizations:</p>
+                        <ul>
+                            <li><strong>Market Expansion:</strong> Leverage each other's distribution networks</li>
+                            <li><strong>Product Complementarity:</strong> Cross-promote complementary product lines</li>
+                            <li><strong>Operational Efficiency:</strong> Share logistics and supply chain resources</li>
+                            <li><strong>Innovation:</strong> Collaborate on product development initiatives</li>
+                        </ul>
+                        <p><strong>Proposed Collaboration Areas:</strong></p>
+                        <ul>
+                            <li>Exclusive distribution agreements</li>
+                            <li>Co-branded product development</li>
+                            <li>Shared marketing initiatives</li>
+                            <li>Joint participation in trade shows</li>
+                            <li>Technology and best practice sharing</li>
+                        </ul>
+                        <p><strong>Next Steps:</strong></p>
+                        <p>I would welcome the opportunity to discuss this proposal in more detail. Could we schedule a meeting or call at your convenience?</p>
+                        <p>I have attached our company profile and partnership framework for your review.</p>
+                        <p>Looking forward to exploring how we can create mutual value.</p>
+                        <p>Best regards,<br/>[Your Name]<br/>{{CompanyName}}<br/>Business Development<br/>[Contact Information]</p>",
+                Category = "Partnership"
             }
         };
     }

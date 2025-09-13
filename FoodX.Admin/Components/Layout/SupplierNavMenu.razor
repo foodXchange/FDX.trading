@@ -73,11 +73,20 @@
                 </MudNavLink>
             </MudNavGroup>
             
-            <!-- Communications -->
-            <MudNavLink Href="/portal/supplier/messages" Icon="@Icons.Material.Filled.Message">
-                Messages
-                <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ml-2">5</MudChip>
-            </MudNavLink>
+            <!-- Email & Communications -->
+            <MudNavGroup Title="Email & Communications" Icon="@Icons.Material.Filled.Email" Expanded="false">
+                <MudNavLink Href="/support/email-inbox" Icon="@Icons.Material.Filled.Inbox">
+                    Email Inbox
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-2">7</MudChip>
+                </MudNavLink>
+                <MudNavLink Href="/support/email-compose" Icon="@Icons.Material.Filled.Edit">
+                    Compose Email
+                </MudNavLink>
+                <MudNavLink Href="/portal/supplier/messages" Icon="@Icons.Material.Filled.Message">
+                    Messages
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ml-2">5</MudChip>
+                </MudNavLink>
+            </MudNavGroup>
             
             <!-- Settings -->
             <MudNavLink Href="/portal/supplier/settings" Icon="@Icons.Material.Filled.Settings">
