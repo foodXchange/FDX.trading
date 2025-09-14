@@ -47,6 +47,9 @@ namespace FoodX.Admin.Data
         // AI Request Brief table
         public DbSet<AIRequestBrief> AIRequestBriefs { get; set; }
 
+        // Project Management tables
+        public DbSet<Project> Projects { get; set; }
+
         // Billing System tables
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
@@ -80,6 +83,19 @@ namespace FoodX.Admin.Data
         public DbSet<SupplierQuote> SupplierQuotes { get; set; }
         public DbSet<QuotePriceTier> QuotePriceTiers { get; set; }
         public DbSet<SupplierProductCatalog> SupplierProductCatalog { get; set; }
+
+        // Buyer-Specific Pricing & Negotiation tables
+        public DbSet<BuyerSpecificPricing> BuyerSpecificPricings { get; set; }
+        public DbSet<BuyerPriceTier> BuyerPriceTiers { get; set; }
+        public DbSet<NegotiationHistory> NegotiationHistories { get; set; }
+        public DbSet<NegotiationRound> NegotiationRounds { get; set; }
+        public DbSet<NegotiationEmailTemplate> NegotiationEmailTemplates { get; set; }
+
+        // Compliance Verification tables
+        public DbSet<ComplianceVerification> ComplianceVerifications { get; set; }
+        public DbSet<CertificationDocument> CertificationDocuments { get; set; }
+        public DbSet<ComplianceChecklistItem> ComplianceChecklistItems { get; set; }
+        public DbSet<LabTestResult> LabTestResults { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -697,6 +713,14 @@ namespace FoodX.Admin.Data
                     .OnDelete(DeleteBehavior.SetNull);
             });
 
+            // Configure Project - Fix decimal precision warnings
+            builder.Entity<Project>(entity =>
+            {
+                entity.ToTable("Projects");
+                entity.Property(e => e.ActualCost).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.EstimatedBudget).HasColumnType("decimal(18,2)");
+            });
+
             // Configure RFQSupplierMatch
             builder.Entity<RFQSupplierMatch>(entity =>
             {
@@ -821,6 +845,7 @@ namespace FoodX.Admin.Data
 
             // Apply FoodXSupplier configuration to handle type conversions
             builder.ApplyConfiguration(new FoodXSupplierConfiguration());
+            builder.ApplyConfiguration(new ProjectConfiguration());
         }
     }
 }
