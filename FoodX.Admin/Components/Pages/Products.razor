@@ -3,9 +3,11 @@
 @using FoodX.Admin.Models
 @using FoodX.Admin.Components.Dialogs
 @using FoodX.Admin.Repositories
+@using FoodX.Admin.Services
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.Extensions.Caching.Memory
 @inject IUnitOfWork UnitOfWork
+@inject IPaginatedProductService ProductService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
@@ -21,12 +23,13 @@
     <MudPaper Class="pa-4 mb-4">
         <MudGrid>
             <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="searchTerm" Label="Search Products" 
-                              Variant="Variant.Outlined" 
-                              Adornment="Adornment.Start" 
+                <MudTextField Value="@searchTerm"
+                              ValueChanged="@((string value) => OnSearchTermChanged(value))"
+                              Label="Search Products"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Search"
-                              Immediate="true"
-                              OnDebounceIntervalElapsed="@(() => ApplyFilters())" />
+                              Immediate="true" />
             </MudItem>
             <MudItem xs="12" md="2">
                 <MudSelect @bind-Value="selectedCategory" Label="Category" Variant="Variant.Outlined">
@@ -70,10 +73,11 @@
     @if (isLoading)
     {
         <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        <MudText Typo="Typo.body2" Align="Align.Center" Class="mt-2">Loading products...</MudText>
     }
     else if (viewMode == ViewMode.Table)
     {
-        <MudTable Items="@filteredProducts" Hover="true" Striped="true" Dense="true" 
+        <MudTable Items="@paginatedResult?.Items" Hover="true" Striped="true" Dense="true"
                   MultiSelection="true" @bind-SelectedItems="selectedProducts">
             <HeaderContent>
                 <MudTh><MudTableSortLabel SortBy="new Func<Product, object>(x => x.Name)">Name</MudTableSortLabel></MudTh>
@@ -133,7 +137,7 @@
     else
     {
         <MudGrid>
-            @foreach (var product in filteredProducts)
+            @foreach (var product in paginatedResult?.Items ?? new List<Product>())
         {
             <MudItem xs="12" sm="6" md="4" lg="3">
                 <MudCard>
@@ -166,37 +170,65 @@
         </MudGrid>
     }
 
-    @if (!isLoading && !filteredProducts.Any())
+    @if (!isLoading && paginatedResult != null && !paginatedResult.Items.Any())
     {
         <MudAlert Severity="Severity.Info" Class="mt-4">
             No products available. Click "Add Product" to start adding products to the catalog.
         </MudAlert>
     }
+
+    @if (paginatedResult != null && paginatedResult.TotalPages > 1)
+    {
+        <MudPaper Class="mt-4 pa-4">
+            <MudGrid AlignItems="Center">
+                <MudItem xs="12" md="4">
+                    <MudText Typo="Typo.body2">
+                        Showing @((paginatedResult.PageNumber - 1) * paginatedResult.PageSize + 1) to
+                        @Math.Min(paginatedResult.PageNumber * paginatedResult.PageSize, paginatedResult.TotalCount) of
+                        @paginatedResult.TotalCount products
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" md="8" Class="d-flex justify-end">
+                    <MudPagination Count="@paginatedResult.TotalPages"
+                                   Selected="@currentPage"
+                                   SelectedChanged="OnPageChanged"
+                                   Color="Color.Primary"
+                                   Variant="Variant.Filled"
+                                   ShowFirstButton="true"
+                                   ShowLastButton="true" />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    }
 </MudContainer>
 
 @code {
     private enum ViewMode { Cards, Table }
-    
-    private List<Product> products = new();
-    private List<Product> filteredProducts = new();
+
+    private PaginatedResult<Product>? paginatedResult;
     private HashSet<Product> selectedProducts = new();
     private string searchTerm = "";
     private ViewMode viewMode = ViewMode.Cards;
+    private int currentPage = 1;
+    private const int PageSize = 50;
     private string _selectedCategory = "All Categories";
-    private string selectedCategory 
-    { 
-        get => _selectedCategory; 
-        set 
-        { 
-            _selectedCategory = value; 
-            ApplyFilters(); 
-        } 
+    private string selectedCategory
+    {
+        get => _selectedCategory;
+        set
+        {
+            _selectedCategory = value;
+            currentPage = 1; // Reset to first page when category changes
+            _ = LoadProducts();
+        }
     }
     private List<string> categories = new() { "All Categories" };
     private bool isLoading = true;
+    private System.Timers.Timer? searchDebounceTimer;
 
     protected override async Task OnInitializedAsync()
     {
+        categories = await ProductService.GetCategoriesAsync();
         await LoadProducts();
     }
 
@@ -205,20 +237,17 @@
         try
         {
             isLoading = true;
-            
-            // Get all products from database using Unit of Work
-            var allProducts = await UnitOfWork.Products.GetAllAsync();
-            products = allProducts.ToList();
-            
-            // Extract unique categories
-            categories = new List<string> { "All Categories" };
-            categories.AddRange(products
-                .Where(p => !string.IsNullOrEmpty(p.Category))
-                .Select(p => p.Category!)
-                .Distinct()
-                .OrderBy(c => c));
-            
-            ApplyFilters();
+
+            // Load paginated products
+            paginatedResult = await ProductService.GetProductsAsync(
+                page: currentPage,
+                pageSize: PageSize,
+                searchTerm: searchTerm,
+                category: selectedCategory,
+                sortBy: "createdat",
+                sortDescending: true);
+
+            StateHasChanged();
         }
         catch (Exception ex)
         {
@@ -230,27 +259,38 @@
         }
     }
 
-    private void ApplyFilters()
+    private async Task ApplyFilters()
     {
-        filteredProducts = products;
+        // Reset to first page when filters change
+        currentPage = 1;
+        await LoadProducts();
+    }
 
-        // Apply search filter
-        if (!string.IsNullOrWhiteSpace(searchTerm))
-        {
-            filteredProducts = filteredProducts.Where(p =>
-                p.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                (p.Description?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (p.SKU?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
-            ).ToList();
-        }
+    private async Task OnPageChanged(int page)
+    {
+        currentPage = page;
+        await LoadProducts();
+    }
 
-        // Apply category filter
-        if (selectedCategory != "All Categories")
+    private void OnSearchTermChanged(string value)
+    {
+        searchTerm = value;
+
+        // Debounce search
+        searchDebounceTimer?.Stop();
+        searchDebounceTimer?.Dispose();
+
+        searchDebounceTimer = new System.Timers.Timer(500);
+        searchDebounceTimer.Elapsed += async (sender, e) =>
         {
-            filteredProducts = filteredProducts.Where(p => p.Category == selectedCategory).ToList();
-        }
-        
-        StateHasChanged();
+            searchDebounceTimer?.Dispose();
+            await InvokeAsync(async () =>
+            {
+                await ApplyFilters();
+            });
+        };
+        searchDebounceTimer.AutoReset = false;
+        searchDebounceTimer.Start();
     }
 
 
@@ -398,6 +438,8 @@
     
     public void Dispose()
     {
+        searchDebounceTimer?.Stop();
+        searchDebounceTimer?.Dispose();
         UnitOfWork?.Dispose();
     }
 }
