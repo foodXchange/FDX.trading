@@ -403,7 +403,7 @@
     {
         try
         {
-            var templateBytes = await CsvImportService.GenerateTemplateAsync(ImportDataType.Products);
+            var templateBytes = await CsvImportService.GenerateTemplateAsync("Products");
             
             // Download the template
             var fileName = "product_import_template.csv";

@@ -6,6 +6,7 @@ using FoodX.Admin.Components;
 using FoodX.Admin.Components.Account;
 using FoodX.Admin.Data;
 using FoodX.Admin.Services;
+using FoodX.Admin.Extensions;
 using FoodX.Core.Extensions;
 using System.Globalization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
@@ -216,7 +217,7 @@ builder.Services.AddOptimizedHangfire(connectionString);
 
 // Register services
 builder.Services.AddScoped<IOrderWorkflowService, OrderWorkflowService>();
-builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<FoodX.Admin.Services.IInvoiceService, FoodX.Admin.Services.InvoiceService>();
 
 // Register background jobs
 builder.Services.AddScoped<FoodX.Admin.Services.BackgroundJobs.IInvoiceGenerationJob, FoodX.Admin.Services.BackgroundJobs.InvoiceGenerationJob>();
@@ -273,7 +274,7 @@ builder.Services.AddSingleton<FoodX.Admin.Services.DomainEvents.IDomainEventServ
 // builder.Services.AddScoped<FoodX.Admin.Services.IOrderWorkflowService, FoodX.Admin.Services.OrderWorkflowService>();
 
 // Add other caching services
-builder.Services.AddScoped<FoodX.Admin.Services.ICacheService, FoodX.Admin.Services.CacheService>();
+builder.Services.AddScoped<FoodX.Admin.Services.ICacheService, FoodX.Admin.Services.MemoryCacheService>();
 builder.Services.AddScoped<FoodX.Admin.Services.ICacheInvalidationService, FoodX.Admin.Services.CacheInvalidationService>();
 builder.Services.AddScoped<FoodX.Admin.Services.ICachedProductService, FoodX.Admin.Services.CachedProductService>();
 
@@ -290,7 +291,7 @@ builder.Services.AddHttpClient<FoodX.Admin.Services.IEmailServiceClient, FoodX.A
 });
 
 // Use optimized SignalR configuration
-builder.Services.AddOptimizedSignalR(redisConnection);
+builder.Services.AddOptimizedSignalR();
 // builder.Services.AddScoped<FoodX.Admin.Services.INotificationService, FoodX.Admin.Services.NotificationService>();
 // builder.Services.AddSingleton<FoodX.Admin.Services.IUserConnectionManager, FoodX.Admin.Services.UserConnectionManager>();
 // Navigation and search services
@@ -548,10 +549,11 @@ using (var scope = app.Services.CreateScope())
         logger.LogInformation("Checking for missing database tables...");
         
         // Execute table creation
-        await FoodX.Admin.CreateMissingTables.ExecuteMigration();
+        using var context = scope.ServiceProvider.GetRequiredService<FoodXDbContext>();
+        FoodX.Admin.DatabaseExtensions.CreateMissingTables(context);
 
         // Apply RFQId migration
-        await FoodX.Admin.RFQIdMigrationExtensions.ApplyRFQIdMigrationAsync(scope.ServiceProvider);
+        FoodX.Admin.RFQIdMigrationExtensions.MigrateRFQIds(context);
 
         logger.LogInformation("Database tables check completed.");
     }
@@ -565,8 +567,8 @@ using (var scope = app.Services.CreateScope())
 // Enable response compression (must be before other middleware)
 app.UseResponseCompression();
 
-// Enable output caching
-app.UseOutputCache();
+// Enable output caching (disabled - service not configured)
+// app.UseOutputCache();
 
 // Configure static file options with caching
 app.UseStaticFiles(new StaticFileOptions
@@ -628,48 +630,48 @@ app.UseAntiforgery();
 // Map API controllers
 app.MapControllers();
 
-// Configure Hangfire Dashboard
-app.UseHangfireDashboard("/hangfire", new DashboardOptions
-{
-    Authorization = new[] { new FoodX.Admin.Services.HangfireAuthorizationFilter() }
-});
+// Configure Hangfire Dashboard (disabled - Hangfire not fully configured)
+// app.UseHangfireDashboard("/hangfire", new DashboardOptions
+// {
+//     Authorization = new[] { new FoodX.Admin.Services.HangfireAuthorizationFilter() }
+// });
 
-// Schedule recurring jobs
-var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
-recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IInvoiceGenerationJob>(
-    "process-pending-invoices",
-    job => job.ProcessPendingInvoices(),
-    Cron.Hourly);
-
-recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IInvoiceGenerationJob>(
-    "generate-monthly-statements",
-    job => job.GenerateMonthlyStatements(),
-    Cron.Monthly(1, 9)); // First day of month at 9 AM
-
-recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IInvoiceGenerationJob>(
-    "send-payment-reminders",
-    job => job.SendPaymentReminders(),
-    Cron.Daily(10)); // Daily at 10 AM
-
-recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IWorkflowAutomationJob>(
-    "process-workflow-rules",
-    job => job.ProcessWorkflowRules(),
-    "*/15 * * * *"); // Every 15 minutes
-
-recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IWorkflowAutomationJob>(
-    "auto-confirm-orders",
-    job => job.AutoConfirmOrders(),
-    Cron.Hourly(30)); // Every hour at 30 minutes
-
-recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IWorkflowAutomationJob>(
-    "update-shipment-statuses",
-    job => job.UpdateShipmentStatuses(),
-    "*/30 * * * *"); // Every 30 minutes
-
-recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IWorkflowAutomationJob>(
-    "process-delayed-shipments",
-    job => job.ProcessDelayedShipments(),
-    Cron.Daily(8)); // Daily at 8 AM
+// Schedule recurring jobs (disabled - Hangfire not fully configured)
+// var recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+// recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IInvoiceGenerationJob>(
+//     "process-pending-invoices",
+//     job => job.ProcessPendingInvoices(),
+//     Cron.Hourly);
+//
+// recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IInvoiceGenerationJob>(
+//     "generate-monthly-statements",
+//     job => job.GenerateMonthlyStatements(),
+//     Cron.Monthly(1, 9)); // First day of month at 9 AM
+//
+// recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IInvoiceGenerationJob>(
+//     "send-payment-reminders",
+//     job => job.SendPaymentReminders(),
+//     Cron.Daily(10)); // Daily at 10 AM
+//
+// recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IWorkflowAutomationJob>(
+//     "process-workflow-rules",
+//     job => job.ProcessWorkflowRules(),
+//     "*/15 * * * *"); // Every 15 minutes
+//
+// recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IWorkflowAutomationJob>(
+//     "auto-confirm-orders",
+//     job => job.AutoConfirmOrders(),
+//     Cron.Hourly(30)); // Every hour at 30 minutes
+//
+// recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IWorkflowAutomationJob>(
+//     "update-shipment-statuses",
+//     job => job.UpdateShipmentStatuses(),
+//     "*/30 * * * *"); // Every 30 minutes
+//
+// recurringJobManager.AddOrUpdate<FoodX.Admin.Services.BackgroundJobs.IWorkflowAutomationJob>(
+//     "process-delayed-shipments",
+//     job => job.ProcessDelayedShipments(),
+//     Cron.Daily(8)); // Daily at 8 AM
 
 // Map health checks endpoints
 app.MapHealthChecks("/health");
@@ -741,7 +743,9 @@ if (app.Environment.IsDevelopment())
 try
 {
     Console.WriteLine("[INFO] Checking FoodXBuyers table schema...");
-    FoodX.Admin.ApplyBuyerColumns.ExecuteMigration();
+    using var scope = app.Services.CreateScope();
+    using var context = scope.ServiceProvider.GetRequiredService<FoodXDbContext>();
+    FoodX.Admin.DatabaseExtensions.ApplyBuyerColumns(context);
 }
 catch (Exception ex)
 {
