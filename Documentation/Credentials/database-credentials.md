@@ -9,10 +9,15 @@
 
 ## Authentication Methods
 
-### 1. SQL Authentication
+### 1. SQL Authentication (Working - Updated)
+- **Username**: foodxapp
+- **Password**: FoodX@2024!Secure#Trading
+- **Status**: ✅ Currently working and tested with FoodX.Simple application
+
+### 2. SQL Authentication (Legacy - Not Working)
 - **Username**: fdxadmin
 - **Password**: FDX2030! (Note: May need to be reset in Azure Portal)
-- **Status**: Currently not working - needs password reset
+- **Status**: ❌ Currently not working - needs password reset
 
 ### 2. Microsoft Entra Authentication (Recommended)
 - **Admin**: Udi Stryk (foodz-x@hotmail.com)
@@ -21,7 +26,16 @@
 
 ## Connection Strings
 
-### For Application (appsettings.json)
+### For Application (appsettings.json) - Working Configuration
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=tcp:fdx-sql-prod.database.windows.net,1433;Database=fdxdb;User Id=foodxapp;Password=FoodX@2024!Secure#Trading;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+  }
+}
+```
+
+### Legacy Connection String (Not Working)
 ```json
 {
   "ConnectionStrings": {
@@ -41,7 +55,16 @@ TrustServerCertificate=False;
 
 ## CLI Connection Commands
 
-### Using SQL Authentication (after password reset)
+### Using SQL Authentication (Working - foodxapp)
+```bash
+sqlcmd -S tcp:fdx-sql-prod.database.windows.net,1433 \
+       -d fdxdb \
+       -U foodxapp \
+       -P "FoodX@2024!Secure#Trading" \
+       -C
+```
+
+### Using SQL Authentication (Legacy - fdxadmin - needs password reset)
 ```bash
 sqlcmd -S tcp:fdx-sql-prod.database.windows.net,1433 \
        -d fdxdb \
@@ -60,14 +83,28 @@ sqlcmd -S tcp:fdx-sql-prod.database.windows.net,1433 \
 
 ## Python Connection (pyodbc)
 
-### SQL Authentication
+### SQL Authentication (Working - foodxapp)
+```python
+import pyodbc
+
+server = 'fdx-sql-prod.database.windows.net'
+database = 'fdxdb'
+username = 'foodxapp'
+password = 'FoodX@2024!Secure#Trading'
+driver = '{ODBC Driver 17 for SQL Server}'
+
+connection_string = f'DRIVER={driver};SERVER={server};DATABASE={database};UID={username};PWD={password};TrustServerCertificate=yes'
+conn = pyodbc.connect(connection_string)
+```
+
+### SQL Authentication (Legacy - fdxadmin - needs password reset)
 ```python
 import pyodbc
 
 server = 'fdx-sql-prod.database.windows.net'
 database = 'fdxdb'
 username = 'fdxadmin'
-password = 'YOUR_PASSWORD'
+password = 'YOUR_PASSWORD'  # Needs to be reset in Azure Portal
 driver = '{ODBC Driver 17 for SQL Server}'
 
 connection_string = f'DRIVER={driver};SERVER={server};DATABASE={database};UID={username};PWD={password};TrustServerCertificate=yes'
@@ -111,5 +148,7 @@ conn = pyodbc.connect(connection_string, attrs_before={1256: tokenstruct})
 
 ## Notes
 - The database was previously referenced as `fdxdb_v2` in appsettings.json but the actual database name is `fdxdb`
+- SQL Authentication with **foodxapp** user is confirmed working (last verified: December 2024)
 - SQL Authentication with fdxadmin is currently failing - password needs to be reset in Azure Portal
-- Microsoft Entra authentication is working and recommended
+- Microsoft Entra authentication is working and recommended for production use
+- The **foodxapp** credentials are successfully being used by the FoodX.Simple application

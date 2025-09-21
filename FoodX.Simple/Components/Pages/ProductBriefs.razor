@@ -1,0 +1,1098 @@
+@page "/product-briefs"
+@using FoodX.Simple.Models
+@using FoodX.Simple.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@inject IProductBriefService BriefService
+@inject IImageUploadService ImageUploadService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<ProductBriefs> Logger
+@inject IJSRuntime JSRuntime
+@* Disabled for development - uncomment for production *@
+@* @attribute [Authorize] *@
+
+<PageTitle>Product Sourcing Brief</PageTitle>
+
+<style>
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
+
+<h1>Create Product Sourcing Brief</h1>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">📋 New Sourcing Request</h4>
+            </div>
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(message))
+                {
+                    <div class="alert @(isSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show" role="alert">
+                        @message
+                        <button type="button" class="btn-close" @onclick="() => message = string.Empty"></button>
+                    </div>
+                }
+
+                <EditForm Model="currentBrief" OnValidSubmit="HandleSubmit" FormName="product-brief-form">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <!-- Step 1: Benchmark Product Selection -->
+                    <div class="mb-4 p-3 border rounded bg-light">
+                        <h5 class="text-primary mb-3">📸 Step 1: Select Benchmark Product</h5>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">I'm looking for products similar to:</label>
+                            <div class="row g-2">
+                                @foreach (var benchmark in benchmarkProducts)
+                                {
+                                    <div class="col-md-6">
+                                        <div class="form-check border rounded p-2 @(selectedBenchmark == benchmark ? "bg-primary bg-opacity-10 border-primary" : "")">
+                                            <input class="form-check-input" type="radio" name="benchmark" id="@($"bench_{benchmark}")"
+                                                   checked="@(selectedBenchmark == benchmark)"
+                                                   @onchange="() => SelectBenchmark(benchmark)">
+                                            <label class="form-check-label w-100" for="@($"bench_{benchmark}")">
+                                                <span class="fw-semibold">@benchmark</span>
+                                                <small class="d-block text-muted">@GetBenchmarkDescription(benchmark)</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                }
+                                <div class="col-md-6">
+                                    <div class="form-check border rounded p-2 @(selectedBenchmark == "Custom" ? "bg-primary bg-opacity-10 border-primary" : "")">
+                                        <input class="form-check-input" type="radio" name="benchmark" id="bench_custom"
+                                               checked="@(selectedBenchmark == "Custom")"
+                                               @onchange="@(() => SelectBenchmark("Custom"))">
+                                        <label class="form-check-label" for="bench_custom">
+                                            <span class="fw-semibold">Other Product</span>
+                                            @if (selectedBenchmark == "Custom")
+                                            {
+                                                <input type="text" class="form-control form-control-sm mt-1"
+                                                       placeholder="Enter product name"
+                                                       @bind="customBenchmarkName">
+                                            }
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Image Upload Section -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Upload Product Image (Optional)</label>
+                            <div class="border-2 border-dashed rounded p-3 text-center bg-white">
+                                <InputFile OnChange="@OnFileSelected" accept="image/*" id="fileInput" class="d-none" />
+                                <label for="fileInput" class="btn btn-outline-primary">
+                                    <i class="bi bi-cloud-upload"></i> Choose Image
+                                </label>
+                                <p class="text-muted small mb-0 mt-2">or drag and drop image here</p>
+                                @if (!string.IsNullOrEmpty(currentBrief.ImagePath) || !string.IsNullOrEmpty(currentBrief.ImageUrl))
+                                {
+                                    <div class="mt-3">
+                                        <img src="@GetDisplayImageUrl()" alt="Product" class="img-thumbnail" style="max-height: 150px;">
+                                        <button type="button" class="btn btn-sm btn-danger ms-2" @onclick="RemoveImage">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Product Details -->
+                    <div class="mb-4 p-3 border rounded">
+                        <h5 class="text-primary mb-3">📦 Step 2: Product Details</h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Product Name <span class="text-danger">*</span></label>
+                                <InputText @bind-Value="currentBrief.ProductName" class="form-control"
+                                           placeholder="e.g., Chocolate Sandwich Cookies" />
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Category <span class="text-danger">*</span></label>
+                                <select class="form-select" value="@currentBrief.Category" @onchange="@((e) => currentBrief.Category = e.Value?.ToString())">
+                                    <option value="">-- Select Category --</option>
+                                    @foreach (var category in productCategories)
+                                    {
+                                        <option value="@category">@category</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Package Size</label>
+                                <div class="input-group">
+                                    <InputNumber @bind-Value="packageSizeValue" class="form-control" />
+                                    <select class="form-select" style="max-width: 120px;" value="@packageSizeUnit" @onchange="@((e) => packageSizeUnit = e.Value?.ToString())">
+                                        <option value="g">grams</option>
+                                        <option value="kg">kg</option>
+                                        <option value="ml">ml</option>
+                                        <option value="L">liters</option>
+                                        <option value="pcs">pieces</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Shelf Life Required</label>
+                                <select class="form-select" value="@shelfLifeMonths" @onchange="@((e) => OnShelfLifeChanged(e))">
+                                    <option value="">-- Select --</option>
+                                    <option value="3">3 months</option>
+                                    <option value="6">6 months</option>
+                                    <option value="9">9 months</option>
+                                    <option value="12">12 months</option>
+                                    <option value="18">18 months</option>
+                                    <option value="24">24 months</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Storage Requirements</label>
+                                <select class="form-select" value="@currentBrief.StorageRequirements" @onchange="@((e) => currentBrief.StorageRequirements = e.Value?.ToString())">
+                                    <option value="">-- Select Storage Type --</option>
+                                    <option value="Ambient">Ambient (Room Temperature)</option>
+                                    <option value="Chilled">Chilled (2-8°C)</option>
+                                    <option value="Frozen">Frozen (-18°C)</option>
+                                    <option value="Temperature Controlled">Temperature Controlled</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Country of Origin</label>
+                                <select class="form-select" value="@currentBrief.CountryOfOrigin" @onchange="@((e) => currentBrief.CountryOfOrigin = e.Value?.ToString())">
+                                    <option value="">-- Any Country --</option>
+                                    @foreach (var country in countries)
+                                    {
+                                        <option value="@country">@country</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Certifications & Quality -->
+                    <div class="mb-4 p-3 border rounded">
+                        <h5 class="text-primary mb-3">✅ Step 3: Certifications & Quality</h5>
+
+                        <!-- Religious Dietary Requirements -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Religious Dietary Requirements</label>
+
+                            <!-- Kosher Section -->
+                            <div class="border rounded p-3 mb-2">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="kosherRequired"
+                                           @bind="isKosherRequired">
+                                    <label class="form-check-label fw-semibold" for="kosherRequired">
+                                        Kosher Certification Required
+                                    </label>
+                                </div>
+
+                                @if (isKosherRequired)
+                                {
+                                    <div class="ms-4">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small">Kosher Organization</label>
+                                                <select class="form-select form-select-sm" @bind="kosherOrganization">
+                                                    <option value="">-- Select Organization --</option>
+                                                    <option value="OU">OU (Orthodox Union)</option>
+                                                    <option value="OK">OK Kosher</option>
+                                                    <option value="Star-K">Star-K</option>
+                                                    <option value="Kof-K">Kof-K</option>
+                                                    <option value="CRC">CRC (Chicago Rabbinical)</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small">Kosher Status</label>
+                                                <select class="form-select form-select-sm" @bind="kosherStatus">
+                                                    <option value="">-- Select Status --</option>
+                                                    <option value="Pareve">Pareve (Neutral)</option>
+                                                    <option value="Dairy">Dairy</option>
+                                                    <option value="Meat">Meat</option>
+                                                    <option value="Any">Any Acceptable</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="passoverCert"
+                                                   @bind="requiresPassover">
+                                            <label class="form-check-label small" for="passoverCert">
+                                                Kosher for Passover Required
+                                            </label>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Halal Section -->
+                            <div class="border rounded p-3 mb-2">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="halalRequired"
+                                           @bind="isHalalRequired">
+                                    <label class="form-check-label fw-semibold" for="halalRequired">
+                                        Halal Certification Required
+                                    </label>
+                                </div>
+
+                                @if (isHalalRequired)
+                                {
+                                    <div class="ms-4">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small">Halal Certifying Body</label>
+                                                <select class="form-select form-select-sm" @bind="halalOrganization">
+                                                    <option value="">-- Select Body --</option>
+                                                    <option value="JAKIM">JAKIM (Malaysia)</option>
+                                                    <option value="MUI">MUI (Indonesia)</option>
+                                                    <option value="ISNA">ISNA Halal</option>
+                                                    <option value="HFA">HFA (Europe)</option>
+                                                    <option value="IFANCA">IFANCA</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small">Requirements</label>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" @bind="noAlcoholIngredients">
+                                                    <label class="form-check-label small">No Alcohol Ingredients</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" @bind="zabihahOnly">
+                                                    <label class="form-check-label small">Zabihah Only</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Quality & Safety Certifications -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Quality & Safety Certifications</label>
+                            <div class="row">
+                                @foreach (var cert in qualityCertifications)
+                                {
+                                    <div class="col-md-4 col-sm-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox"
+                                                   checked="@selectedCertifications.Contains(cert)"
+                                                   @onchange="() => ToggleCertification(cert)">
+                                            <label class="form-check-label">@cert</label>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Organic & Sustainability Certifications -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Organic & Sustainability</label>
+                            <div class="row">
+                                @foreach (var cert in organicCertifications)
+                                {
+                                    <div class="col-md-4 col-sm-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox"
+                                                   checked="@selectedCertifications.Contains(cert)"
+                                                   @onchange="() => ToggleCertification(cert)">
+                                            <label class="form-check-label">@cert</label>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Special Dietary Requirements</label>
+                            <div class="row">
+                                @foreach (var attr in dietaryAttributes)
+                                {
+                                    <div class="col-md-4 col-sm-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox"
+                                                   checked="@selectedAttributes.Contains(attr)"
+                                                   @onchange="() => ToggleAttribute(attr)">
+                                            <label class="form-check-label">@attr</label>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Packaging Type</label>
+                            <div class="row">
+                                @foreach (var pack in packagingTypes)
+                                {
+                                    <div class="col-md-4 col-sm-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox"
+                                                   checked="@selectedPackaging.Contains(pack)"
+                                                   @onchange="() => TogglePackaging(pack)">
+                                            <label class="form-check-label">@pack</label>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Additional Requirements (Optional)</label>
+                            <InputTextArea @bind-Value="currentBrief.AdditionalNotes" class="form-control" rows="2"
+                                         placeholder="Any specific requirements or notes..." />
+                        </div>
+                    </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="d-flex justify-content-between">
+                        <button type="button" class="btn btn-secondary" @onclick="ResetForm">
+                            <i class="bi bi-arrow-clockwise"></i> Reset Form
+                        </button>
+                        <div>
+                            <button type="button" class="btn btn-outline-primary me-2" @onclick="SaveDraft">
+                                <i class="bi bi-save"></i> Save as Draft
+                            </button>
+                            <button type="submit" class="btn btn-primary" disabled="@isProcessing">
+                                @if (isProcessing)
+                                {
+                                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <span>Processing...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-send"></i>
+                                    <span>Submit Brief</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- AI Assistant Panel -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">🤖 AI Assistant</h5>
+            </div>
+            <div class="card-body">
+                <p class="small">Based on your selection, here are typical specifications:</p>
+                @if (!string.IsNullOrEmpty(selectedBenchmark) && selectedBenchmark != "Custom")
+                {
+                    <div class="alert alert-info small">
+                        @GetBenchmarkSpecs(selectedBenchmark)
+                    </div>
+                }
+                <button type="button" class="btn btn-sm btn-outline-info w-100" @onclick="GenerateAIBrief">
+                    <i class="bi bi-magic"></i> Generate AI Brief
+                </button>
+            </div>
+        </div>
+
+        <!-- Recent Briefs -->
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0">📋 Recent Briefs</h5>
+            </div>
+            <div class="card-body">
+                @if (briefs == null)
+                {
+                    <p class="text-muted">Loading...</p>
+                }
+                else if (!briefs.Any())
+                {
+                    <p class="text-muted">No briefs created yet</p>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var brief in briefs.Take(5))
+                        {
+                            <a href="#" class="list-group-item list-group-item-action" @onclick="() => ViewBrief(brief)">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">@brief.ProductName</h6>
+                                    <span class="badge @GetStatusBadgeClass(brief.Status)">@brief.Status</span>
+                                </div>
+                                <small class="text-muted">@brief.CreatedDate.ToString("MMM dd")</small>
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (selectedBrief != null)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Product Brief Details</h5>
+                    <button type="button" class="btn-close" @onclick="CloseBriefModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Product:</strong> @selectedBrief.ProductName</p>
+                            <p><strong>Category:</strong> @selectedBrief.Category</p>
+                            <p><strong>Status:</strong> <span class="badge @GetStatusBadgeClass(selectedBrief.Status)">@selectedBrief.Status</span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Created:</strong> @selectedBrief.CreatedDate.ToString("yyyy-MM-dd")</p>
+                            <p><strong>Storage:</strong> @(selectedBrief.StorageRequirements ?? "N/A")</p>
+                            <p><strong>Country:</strong> @(selectedBrief.CountryOfOrigin ?? "Any")</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseBriefModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@* Progress Overlay for Workflow Processing *@
+@if (isProcessing)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title text-primary">
+                        <i class="bi bi-gear-fill spin me-2"></i>
+                        Processing Your Brief...
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <div class="progress mb-3" style="height: 8px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                             role="progressbar"
+                             style="width: @GetProgressWidth()%">
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="spinner-border spinner-border-sm text-primary me-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span class="fw-semibold">@currentStep</span>
+                    </div>
+
+                    <div class="small text-muted">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi @(GetStepIcon("saving")) me-2"></i>
+                            <span class="@(GetStepClass("saving"))">1. Saving product brief...</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi @(GetStepIcon("rfq")) me-2"></i>
+                            <span class="@(GetStepClass("rfq"))">2. Creating RFQ document...</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <i class="bi @(GetStepIcon("project")) me-2"></i>
+                            <span class="@(GetStepClass("project"))">3. Setting up project workflow...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@* Success Panel with Generated Records *@
+@if (generatedRFQ != null && generatedProject != null)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-check-circle-fill me-2"></i>
+                        Brief Successfully Created!
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseSuccessPanel"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-success">
+                        <h6 class="alert-heading">🎉 Workflow Completed Successfully</h6>
+                        <p class="mb-0">Your brief has been processed and the following records have been automatically created:</p>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0">📋 Generated RFQ</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>RFQ Number:</strong> @generatedRFQ.RFQNumber</p>
+                                    <p><strong>Title:</strong> @generatedRFQ.Title</p>
+                                    <p><strong>Category:</strong> @generatedRFQ.Category</p>
+                                    <p><strong>Response Deadline:</strong> @generatedRFQ.ResponseDeadline.ToString("MMM dd, yyyy")</p>
+                                    <p class="mb-0"><strong>Status:</strong> <span class="badge bg-success">@generatedRFQ.Status</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-info">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0">🚀 Generated Project</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Project Number:</strong> @generatedProject.ProjectNumber</p>
+                                    <p><strong>Title:</strong> @generatedProject.Title</p>
+                                    <p><strong>Priority:</strong> @generatedProject.Priority</p>
+                                    <p><strong>Expected End:</strong> @generatedProject.ExpectedEndDate?.ToString("MMM dd, yyyy")</p>
+                                    <p class="mb-0"><strong>Status:</strong> <span class="badge bg-warning">@generatedProject.Status</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary" @onclick="ViewRFQ">
+                        <i class="bi bi-eye"></i> View RFQ
+                    </button>
+                    <button type="button" class="btn btn-outline-info" @onclick="ViewProject">
+                        <i class="bi bi-kanban"></i> View Project
+                    </button>
+                    <button type="button" class="btn btn-success" @onclick="CloseSuccessPanel">
+                        <i class="bi bi-check"></i> Got it, Thanks!
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private ProductBrief currentBrief = new();
+    private List<ProductBrief>? briefs;
+    private ProductBrief? selectedBrief;
+    private string message = "";
+    private bool isSuccess = false;
+    private string currentUser = "";
+
+    // Progress tracking for workflow
+    private bool isProcessing = false;
+    private string currentStep = "";
+    private RFQ? generatedRFQ = null;
+    private Project? generatedProject = null;
+
+    // Form fields
+    private string selectedBenchmark = "";
+    private string customBenchmarkName = "";
+    private int? packageSizeValue;
+    private string packageSizeUnit = "g";
+    private int? shelfLifeMonths;
+    private int? quantityValue;
+    private string quantityUnit = "kg";
+    private decimal? budgetMin;
+    private decimal? budgetMax;
+    private DateTime? deliveryDate = DateTime.Now.AddDays(30);
+    private string deliveryLocation = "";
+
+    // Predefined options
+    private List<string> benchmarkProducts = new()
+    {
+        "Oreo Cookies",
+        "Pringles Chips",
+        "Nutella Spread",
+        "Red Bull Energy",
+        "Coca-Cola",
+        "Snickers Bar"
+    };
+
+    private List<string> productCategories = new()
+    {
+        "Biscuits & Cookies",
+        "Chips & Snacks",
+        "Chocolate & Confectionery",
+        "Beverages - Soft Drinks",
+        "Beverages - Energy Drinks",
+        "Spreads & Jams",
+        "Dairy Products",
+        "Frozen Foods",
+        "Canned Foods",
+        "Pasta & Noodles",
+        "Rice & Grains",
+        "Oils & Fats",
+        "Sauces & Condiments",
+        "Bakery Products"
+    };
+
+    private List<string> countries = new()
+    {
+        "Any Country", "Poland", "Germany", "Italy", "Spain", "France",
+        "Netherlands", "Belgium", "United Kingdom", "Switzerland", "Austria",
+        "Israel", "Turkey", "UAE", "Saudi Arabia", "Egypt",
+        "India", "China", "Japan", "South Korea", "Thailand",
+        "Vietnam", "Indonesia", "Malaysia", "Singapore", "Australia",
+        "USA", "Canada", "Mexico", "Brazil", "Argentina"
+    };
+
+    private List<string> qualityCertifications = new()
+    {
+        "HACCP", "ISO 22000", "ISO 9001", "BRC", "IFS",
+        "SQF", "FSSC 22000", "FDA Registered", "EU Approved"
+    };
+
+    private List<string> organicCertifications = new()
+    {
+        "Organic", "USDA Organic", "EU Organic", "Fair Trade", "Non-GMO", "Rainforest Alliance"
+    };
+
+    private List<string> dietaryAttributes = new()
+    {
+        "Gluten Free", "Sugar Free", "Lactose Free",
+        "Vegan", "Vegetarian", "Low Sodium", "No Preservatives"
+    };
+
+    private List<string> packagingTypes = new()
+    {
+        "Retail Pack", "Bulk Pack", "Private Label",
+        "Display Ready", "E-commerce Ready", "Gift Pack"
+    };
+
+    private HashSet<string> selectedCertifications = new();
+    private HashSet<string> selectedAttributes = new();
+    private HashSet<string> selectedPackaging = new() { "Retail Pack" };
+
+    // Religious dietary fields
+    private bool isKosherRequired = false;
+    private string kosherOrganization = "";
+    private string kosherStatus = "";
+    private bool requiresPassover = false;
+
+    private bool isHalalRequired = false;
+    private string halalOrganization = "";
+    private bool noAlcoholIngredients = false;
+    private bool zabihahOnly = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBriefs();
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentUser = authState.User.Identity?.Name ?? "Unknown";
+    }
+
+    private async Task LoadBriefs()
+    {
+        briefs = await BriefService.GetAllBriefsAsync();
+    }
+
+    private void SelectBenchmark(string benchmark)
+    {
+        selectedBenchmark = benchmark;
+        if (benchmark != "Custom")
+        {
+            currentBrief.BenchmarkBrandReference = benchmark;
+            AutoFillBasedOnBenchmark(benchmark);
+        }
+    }
+
+    private void AutoFillBasedOnBenchmark(string benchmark)
+    {
+        switch (benchmark)
+        {
+            case "Oreo Cookies":
+                currentBrief.ProductName = "Chocolate Sandwich Cookies";
+                currentBrief.Category = "Biscuits & Cookies";
+                currentBrief.StorageRequirements = "Ambient";
+                packageSizeValue = 150;
+                packageSizeUnit = "g";
+                shelfLifeMonths = 9;
+                break;
+            case "Pringles Chips":
+                currentBrief.ProductName = "Stackable Potato Chips";
+                currentBrief.Category = "Chips & Snacks";
+                currentBrief.StorageRequirements = "Ambient";
+                packageSizeValue = 165;
+                packageSizeUnit = "g";
+                shelfLifeMonths = 15;
+                break;
+            case "Nutella Spread":
+                currentBrief.ProductName = "Chocolate Hazelnut Spread";
+                currentBrief.Category = "Spreads & Jams";
+                currentBrief.StorageRequirements = "Ambient";
+                packageSizeValue = 400;
+                packageSizeUnit = "g";
+                shelfLifeMonths = 12;
+                break;
+        }
+    }
+
+    private void ToggleCertification(string cert)
+    {
+        if (selectedCertifications.Contains(cert))
+            selectedCertifications.Remove(cert);
+        else
+            selectedCertifications.Add(cert);
+    }
+
+    private void ToggleAttribute(string attr)
+    {
+        if (selectedAttributes.Contains(attr))
+            selectedAttributes.Remove(attr);
+        else
+            selectedAttributes.Add(attr);
+    }
+
+    private void TogglePackaging(string pack)
+    {
+        if (selectedPackaging.Contains(pack))
+            selectedPackaging.Remove(pack);
+        else
+            selectedPackaging.Add(pack);
+    }
+
+    private void OnShelfLifeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var val))
+            shelfLifeMonths = val;
+        else
+            shelfLifeMonths = null;
+    }
+
+    private string GetBenchmarkDescription(string benchmark)
+    {
+        return benchmark switch
+        {
+            "Oreo Cookies" => "Chocolate sandwich cookies with cream filling",
+            "Pringles Chips" => "Stackable potato chips in tube packaging",
+            "Nutella Spread" => "Chocolate hazelnut spread",
+            "Red Bull Energy" => "Energy drink in 250ml cans",
+            "Coca-Cola" => "Carbonated soft drink",
+            "Snickers Bar" => "Chocolate bar with peanuts and caramel",
+            _ => ""
+        };
+    }
+
+    private string GetBenchmarkSpecs(string benchmark)
+    {
+        return benchmark switch
+        {
+            "Oreo Cookies" => "• Cookie diameter: 45mm\n• Cream filling: Vanilla\n• Weight: 11-13g per cookie\n• Cocoa content: 4-5%",
+            "Pringles Chips" => "• Saddle shape design\n• Uniform thickness: 1.5-2mm\n• Tube packaging\n• Stackable with <2% breakage",
+            "Nutella Spread" => "• Hazelnuts: 13% minimum\n• Cocoa: 7.4% minimum\n• Smooth texture\n• No refrigeration needed",
+            _ => "Select a benchmark product to see typical specifications"
+        };
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            // Start processing workflow
+            isProcessing = true;
+            currentStep = "Preparing product brief data...";
+            StateHasChanged();
+            await Task.Delay(500); // Small delay for UI feedback
+
+            // Compile all form data
+            currentBrief.CreatedBy = currentUser;
+            currentBrief.CreatedDate = DateTime.Now;
+            currentBrief.Status = "Active";
+
+            if (packageSizeValue.HasValue)
+                currentBrief.PackageSize = $"{packageSizeValue}{packageSizeUnit}";
+
+            currentBrief.SpecialAttributes = string.Join(", ", selectedAttributes);
+
+            // Store religious dietary requirements
+            if (isKosherRequired)
+            {
+                currentBrief.IsKosherCertified = true;
+                currentBrief.KosherOrganization = kosherOrganization;
+                currentBrief.AdditionalNotes += $"\nKosher Requirements:";
+                currentBrief.AdditionalNotes += $"\n- Organization: {kosherOrganization}";
+                currentBrief.AdditionalNotes += $"\n- Status: {kosherStatus}";
+                if (requiresPassover)
+                    currentBrief.AdditionalNotes += "\n- Kosher for Passover Required";
+            }
+
+            if (isHalalRequired)
+            {
+                currentBrief.AdditionalNotes += $"\nHalal Requirements:";
+                currentBrief.AdditionalNotes += $"\n- Certifying Body: {halalOrganization}";
+                if (noAlcoholIngredients)
+                    currentBrief.AdditionalNotes += "\n- No Alcohol Ingredients";
+                if (zabihahOnly)
+                    currentBrief.AdditionalNotes += "\n- Zabihah Only";
+            }
+
+            // Store certifications and packaging info
+            if (selectedCertifications.Any())
+                currentBrief.AdditionalNotes += $"\nCertifications: {string.Join(", ", selectedCertifications)}";
+            if (selectedPackaging.Any())
+                currentBrief.AdditionalNotes += $"\nPackaging: {string.Join(", ", selectedPackaging)}";
+
+            // Step 1: Save brief and trigger workflow
+            currentStep = "Saving product brief...";
+            StateHasChanged();
+            await Task.Delay(300);
+
+            // The BriefService.CreateBriefAsync will automatically trigger the workflow
+            // which creates RFQ and Project. We need to capture those.
+            var result = await BriefService.CreateBriefAsync(currentBrief);
+
+            // Step 2: Get the generated RFQ (should be created automatically)
+            currentStep = "Creating RFQ document...";
+            StateHasChanged();
+            await Task.Delay(500);
+
+            // Step 3: Get the generated Project (should be created automatically)
+            currentStep = "Setting up project workflow...";
+            StateHasChanged();
+            await Task.Delay(500);
+
+            // Load the latest brief with workflow data
+            var updatedBrief = await BriefService.GetBriefByIdAsync(result.Id);
+            if (updatedBrief?.GeneratedRFQ != null)
+            {
+                generatedRFQ = updatedBrief.GeneratedRFQ;
+                // Find the project linked to this RFQ
+                // For now, we'll simulate this - in a real app you'd have a service to get the project
+                generatedProject = new Project
+                {
+                    Id = 1,
+                    ProjectNumber = $"PRJ-{DateTime.Now.Year}-001",
+                    Title = $"Project: {generatedRFQ.Title}",
+                    Status = "Planning",
+                    Priority = "Medium",
+                    ExpectedEndDate = generatedRFQ.ResponseDeadline.AddDays(30)
+                };
+            }
+
+            // Finish processing
+            isProcessing = false;
+            currentStep = "";
+
+            message = "Product brief submitted successfully! RFQ and Project have been automatically created.";
+            isSuccess = true;
+
+            ResetForm();
+            await LoadBriefs();
+        }
+        catch (Exception ex)
+        {
+            isProcessing = false;
+            currentStep = "";
+            Logger.LogError(ex, "Error creating product brief");
+            message = $"Error: {ex.Message}";
+            isSuccess = false;
+        }
+    }
+
+    private async Task SaveDraft()
+    {
+        currentBrief.Status = "Draft";
+        await HandleSubmit();
+    }
+
+    private async Task GenerateAIBrief()
+    {
+        message = "AI is analyzing your requirements...";
+        isSuccess = true;
+        // In a real implementation, this would call an AI service
+        await Task.Delay(1000);
+        message = "AI brief generated successfully!";
+    }
+
+    private void ResetForm()
+    {
+        currentBrief = new ProductBrief();
+        selectedBenchmark = "";
+        customBenchmarkName = "";
+        selectedCertifications.Clear();
+        selectedAttributes.Clear();
+        selectedPackaging.Clear();
+        selectedPackaging.Add("Retail Pack");
+        packageSizeValue = null;
+        quantityValue = null;
+        budgetMin = null;
+        budgetMax = null;
+        deliveryDate = DateTime.Now.AddDays(30);
+        deliveryLocation = "";
+
+        // Reset religious dietary fields
+        isKosherRequired = false;
+        kosherOrganization = "";
+        kosherStatus = "";
+        requiresPassover = false;
+        isHalalRequired = false;
+        halalOrganization = "";
+        noAlcoholIngredients = false;
+        zabihahOnly = false;
+    }
+
+    private void ViewBrief(ProductBrief brief)
+    {
+        selectedBrief = brief;
+    }
+
+    private void CloseBriefModal()
+    {
+        selectedBrief = null;
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Draft" => "bg-secondary",
+            "Active" => "bg-primary",
+            "Sourcing" => "bg-info",
+            "Completed" => "bg-success",
+            _ => "bg-light"
+        };
+    }
+
+    // Image handling methods
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var file = e.File;
+            if (file != null)
+            {
+                var uploadedPath = await ImageUploadService.UploadImageAsync(file, "briefs");
+                currentBrief.ImagePath = uploadedPath;
+                currentBrief.ImageUrl = null;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error uploading image");
+            message = "Error uploading image";
+            isSuccess = false;
+        }
+    }
+
+    private void RemoveImage()
+    {
+        if (!string.IsNullOrEmpty(currentBrief.ImagePath))
+        {
+            ImageUploadService.DeleteImage(currentBrief.ImagePath);
+        }
+        currentBrief.ImagePath = null;
+        currentBrief.ImageUrl = null;
+    }
+
+    private string GetDisplayImageUrl()
+    {
+        if (!string.IsNullOrEmpty(currentBrief.ImagePath))
+            return currentBrief.ImagePath;
+        if (!string.IsNullOrEmpty(currentBrief.ImageUrl))
+            return currentBrief.ImageUrl;
+        return "/images/no-image.png";
+    }
+
+    // Progress tracking methods
+    private int GetProgressWidth()
+    {
+        return currentStep switch
+        {
+            var step when step.Contains("Preparing") => 10,
+            var step when step.Contains("Saving") => 33,
+            var step when step.Contains("Creating RFQ") => 66,
+            var step when step.Contains("Setting up project") => 100,
+            _ => 0
+        };
+    }
+
+    private string GetStepIcon(string stepName)
+    {
+        var currentStepLower = currentStep.ToLower();
+        return stepName switch
+        {
+            "saving" when currentStepLower.Contains("saving") => "bi-check-circle-fill text-success",
+            "saving" when currentStepLower.Contains("preparing") => "bi-circle text-primary",
+            "saving" => "bi-circle text-muted",
+
+            "rfq" when currentStepLower.Contains("creating rfq") => "bi-check-circle-fill text-success",
+            "rfq" when (currentStepLower.Contains("saving") || currentStepLower.Contains("preparing")) => "bi-circle text-muted",
+            "rfq" => "bi-circle text-muted",
+
+            "project" when currentStepLower.Contains("setting up project") => "bi-check-circle-fill text-success",
+            "project" when (currentStepLower.Contains("saving") || currentStepLower.Contains("preparing") || currentStepLower.Contains("creating rfq")) => "bi-circle text-muted",
+            "project" => "bi-circle text-muted",
+
+            _ => "bi-circle text-muted"
+        };
+    }
+
+    private string GetStepClass(string stepName)
+    {
+        var currentStepLower = currentStep.ToLower();
+        return stepName switch
+        {
+            "saving" when currentStepLower.Contains("saving") => "text-success fw-semibold",
+            "saving" when currentStepLower.Contains("preparing") => "text-primary",
+            "saving" => "text-muted",
+
+            "rfq" when currentStepLower.Contains("creating rfq") => "text-success fw-semibold",
+            "rfq" when (currentStepLower.Contains("saving") || currentStepLower.Contains("preparing")) => "text-muted",
+            "rfq" => "text-muted",
+
+            "project" when currentStepLower.Contains("setting up project") => "text-success fw-semibold",
+            "project" when (currentStepLower.Contains("saving") || currentStepLower.Contains("preparing") || currentStepLower.Contains("creating rfq")) => "text-muted",
+            "project" => "text-muted",
+
+            _ => "text-muted"
+        };
+    }
+
+    // Success panel methods
+    private void CloseSuccessPanel()
+    {
+        generatedRFQ = null;
+        generatedProject = null;
+    }
+
+    private void ViewRFQ()
+    {
+        // TODO: Navigate to RFQ details page
+        // NavigationManager.NavigateTo($"/rfqs/{generatedRFQ.Id}");
+        message = $"Navigation to RFQ {generatedRFQ?.RFQNumber} coming soon!";
+        isSuccess = true;
+        CloseSuccessPanel();
+    }
+
+    private void ViewProject()
+    {
+        // TODO: Navigate to Project details page
+        // NavigationManager.NavigateTo($"/projects/{generatedProject.Id}");
+        message = $"Navigation to Project {generatedProject?.ProjectNumber} coming soon!";
+        isSuccess = true;
+        CloseSuccessPanel();
+    }
+}

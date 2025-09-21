@@ -1,0 +1,257 @@
+@page "/products"
+@using FoodX.Simple.Models
+@using FoodX.Simple.Services
+@inject IProductService ProductService
+@inject ILogger<Products> Logger
+
+<PageTitle>Products</PageTitle>
+
+<h1>Products Catalog</h1>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <input type="text" class="form-control" placeholder="Search products..."
+               @bind="searchTerm" @bind:event="oninput" @onkeypress="@(async (e) => { if(e.Key == "Enter") await LoadProducts(); })" />
+    </div>
+    <div class="col-md-3">
+        <select class="form-control" @bind="selectedCategory" @bind:event="onchange" @bind:after="LoadProducts">
+            <option value="">All Categories</option>
+            @foreach (var category in categories)
+            {
+                <option value="@category">@category</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-3">
+        <button class="btn btn-primary" @onclick="LoadProducts">
+            <i class="bi bi-search"></i> Search
+        </button>
+        <button class="btn btn-secondary ms-2" @onclick="ResetFilters">
+            <i class="bi bi-arrow-clockwise"></i> Reset
+        </button>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading products...</p>
+    </div>
+}
+else if (pagedProducts != null && pagedProducts.Items.Any())
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Supplier</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var product in pagedProducts.Items)
+                {
+                    <tr>
+                        <td>@product.Name</td>
+                        <td><span class="badge bg-info">@product.Category</span></td>
+                        <td>@product.Supplier</td>
+                        <td>$@product.Price.ToString("F2") / @product.Unit</td>
+                        <td>
+                            @if (product.StockQuantity < 100)
+                            {
+                                <span class="badge bg-warning">@product.StockQuantity</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">@product.StockQuantity</span>
+                            }
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewDetails(product)">
+                                <i class="bi bi-eye"></i> Details
+                            </button>
+                            <button class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-cart-plus"></i> Quote
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    <nav aria-label="Products pagination">
+        <ul class="pagination justify-content-center">
+            <li class="page-item @(pagedProducts.HasPreviousPage ? "" : "disabled")">
+                <button class="page-link" @onclick="() => ChangePage(pagedProducts.CurrentPage - 1)"
+                        disabled="@(!pagedProducts.HasPreviousPage)">
+                    <i class="bi bi-chevron-left"></i> Previous
+                </button>
+            </li>
+
+            @for (int i = 1; i <= pagedProducts.TotalPages; i++)
+            {
+                var pageNumber = i;
+                <li class="page-item @(pageNumber == pagedProducts.CurrentPage ? "active" : "")">
+                    <button class="page-link" @onclick="() => ChangePage(pageNumber)">@pageNumber</button>
+                </li>
+            }
+
+            <li class="page-item @(pagedProducts.HasNextPage ? "" : "disabled")">
+                <button class="page-link" @onclick="() => ChangePage(pagedProducts.CurrentPage + 1)"
+                        disabled="@(!pagedProducts.HasNextPage)">
+                    Next <i class="bi bi-chevron-right"></i>
+                </button>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="text-center text-muted">
+        Showing @((pagedProducts.CurrentPage - 1) * pagedProducts.PageSize + 1) -
+        @Math.Min(pagedProducts.CurrentPage * pagedProducts.PageSize, pagedProducts.TotalItems)
+        of @pagedProducts.TotalItems products
+    </div>
+}
+else
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No products found matching your criteria.
+    </div>
+}
+
+<!-- Product Details Modal -->
+@if (selectedProduct != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-box-seam"></i> @selectedProduct.Name
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseDetails"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Category:</strong> <span class="badge bg-info">@selectedProduct.Category</span></p>
+                            <p><strong>Supplier:</strong> @selectedProduct.Supplier</p>
+                            <p><strong>Unit Price:</strong> <span class="text-success fw-bold">$@selectedProduct.Price.ToString("F2")</span> per @selectedProduct.Unit</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Stock Quantity:</strong>
+                                @if (selectedProduct.StockQuantity < 100)
+                                {
+                                    <span class="badge bg-warning">@selectedProduct.StockQuantity (Low Stock)</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">@selectedProduct.StockQuantity (In Stock)</span>
+                                }
+                            </p>
+                            <p><strong>SKU:</strong> #@selectedProduct.Id</p>
+                        </div>
+                    </div>
+                    <hr />
+                    <p><strong>Description:</strong></p>
+                    <p class="text-muted">@selectedProduct.Description</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDetails">
+                        <i class="bi bi-x-circle"></i> Close
+                    </button>
+                    <button type="button" class="btn btn-success">
+                        <i class="bi bi-cart-plus"></i> Request Quote
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private PagedResult<Product>? pagedProducts;
+    private List<string> categories = new();
+    private string searchTerm = "";
+    private string selectedCategory = "";
+    private Product? selectedProduct = null;
+    private bool isLoading = false;
+    private int currentPage = 1;
+    private int pageSize = 10;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategories();
+        await LoadProducts();
+    }
+
+    private async Task LoadCategories()
+    {
+        try
+        {
+            categories = await ProductService.GetCategoriesAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading categories");
+            categories = new List<string> { "Fruits", "Vegetables", "Dairy", "Meat", "Grains" };
+        }
+    }
+
+    private async Task LoadProducts()
+    {
+        isLoading = true;
+        try
+        {
+            pagedProducts = await ProductService.GetProductsAsync(
+                currentPage,
+                pageSize,
+                searchTerm,
+                selectedCategory);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading products");
+            pagedProducts = new PagedResult<Product> { Items = new(), TotalItems = 0, CurrentPage = 1, PageSize = 10, TotalPages = 0 };
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ChangePage(int page)
+    {
+        if (page < 1 || (pagedProducts != null && page > pagedProducts.TotalPages))
+            return;
+
+        currentPage = page;
+        await LoadProducts();
+    }
+
+    private async Task ResetFilters()
+    {
+        searchTerm = "";
+        selectedCategory = "";
+        currentPage = 1;
+        await LoadProducts();
+    }
+
+    private void ViewDetails(Product product)
+    {
+        selectedProduct = product;
+    }
+
+    private void CloseDetails()
+    {
+        selectedProduct = null;
+    }
+}

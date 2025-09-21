@@ -1,0 +1,466 @@
+@page "/csv-upload"
+@using FoodX.Simple.Services
+@using FoodX.Simple.Models
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject ICsvUploadService CsvUploadService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<CsvUpload> Logger
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+@* Disabled for development - uncomment for production *@
+@* @attribute [Authorize] *@
+
+<PageTitle>CSV Upload</PageTitle>
+
+<h1>CSV File Upload</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>Upload New CSV File</h4>
+            </div>
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(uploadMessage))
+                {
+                    <div class="alert @(uploadSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show" role="alert">
+                        <i class="bi @(uploadSuccess ? "bi-check-circle" : "bi-exclamation-triangle")"></i>
+                        @uploadMessage
+                        <button type="button" class="btn-close" @onclick="() => uploadMessage = string.Empty"></button>
+                    </div>
+                }
+
+                <!-- Drag and Drop Zone -->
+                <div id="csvDropZone" class="csv-dropzone @(isDragOver ? "drag-hover" : "") @(uploadSuccess ? "upload-success" : "") @(uploadError ? "upload-error" : "")">
+                    <div class="dropzone-content">
+                        <i class="bi bi-cloud-arrow-up" style="font-size: 3rem;"></i>
+                        <h5>Drag & Drop CSV File Here</h5>
+                        <p class="text-muted">or click to browse</p>
+                        <InputFile id="csvFileInput" OnChange="OnFileSelected" accept=".csv" class="form-control" style="display: none;" @ref="inputFile" />
+                        <button type="button" class="btn btn-outline-primary" @onclick="TriggerFileSelect">
+                            <i class="bi bi-folder-open"></i> Browse Files
+                        </button>
+                    </div>
+                </div>
+
+                @if (selectedFile != null)
+                {
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-file-earmark-text text-primary me-2" style="font-size: 2rem;"></i>
+                                    <div>
+                                        <h6 class="mb-0">@selectedFile.Name</h6>
+                                        <small class="text-muted">@FormatFileSize(selectedFile.Size)</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button class="btn btn-success me-2" @onclick="UploadFile" disabled="@isUploading">
+                                    @if (isUploading)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span>Processing...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-upload"></i>
+                                        <span>Upload</span>
+                                    }
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" @onclick="ClearFile" disabled="@isUploading">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        @if (isUploading)
+                        {
+                            <div class="mt-3">
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar upload-progress-bar progress-bar-striped progress-bar-animated"
+                                         role="progressbar"
+                                         style="width: @(uploadProgress)%"
+                                         aria-valuenow="@uploadProgress"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                        <span class="upload-progress-text">@uploadProgress%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <div class="mt-3">
+                    <h6>Supported CSV Columns:</h6>
+                    <ul class="small">
+                        <li><strong>Product Code:</strong> ProductCode, Code, SKU</li>
+                        <li><strong>Name:</strong> Name, ProductName, Title</li>
+                        <li><strong>Category:</strong> Category, Type</li>
+                        <li><strong>Description:</strong> Description, Details</li>
+                        <li><strong>Price:</strong> Price, Cost, UnitPrice</li>
+                        <li><strong>Unit:</strong> Unit, UOM</li>
+                        <li><strong>Quantity:</strong> Quantity, Qty, Stock</li>
+                        <li><strong>Supplier:</strong> Supplier, Vendor</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>Upload History</h4>
+            </div>
+            <div class="card-body">
+                @if (uploadedFiles == null)
+                {
+                    <p>Loading...</p>
+                }
+                else if (!uploadedFiles.Any())
+                {
+                    <p>No files uploaded yet.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>File Name</th>
+                                    <th>Date</th>
+                                    <th>Records</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var file in uploadedFiles.Take(10))
+                                {
+                                    <tr>
+                                        <td>@file.FileName</td>
+                                        <td>@file.UploadedDate.ToString("MM/dd HH:mm")</td>
+                                        <td>@file.RecordsProcessed</td>
+                                        <td>
+                                            <span class="badge @GetStatusBadgeClass(file.Status)">
+                                                @file.Status
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-info" @onclick="() => ViewProducts(file.Id)">
+                                                View
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (selectedProducts != null)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Imported Products</h5>
+                    <button type="button" class="btn-close" @onclick="CloseProductsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Price</th>
+                                    <th>Quantity</th>
+                                    <th>Supplier</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var product in selectedProducts)
+                                {
+                                    <tr>
+                                        <td>@product.ProductCode</td>
+                                        <td>@product.Name</td>
+                                        <td>@product.Category</td>
+                                        <td>$@product.Price.ToString("F2")</td>
+                                        <td>@product.Quantity @product.Unit</td>
+                                        <td>@product.Supplier</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseProductsModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private IBrowserFile? selectedFile;
+    private InputFile? inputFile;
+    private bool isUploading = false;
+    private string uploadMessage = "";
+    private bool uploadSuccess = false;
+    private bool uploadError = false;
+    private bool isDragOver = false;
+    private int uploadProgress = 0;
+    private List<UploadedFile>? uploadedFiles;
+    private List<ImportedProduct>? selectedProducts;
+    private string currentUser = "";
+    private DotNetObjectReference<CsvUpload>? dotNetRef;
+    private System.Threading.Timer? progressTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUploadedFiles();
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentUser = authState.User.Identity?.Name ?? "Unknown";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("initializeCsvUpload", dotNetRef);
+        }
+    }
+
+    private async Task LoadUploadedFiles()
+    {
+        uploadedFiles = await CsvUploadService.GetUploadedFilesAsync();
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        uploadMessage = "";
+        uploadError = false;
+        uploadSuccess = false;
+    }
+
+    private async Task TriggerFileSelect()
+    {
+        if (inputFile != null)
+        {
+            await inputFile.Element!.Value.FocusAsync();
+        }
+    }
+
+    private void ClearFile()
+    {
+        selectedFile = null;
+        uploadMessage = "";
+        uploadProgress = 0;
+    }
+
+    [JSInvokable]
+    public void HandleFileDrop(string fileName)
+    {
+        Logger.LogInformation($"File dropped: {fileName}");
+        StateHasChanged();
+    }
+
+    private async Task UploadFile()
+    {
+        if (selectedFile == null)
+            return;
+
+        isUploading = true;
+        uploadMessage = "";
+        uploadProgress = 0;
+        uploadError = false;
+
+        // Start progress simulation
+        progressTimer = new System.Threading.Timer(async _ =>
+        {
+            if (uploadProgress < 90)
+            {
+                uploadProgress += Random.Shared.Next(5, 15);
+                if (uploadProgress > 90) uploadProgress = 90;
+                await InvokeAsync(() =>
+                {
+                    StateHasChanged();
+                    _ = JSRuntime.InvokeVoidAsync("updateUploadProgress", uploadProgress);
+                });
+            }
+        }, null, 0, 500);
+
+        try
+        {
+            const long maxFileSize = 10 * 1024 * 1024; // 10MB
+
+            if (selectedFile.Size > maxFileSize)
+            {
+                uploadMessage = "File size exceeds 10MB limit.";
+                uploadSuccess = false;
+                uploadError = true;
+                await JSRuntime.InvokeVoidAsync("showUploadError");
+                return;
+            }
+
+            using var stream = selectedFile.OpenReadStream(maxFileSize);
+            var result = await CsvUploadService.ProcessCsvFileAsync(stream, selectedFile.Name, currentUser);
+
+            if (result.Status == "Completed")
+            {
+                uploadProgress = 100;
+                await JSRuntime.InvokeVoidAsync("updateUploadProgress", uploadProgress);
+                await Task.Delay(500); // Show 100% briefly
+
+                uploadMessage = $"Successfully uploaded and processed {result.RecordsProcessed} records.";
+                uploadSuccess = true;
+                await JSRuntime.InvokeVoidAsync("showUploadSuccess");
+                selectedFile = null;
+                uploadProgress = 0;
+                await LoadUploadedFiles();
+            }
+            else
+            {
+                uploadMessage = $"Upload failed: {result.ErrorMessage}";
+                uploadSuccess = false;
+                uploadError = true;
+                await JSRuntime.InvokeVoidAsync("showUploadError");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error uploading file");
+            uploadMessage = $"Error: {ex.Message}";
+            uploadSuccess = false;
+            uploadError = true;
+            await JSRuntime.InvokeVoidAsync("showUploadError");
+        }
+        finally
+        {
+            isUploading = false;
+            progressTimer?.Dispose();
+            StateHasChanged();
+        }
+    }
+
+    private async Task ViewProducts(int uploadedFileId)
+    {
+        selectedProducts = await CsvUploadService.GetImportedProductsAsync(uploadedFileId);
+    }
+
+    private void CloseProductsModal()
+    {
+        selectedProducts = null;
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        var sizes = new[] { "B", "KB", "MB", "GB" };
+        var order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:0.##} {sizes[order]}";
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Completed" => "bg-success",
+            "Processing" => "bg-warning",
+            "Failed" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        progressTimer?.Dispose();
+        dotNetRef?.Dispose();
+        await Task.CompletedTask;
+    }
+}
+
+<style>
+    .csv-dropzone {
+        border: 2px dashed #ccc;
+        border-radius: 10px;
+        padding: 40px;
+        text-align: center;
+        transition: all 0.3s ease;
+        background-color: #f8f9fa;
+        cursor: pointer;
+        margin-bottom: 20px;
+    }
+
+    .csv-dropzone:hover {
+        border-color: #007bff;
+        background-color: #e7f1ff;
+    }
+
+    .csv-dropzone.drag-hover {
+        border-color: #28a745;
+        background-color: #d4edda;
+        transform: scale(1.02);
+    }
+
+    .csv-dropzone.upload-success {
+        border-color: #28a745;
+        background-color: #d4edda;
+        animation: success-pulse 0.5s ease;
+    }
+
+    .csv-dropzone.upload-error {
+        border-color: #dc3545;
+        background-color: #f8d7da;
+        animation: error-shake 0.5s ease;
+    }
+
+    @@keyframes success-pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    @@keyframes error-shake {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+        20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+
+    .dropzone-content i {
+        color: #6c757d;
+        margin-bottom: 15px;
+    }
+
+    .drag-hover .dropzone-content i {
+        color: #28a745;
+    }
+
+    .upload-progress-bar {
+        background-color: #007bff;
+        transition: width 0.5s ease;
+    }
+
+    .upload-progress-text {
+        font-weight: bold;
+    }
+</style>

@@ -1,0 +1,92 @@
+@page "/login"
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using System.Security.Claims
+@inject NavigationManager Navigation
+@inject IHttpContextAccessor HttpContextAccessor
+
+<PageTitle>Login</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <h2>Login</h2>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <EditForm Model="loginModel" OnValidSubmit="HandleLogin" FormName="login-form">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
+
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <InputText @bind-Value="loginModel.Username" class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <InputText @bind-Value="loginModel.Password" type="password" class="form-control" />
+            </div>
+
+            <button type="submit" class="btn btn-primary">Login</button>
+        </EditForm>
+
+        <hr />
+        <div class="alert alert-info">
+            <h5>Test Users (Dev Mode)</h5>
+            <p><strong>Buyer:</strong> buyer / pass123</p>
+            <p><strong>Supplier:</strong> supplier / pass123</p>
+            <p><strong>Admin:</strong> admin / pass123</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginModel loginModel = new();
+    private string? errorMessage;
+
+    private async Task HandleLogin()
+    {
+        // Simple hardcoded authentication for dev mode
+        var validUsers = new Dictionary<string, string>
+        {
+            { "buyer", "pass123" },
+            { "supplier", "pass123" },
+            { "admin", "pass123" }
+        };
+
+        if (validUsers.TryGetValue(loginModel.Username?.ToLower() ?? "", out var password)
+            && password == loginModel.Password)
+        {
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, loginModel.Username),
+                new Claim(ClaimTypes.Role, loginModel.Username.ToLower())
+            };
+
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
+
+            if (HttpContextAccessor.HttpContext != null)
+            {
+                await HttpContextAccessor.HttpContext.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    principal);
+            }
+
+            Navigation.NavigateTo("/");
+        }
+        else
+        {
+            errorMessage = "Invalid username or password";
+        }
+    }
+
+    public class LoginModel
+    {
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+}

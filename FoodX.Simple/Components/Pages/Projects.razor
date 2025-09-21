@@ -1,0 +1,466 @@
+@page "/projects"
+@using FoodX.Simple.Models
+@using FoodX.Simple.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IProductBriefService BriefService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<Projects> Logger
+@* Disabled for development - uncomment for production *@
+@* @attribute [Authorize] *@
+
+<PageTitle>My Projects</PageTitle>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>🚀 My Projects</h1>
+            <p class="text-muted">Track your procurement project progress</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="/product-briefs" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Create New Brief
+            </a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert @(isSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show" role="alert">
+            @message
+            <button type="button" class="btn-close" @onclick="() => message = string.Empty"></button>
+        </div>
+    }
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <select class="form-select" @bind="statusFilter" @bind:after="FilterProjects">
+                <option value="">All Statuses</option>
+                <option value="Planning">Planning</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Review">Review</option>
+                <option value="Completed">Completed</option>
+                <option value="On Hold">On Hold</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <select class="form-select" @bind="priorityFilter" @bind:after="FilterProjects">
+                <option value="">All Priorities</option>
+                <option value="High">High Priority</option>
+                <option value="Medium">Medium Priority</option>
+                <option value="Low">Low Priority</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" placeholder="Search projects..." @bind="searchTerm" @oninput="@((e) => { searchTerm = e.Value?.ToString() ?? ""; FilterProjects(); })">
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            @if (projects == null)
+            {
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading projects...</p>
+                </div>
+            }
+            else if (!filteredProjects.Any())
+            {
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-kanban" style="font-size: 3rem; color: #dee2e6;"></i>
+                        <h4 class="mt-3 text-muted">No Projects Found</h4>
+                        <p class="text-muted">
+                            @if (string.IsNullOrEmpty(searchTerm) && string.IsNullOrEmpty(statusFilter) && string.IsNullOrEmpty(priorityFilter))
+                            {
+                                <span>You haven't created any projects yet. Projects are automatically created when you submit product briefs!</span>
+                            }
+                            else
+                            {
+                                <span>No projects match your current filters.</span>
+                            }
+                        </p>
+                        <a href="/product-briefs" class="btn btn-outline-primary">
+                            <i class="bi bi-plus-circle"></i> Create First Brief
+                        </a>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="row">
+                    @foreach (var project in filteredProjects)
+                    {
+                        <div class="col-xl-4 col-lg-6 mb-4">
+                            <div class="card h-100 @GetProjectCardClass(project.Priority)">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0 text-primary">@project.ProjectNumber</h6>
+                                    <span class="badge @GetStatusBadgeClass(project.Status)">@project.Status</span>
+                                </div>
+                                <div class="card-body">
+                                    <h5 class="card-title">@project.Title</h5>
+                                    @if (!string.IsNullOrEmpty(project.Description))
+                                    {
+                                        <p class="card-text text-muted small">@project.Description</p>
+                                    }
+
+                                    <div class="row text-center mb-3">
+                                        <div class="col-4">
+                                            <div class="small text-muted">Priority</div>
+                                            <span class="badge @GetPriorityBadgeClass(project.Priority)">@project.Priority</span>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="small text-muted">Start Date</div>
+                                            <div class="small">@project.StartDate.ToString("MMM dd")</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="small text-muted">Target End</div>
+                                            <div class="small @(project.ExpectedEndDate < DateTime.Now ? "text-danger" : "")">
+                                                @(project.ExpectedEndDate?.ToString("MMM dd") ?? "TBD")
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    @if (project.ExpectedEndDate.HasValue)
+                                    {
+                                        var daysRemaining = (project.ExpectedEndDate.Value - DateTime.Now).Days;
+                                        <div class="progress mb-3" style="height: 6px;">
+                                            <div class="progress-bar @GetProgressBarClass(project.Status)"
+                                                 role="progressbar"
+                                                 style="width: @GetProgressPercentage(project.Status)%">
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">
+                                                @if (daysRemaining > 0)
+                                                {
+                                                    <span>@daysRemaining days remaining</span>
+                                                }
+                                                else if (daysRemaining == 0)
+                                                {
+                                                    <span class="text-warning">Due today</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-danger">@Math.Abs(daysRemaining) days overdue</span>
+                                                }
+                                            </small>
+                                            @if (!string.IsNullOrEmpty(project.AssignedTo))
+                                            {
+                                                <small class="text-muted">
+                                                    <i class="bi bi-person"></i> @project.AssignedTo
+                                                </small>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <div class="btn-group w-100" role="group">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => ViewProject(project)">
+                                            <i class="bi bi-eye"></i> View
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ViewRFQ(project)">
+                                            <i class="bi bi-clipboard-check"></i> RFQ
+                                        </button>
+                                        @if (project.Status != "Completed")
+                                        {
+                                            <button type="button" class="btn btn-outline-warning btn-sm" @onclick="() => EditProject(project)">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <small class="text-muted">
+                        Showing @filteredProjects.Count() of @projects.Count projects
+                    </small>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary active">
+                            <i class="bi bi-grid"></i> Cards
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="@(() => message = "Table view coming soon!")">
+                            <i class="bi bi-list"></i> List
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@* Project Details Modal *@
+@if (selectedProject != null)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Project Details - @selectedProject.ProjectNumber</h5>
+                    <button type="button" class="btn-close" @onclick="CloseProjectModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Project Title</label>
+                                <p class="form-control-plaintext">@selectedProject.Title</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Description</label>
+                                <p class="form-control-plaintext">@selectedProject.Description</p>
+                            </div>
+                            @if (!string.IsNullOrEmpty(selectedProject.Notes))
+                            {
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Notes</label>
+                                    <div class="border rounded p-3 bg-light">
+                                        <pre class="mb-0" style="white-space: pre-wrap;">@selectedProject.Notes</pre>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Project Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-2">
+                                        <strong>Status:</strong>
+                                        <span class="badge @GetStatusBadgeClass(selectedProject.Status) ms-1">@selectedProject.Status</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Priority:</strong>
+                                        <span class="badge @GetPriorityBadgeClass(selectedProject.Priority) ms-1">@selectedProject.Priority</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Start Date:</strong><br>
+                                        <small>@selectedProject.StartDate.ToString("MMMM dd, yyyy")</small>
+                                    </div>
+                                    @if (selectedProject.ExpectedEndDate.HasValue)
+                                    {
+                                        <div class="mb-2">
+                                            <strong>Expected End:</strong><br>
+                                            <small class="@(selectedProject.ExpectedEndDate < DateTime.Now ? "text-danger" : "")">
+                                                @selectedProject.ExpectedEndDate.Value.ToString("MMMM dd, yyyy")
+                                            </small>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(selectedProject.AssignedTo))
+                                    {
+                                        <div class="mb-2">
+                                            <strong>Assigned To:</strong><br>
+                                            <small>@selectedProject.AssignedTo</small>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(selectedProject.CreatedBy))
+                                    {
+                                        <div class="mb-2">
+                                            <strong>Created By:</strong><br>
+                                            <small>@selectedProject.CreatedBy</small>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => ViewRFQ(selectedProject)">
+                        <i class="bi bi-clipboard-check"></i> View Related RFQ
+                    </button>
+                    @if (selectedProject.Status != "Completed")
+                    {
+                        <button type="button" class="btn btn-warning" @onclick="() => EditProject(selectedProject)">
+                            <i class="bi bi-pencil"></i> Edit Project
+                        </button>
+                    }
+                    <button type="button" class="btn btn-secondary" @onclick="CloseProjectModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private List<Project>? projects;
+    private List<Project> filteredProjects = new();
+    private Project? selectedProject;
+    private string searchTerm = "";
+    private string statusFilter = "";
+    private string priorityFilter = "";
+    private string message = "";
+    private bool isSuccess = false;
+    private string currentUser = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProjects();
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentUser = authState.User.Identity?.Name ?? "Unknown";
+    }
+
+    private async Task LoadProjects()
+    {
+        try
+        {
+            // For now, we'll get Projects by loading all briefs and generating projects for completed workflows
+            // In a real application, you'd have a dedicated Project service
+            var briefs = await BriefService.GetAllBriefsAsync();
+            projects = new List<Project>();
+
+            // Simulate Projects for each brief that is Active (workflow tracking temporarily disabled)
+            foreach (var brief in briefs.Where(b => b.Status == "Active"))
+            {
+                projects.Add(new Project
+                {
+                    Id = brief.Id,
+                    ProjectNumber = $"PRJ-{DateTime.Now.Year}-{brief.Id:D3}",
+                    Title = $"Project: {brief.ProductName}",
+                    Description = $"Procurement project for {brief.ProductName}",
+                    Status = GetRandomStatus(),
+                    Priority = GetRandomPriority(),
+                    StartDate = brief.CreatedDate,
+                    ExpectedEndDate = brief.CreatedDate.AddDays(45), // 45 days from brief creation
+                    AssignedTo = brief.CreatedBy,
+                    RFQId = brief.Id, // Simulate RFQ link
+                    CreatedBy = brief.CreatedBy,
+                    Notes = $"Auto-generated project for RFQ-{DateTime.Now.Year}-{brief.Id:D3}\n\nProduct Category: {brief.Category}\nPackage Size: {brief.PackageSize ?? "Not specified"}"
+                });
+            }
+
+            filteredProjects = projects.ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading projects");
+            message = "Error loading projects. Please try again.";
+            isSuccess = false;
+        }
+    }
+
+    private string GetRandomStatus()
+    {
+        var statuses = new[] { "Planning", "In Progress", "Review", "Completed", "On Hold" };
+        var random = new Random();
+        return statuses[random.Next(statuses.Length)];
+    }
+
+    private string GetRandomPriority()
+    {
+        var priorities = new[] { "High", "Medium", "Low" };
+        var random = new Random();
+        return priorities[random.Next(priorities.Length)];
+    }
+
+    private void FilterProjects()
+    {
+        if (projects == null) return;
+
+        filteredProjects = projects.Where(p =>
+            (string.IsNullOrEmpty(statusFilter) || p.Status == statusFilter) &&
+            (string.IsNullOrEmpty(priorityFilter) || p.Priority == priorityFilter) &&
+            (string.IsNullOrEmpty(searchTerm) ||
+             p.ProjectNumber.ToLower().Contains(searchTerm.ToLower()) ||
+             p.Title.ToLower().Contains(searchTerm.ToLower()) ||
+             p.Description.ToLower().Contains(searchTerm.ToLower()))
+        ).ToList();
+    }
+
+    private void ViewProject(Project project)
+    {
+        selectedProject = project;
+    }
+
+    private void CloseProjectModal()
+    {
+        selectedProject = null;
+    }
+
+    private void ViewRFQ(Project project)
+    {
+        message = $"Viewing related RFQ for project {project.ProjectNumber} - functionality coming soon!";
+        isSuccess = true;
+        CloseProjectModal();
+    }
+
+    private void EditProject(Project project)
+    {
+        message = $"Edit functionality for project {project.ProjectNumber} coming soon!";
+        isSuccess = true;
+        CloseProjectModal();
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Planning" => "bg-secondary",
+            "In Progress" => "bg-primary",
+            "Review" => "bg-warning",
+            "Completed" => "bg-success",
+            "On Hold" => "bg-danger",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    private string GetPriorityBadgeClass(string priority)
+    {
+        return priority switch
+        {
+            "High" => "bg-danger",
+            "Medium" => "bg-warning",
+            "Low" => "bg-success",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetProjectCardClass(string priority)
+    {
+        return priority switch
+        {
+            "High" => "border-danger",
+            "Medium" => "border-warning",
+            "Low" => "border-success",
+            _ => ""
+        };
+    }
+
+    private string GetProgressBarClass(string status)
+    {
+        return status switch
+        {
+            "Planning" => "bg-secondary",
+            "In Progress" => "bg-primary",
+            "Review" => "bg-warning",
+            "Completed" => "bg-success",
+            "On Hold" => "bg-danger",
+            _ => "bg-light"
+        };
+    }
+
+    private int GetProgressPercentage(string status)
+    {
+        return status switch
+        {
+            "Planning" => 25,
+            "In Progress" => 60,
+            "Review" => 85,
+            "Completed" => 100,
+            "On Hold" => 30,
+            _ => 0
+        };
+    }
+}
